@@ -1,0 +1,339 @@
+import { LANDMARKS } from "@/lib/calibration/landmarks";
+import { computeToplineY, type ConformationLandmarks } from "@/lib/conformation/landmarks";
+
+function xPx(frac: number, imageWidth: number): number {
+  return frac * imageWidth;
+}
+
+function yPx(frac: number, imageHeight: number): number {
+  return frac * imageHeight;
+}
+
+type Point = { x: number; y: number };
+
+function toPoint(
+  lm: ConformationLandmarks,
+  xKey: keyof ConformationLandmarks,
+  yKey: keyof ConformationLandmarks,
+  w: number,
+  h: number,
+): Point {
+  return { x: xPx(lm[xKey] as number, w), y: yPx(lm[yKey] as number, h) };
+}
+
+function drawVerticalReference(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  yTop: number,
+  imageHeight: number,
+  lineWidth: number,
+) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.42)";
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(x, yTop);
+  ctx.lineTo(x, imageHeight);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLegStack(
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  lineWidth: number,
+) {
+  if (points.length < 2) return;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.lineWidth = lineWidth;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+}
+
+function drawJointDot(
+  ctx: CanvasRenderingContext2D,
+  p: Point,
+  radius: number,
+) {
+  ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
+  ctx.strokeStyle = "rgba(15, 15, 15, 0.85)";
+  ctx.lineWidth = Math.max(2, radius * 0.35);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawJointLabel(
+  ctx: CanvasRenderingContext2D,
+  p: Point,
+  label: string,
+  dotRadius: number,
+) {
+  ctx.save();
+  ctx.font = "12px system-ui, -apple-system, sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  const x = p.x + dotRadius + 6;
+  const y = p.y;
+  ctx.lineWidth = 3;
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeText(label, x, y);
+  ctx.fillText(label, x, y);
+  ctx.restore();
+}
+
+function drawYellowSquare(
+  ctx: CanvasRenderingContext2D,
+  loinX: number,
+  withersX: number,
+  topY: number,
+  girthY: number,
+  lineWidth: number,
+) {
+  ctx.strokeStyle = "rgba(240, 230, 0, 0.9)";
+  ctx.lineWidth = lineWidth;
+  ctx.lineJoin = "miter";
+  ctx.beginPath();
+  ctx.moveTo(loinX, topY);
+  ctx.lineTo(withersX, topY);
+  ctx.lineTo(withersX, girthY);
+  ctx.lineTo(loinX, girthY);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawGreenTrapezoid(
+  ctx: CanvasRenderingContext2D,
+  pointOfButtockX: number,
+  pointOfShoulderX: number,
+  girthY: number,
+  withersX: number,
+  withersY: number,
+  loinX: number,
+  loinY: number,
+  lineWidth: number,
+) {
+  ctx.strokeStyle = "rgba(50, 210, 50, 0.9)";
+  ctx.lineWidth = lineWidth;
+  ctx.lineJoin = "miter";
+  ctx.beginPath();
+  ctx.moveTo(pointOfButtockX, girthY);
+  ctx.lineTo(pointOfShoulderX, girthY);
+  ctx.lineTo(withersX, withersY);
+  ctx.lineTo(loinX, loinY);
+  ctx.lineTo(pointOfButtockX, girthY);
+  ctx.stroke();
+}
+
+/** ProgenXai overlay layers on an existing 2D context (browser or node canvas). */
+export function renderConformationOverlayLayers(
+  ctx: CanvasRenderingContext2D,
+  landmarks: ConformationLandmarks,
+  imageWidth: number,
+  imageHeight: number,
+) {
+  const lineWidth = Math.max(4, Math.floor(imageWidth / 350));
+  const thinLine = Math.max(2, Math.floor(imageWidth / 500));
+  const jointRadius = Math.max(6, Math.floor(imageWidth / 100));
+  const legLineWidth = Math.max(3, Math.floor(imageWidth / 400));
+  const refLineWidth = Math.max(2, Math.floor(imageWidth / 500));
+
+  const shoulderX = xPx(landmarks.point_of_shoulder_x, imageWidth);
+  const girthX = xPx(landmarks.girth_x, imageWidth);
+  const flankX = xPx(landmarks.flank_x, imageWidth);
+  const buttockX = xPx(landmarks.point_of_buttock_x, imageWidth);
+  const withersX = xPx(landmarks.withers_x, imageWidth);
+  const loinX = xPx(landmarks.loin_x, imageWidth);
+  const withersY = yPx(landmarks.withers_y, imageHeight);
+  const loinY = yPx(landmarks.loin_y, imageHeight);
+  const buttockY = yPx(landmarks.buttock_y, imageHeight);
+  const girthY = yPx(landmarks.girth_y, imageHeight);
+  const toplineY = yPx(computeToplineY(landmarks), imageHeight);
+
+  const poll = toPoint(landmarks, "poll_x", "poll_y", imageWidth, imageHeight);
+  const shoulder = toPoint(
+    landmarks,
+    "point_of_shoulder_x",
+    "shoulder_y",
+    imageWidth,
+    imageHeight,
+  );
+  const forearm = toPoint(
+    landmarks,
+    "forearm_x",
+    "forearm_y",
+    imageWidth,
+    imageHeight,
+  );
+  const frontKnee = toPoint(
+    landmarks,
+    "front_knee_x",
+    "front_knee_y",
+    imageWidth,
+    imageHeight,
+  );
+  const frontFetlock = toPoint(
+    landmarks,
+    "front_fetlock_x",
+    "front_fetlock_y",
+    imageWidth,
+    imageHeight,
+  );
+  const frontHoof = toPoint(
+    landmarks,
+    "front_hoof_x",
+    "front_hoof_y",
+    imageWidth,
+    imageHeight,
+  );
+  const withers = toPoint(
+    landmarks,
+    "withers_x",
+    "withers_y",
+    imageWidth,
+    imageHeight,
+  );
+  const girth = toPoint(
+    landmarks,
+    "girth_x",
+    "girth_y",
+    imageWidth,
+    imageHeight,
+  );
+  const loin = toPoint(
+    landmarks,
+    "loin_x",
+    "loin_y",
+    imageWidth,
+    imageHeight,
+  );
+  const flank = toPoint(
+    landmarks,
+    "flank_x",
+    "flank_y",
+    imageWidth,
+    imageHeight,
+  );
+  const tail = toPoint(
+    landmarks,
+    "tail_x",
+    "tail_y",
+    imageWidth,
+    imageHeight,
+  );
+  const buttockJoint: Point = { x: buttockX, y: buttockY };
+  const pointOfHip = toPoint(
+    landmarks,
+    "point_of_hip_x",
+    "point_of_hip_y",
+    imageWidth,
+    imageHeight,
+  );
+  const stifle = toPoint(
+    landmarks,
+    "stifle_x",
+    "stifle_y",
+    imageWidth,
+    imageHeight,
+  );
+  const gaskin = toPoint(
+    landmarks,
+    "gaskin_x",
+    "gaskin_y",
+    imageWidth,
+    imageHeight,
+  );
+  const hindHock = toPoint(
+    landmarks,
+    "hind_hock_x",
+    "hind_hock_y",
+    imageWidth,
+    imageHeight,
+  );
+  const hindFetlock = toPoint(
+    landmarks,
+    "hind_fetlock_x",
+    "hind_fetlock_y",
+    imageWidth,
+    imageHeight,
+  );
+  const hindHoof = toPoint(
+    landmarks,
+    "hind_hoof_x",
+    "hind_hoof_y",
+    imageWidth,
+    imageHeight,
+  );
+
+  ctx.strokeStyle = "rgba(120, 200, 255, 0.85)";
+  ctx.lineWidth = thinLine;
+  ctx.beginPath();
+  ctx.moveTo(0, girthY);
+  ctx.lineTo(imageWidth, girthY);
+  ctx.stroke();
+
+  const redVerticalXs = [flankX, girthX, shoulderX, buttockX];
+  ctx.strokeStyle = "rgba(220, 40, 40, 0.9)";
+  ctx.lineWidth = lineWidth;
+  for (const x of redVerticalXs) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, imageHeight);
+    ctx.stroke();
+  }
+
+  drawYellowSquare(ctx, loinX, withersX, toplineY, girthY, lineWidth);
+  drawGreenTrapezoid(
+    ctx,
+    buttockX,
+    shoulderX,
+    girthY,
+    withersX,
+    withersY,
+    loinX,
+    loinY,
+    lineWidth,
+  );
+
+  drawVerticalReference(ctx, shoulderX, toplineY, imageHeight, refLineWidth);
+  drawVerticalReference(ctx, buttockX, toplineY, imageHeight, refLineWidth);
+
+  drawLegStack(ctx, [forearm, frontKnee, frontFetlock, frontHoof], legLineWidth);
+  drawLegStack(ctx, [gaskin, hindHock, hindFetlock, hindHoof], legLineWidth);
+
+  const landmarkDots = [
+    poll,
+    shoulder,
+    forearm,
+    frontKnee,
+    frontFetlock,
+    frontHoof,
+    withers,
+    girth,
+    loin,
+    flank,
+    pointOfHip,
+    tail,
+    buttockJoint,
+    stifle,
+    gaskin,
+    hindHock,
+    hindFetlock,
+    hindHoof,
+  ];
+
+  for (let i = 0; i < landmarkDots.length; i++) {
+    const p = landmarkDots[i];
+    drawJointDot(ctx, p, jointRadius);
+    drawJointLabel(ctx, p, LANDMARKS[i].label, jointRadius);
+  }
+}
