@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
+import { LANDMARKS } from "@/lib/calibration/landmarks";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -231,12 +232,36 @@ export default function AnalyzeClient() {
                   {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
                 </button>
               </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={result.overlayImage}
-                alt="Conformation overlay"
-                className="mt-4 w-full rounded-lg border border-zinc-800"
-              />
+              <div className="relative mt-4 w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={result.overlayImage}
+                  alt="Conformation overlay"
+                  className="w-full rounded-lg border border-zinc-800"
+                />
+                {LANDMARKS.map((landmark) => {
+                  const point = result.landmarks[landmark.id];
+                  if (!point) return null;
+                  return (
+                    <span
+                      key={landmark.id}
+                      style={{
+                        position: "absolute",
+                        left: `${point.x * 100}%`,
+                        top: `${point.y * 100}%`,
+                        transform: "translate(12px, -50%)",
+                        fontSize: "11px",
+                        color: "white",
+                        textShadow: "0 0 3px black",
+                        whiteSpace: "nowrap",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {landmark.label}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">

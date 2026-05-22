@@ -137,6 +137,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       overlayImage: `data:image/jpeg;base64,${overlayBase64}`,
       report,
+      landmarks: detectedLandmarks,
     });
   } catch (error) {
     console.error("[analyze] failed:", error);
