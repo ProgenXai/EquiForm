@@ -27,10 +27,16 @@ export default function AnalyzeClient() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeApiResponse | null>(null);
+  const [email, setEmail] = useState("");
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   function resetResult() {
     setResult(null);
     setError(null);
+    setEmail("");
+    setEmailSubmitted(false);
+    setEmailError(null);
   }
 
   function handleFile(file: File) {
@@ -76,6 +82,9 @@ export default function AnalyzeClient() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setEmail("");
+    setEmailSubmitted(false);
+    setEmailError(null);
 
     try {
       const formData = new FormData();
@@ -140,6 +149,16 @@ export default function AnalyzeClient() {
     } finally {
       setPdfLoading(false);
     }
+  }
+
+  function handleViewReport() {
+    const trimmed = email.trim();
+    if (!trimmed.includes("@") || !trimmed.includes(".")) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError(null);
+    setEmailSubmitted(true);
   }
 
   return (
@@ -232,7 +251,43 @@ export default function AnalyzeClient() {
           ) : null}
         </section>
 
-        {result ? (
+        {result && !emailSubmitted ? (
+          <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h2 className="text-lg font-semibold text-white">
+              Your analysis is ready!
+            </h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              Enter your email to view your horse&apos;s conformation report
+            </p>
+            <div className="mt-6">
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  if (emailError) setEmailError(null);
+                }}
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+              />
+              {emailError ? (
+                <p className="mt-2 text-sm text-red-400" role="alert">
+                  {emailError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleViewReport}
+                className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+              >
+                View My Report
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {result && emailSubmitted ? (
           <section className="mt-8 space-y-8">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
