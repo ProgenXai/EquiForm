@@ -61,6 +61,23 @@ export default function AnalyzeClient() {
     setEmailError(null);
   }
 
+  function handleAnalyzeAnotherHorse() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    setLoading(false);
+    setPdfLoading(false);
+    setCheckoutLoading(false);
+    resetResult();
+    try {
+      sessionStorage.removeItem(PENDING_RESULT_KEY);
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
   function handleFile(file: File) {
     resetResult();
 
@@ -427,6 +444,13 @@ export default function AnalyzeClient() {
                   );
                 })}
               </ul>
+              <button
+                type="button"
+                onClick={handleAnalyzeAnotherHorse}
+                className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+              >
+                Analyze Another Horse
+              </button>
             </div>
           </section>
         ) : null}
