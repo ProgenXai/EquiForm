@@ -239,6 +239,7 @@ export default function AnalyzeClient() {
                   alt="Conformation overlay"
                   className="w-full rounded-lg border border-zinc-800"
                 />
+                {console.log('[LABELS]', result.landmarks, LANDMARKS)}
                 {LANDMARKS.map((landmark) => {
                   const point = result.landmarks[landmark.id];
                   if (!point) return null;
