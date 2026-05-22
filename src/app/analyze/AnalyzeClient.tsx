@@ -151,13 +151,24 @@ export default function AnalyzeClient() {
     }
   }
 
-  function handleViewReport() {
+  async function handleViewReport() {
     const trimmed = email.trim();
     if (!trimmed.includes("@") || !trimmed.includes(".")) {
       setEmailError("Please enter a valid email address.");
       return;
     }
     setEmailError(null);
+
+    try {
+      await fetch("/api/capture-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+    } catch {
+      // Do not block the user from viewing the report
+    }
+
     setEmailSubmitted(true);
   }
 
@@ -278,7 +289,7 @@ export default function AnalyzeClient() {
               ) : null}
               <button
                 type="button"
-                onClick={handleViewReport}
+                onClick={() => void handleViewReport()}
                 className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 View My Report
