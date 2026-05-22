@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
@@ -20,6 +20,8 @@ const REPORT_SECTIONS: {
   { key: "leg_alignment", label: "Leg alignment" },
 ];
 
+const PENDING_RESULT_KEY = "equiform_pending_result";
+
 export default function AnalyzeClient() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -30,6 +32,26 @@ export default function AnalyzeClient() {
   const [email, setEmail] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") !== "true") return;
+
+    try {
+      const stored = sessionStorage.getItem(PENDING_RESULT_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as AnalyzeApiResponse;
+        setResult(parsed);
+        setEmailSubmitted(true);
+        sessionStorage.removeItem(PENDING_RESULT_KEY);
+      }
+    } catch {
+      // Ignore invalid stored result
+    }
+
+    window.history.replaceState({}, "", "/analyze");
+  }, []);
 
   function resetResult() {
     setResult(null);
@@ -151,25 +173,45 @@ export default function AnalyzeClient() {
     }
   }
 
-  async function handleViewReport() {
+  async function handleGetReport() {
     const trimmed = email.trim();
     if (!trimmed.includes("@") || !trimmed.includes(".")) {
       setEmailError("Please enter a valid email address.");
       return;
     }
+    if (!result) return;
+
     setEmailError(null);
+    setCheckoutLoading(true);
 
     try {
-      await fetch("/api/capture-email", {
+      try {
+        sessionStorage.setItem(PENDING_RESULT_KEY, JSON.stringify(result));
+      } catch {
+        // Continue to checkout even if storage fails
+      }
+
+      const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       });
-    } catch {
-      // Do not block the user from viewing the report
-    }
 
-    setEmailSubmitted(true);
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        setEmailError(data.error ?? "Unable to start checkout. Please try again.");
+        setCheckoutLoading(false);
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      setEmailError(
+        err instanceof Error ? err.message : "Unable to start checkout. Please try again.",
+      );
+      setCheckoutLoading(false);
+    }
   }
 
   return (
@@ -268,7 +310,7 @@ export default function AnalyzeClient() {
               Your analysis is ready!
             </h2>
             <p className="mt-2 text-sm text-zinc-400">
-              Enter your email to view your horse&apos;s conformation report
+              Get your full horse conformation report for just $5.00
             </p>
             <div className="mt-6">
               <input
@@ -289,10 +331,11 @@ export default function AnalyzeClient() {
               ) : null}
               <button
                 type="button"
-                onClick={() => void handleViewReport()}
-                className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                onClick={() => void handleGetReport()}
+                disabled={checkoutLoading}
+                className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
               >
-                View My Report
+                {checkoutLoading ? "Redirecting to checkout…" : "Get My Report — $5.00"}
               </button>
             </div>
           </section>
