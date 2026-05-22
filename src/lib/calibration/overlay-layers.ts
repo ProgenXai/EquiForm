@@ -77,7 +77,7 @@ function drawJointLabel(
   dotRadius: number,
 ) {
   ctx.save();
-  ctx.font = "12px system-ui, -apple-system, sans-serif";
+  ctx.font = "12px Arial, Helvetica, sans-serif";
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   const x = p.x + dotRadius + 6;
