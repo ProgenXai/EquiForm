@@ -1,4 +1,3 @@
-import { LANDMARKS } from "@/lib/calibration/landmarks";
 import { computeToplineY, type ConformationLandmarks } from "@/lib/conformation/landmarks";
 
 function xPx(frac: number, imageWidth: number): number {
@@ -68,27 +67,6 @@ function drawJointDot(
   ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-}
-
-function drawJointLabel(
-  ctx: CanvasRenderingContext2D,
-  p: Point,
-  label: string,
-  dotRadius: number,
-) {
-  ctx.save();
-  ctx.font = "12px Arial, Helvetica, sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  const x = p.x + dotRadius + 6;
-  const y = p.y;
-  ctx.lineWidth = 3;
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeText(label, x, y);
-  ctx.fillText(label, x, y);
-  ctx.restore();
 }
 
 function drawYellowSquare(
@@ -334,6 +312,5 @@ export function renderConformationOverlayLayers(
   for (let i = 0; i < landmarkDots.length; i++) {
     const p = landmarkDots[i];
     drawJointDot(ctx, p, jointRadius);
-    drawJointLabel(ctx, p, LANDMARKS[i].label, jointRadius);
   }
 }

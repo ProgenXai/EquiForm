@@ -1,5 +1,4 @@
 import { createCanvas, loadImage, type CanvasRenderingContext2D } from "canvas";
-import { LANDMARKS } from "@/lib/calibration/landmarks";
 import { computeToplineY, type ConformationLandmarks } from "@/lib/conformation/landmarks";
 
 function xPx(frac: number, imageWidth: number): number {
@@ -61,27 +60,6 @@ function drawJointDot(ctx: CanvasRenderingContext2D, p: Point, radius: number) {
   ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-}
-
-function drawJointLabel(
-  ctx: CanvasRenderingContext2D,
-  p: Point,
-  label: string,
-  dotRadius: number
-) {
-  ctx.save();
-  ctx.font = "12px Arial, Helvetica, sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  const x = p.x + dotRadius + 6;
-  const y = p.y;
-  ctx.lineWidth = 3;
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeText(label, x, y);
-  ctx.fillText(label, x, y);
-  ctx.restore();
 }
 
 /** Short-back square: top-left (loin_x, toplineY); top-right (withers_x, toplineY); bottom at girth_y. */
@@ -240,7 +218,6 @@ export async function drawConformationOverlay(
   for (let i = 0; i < landmarkDots.length; i++) {
     const p = landmarkDots[i];
     drawJointDot(ctx, p, jointRadius);
-    drawJointLabel(ctx, p, LANDMARKS[i].label, jointRadius);
   }
 
   return canvas.toBuffer("image/jpeg", { quality: 0.95 });
