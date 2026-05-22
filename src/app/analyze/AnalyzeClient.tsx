@@ -197,6 +197,10 @@ export default function AnalyzeClient() {
             <p className="font-medium text-accent">For best results:</p>
             <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
               <li>Use a clear side profile photo (left or right facing)</li>
+              <li>
+                Horse must be standing still — walking or moving photos won&apos;t
+                work
+              </li>
               <li>Horse should fill most of the frame</li>
               <li>
                 Photo should be taken at horse&apos;s level, not from above or below
