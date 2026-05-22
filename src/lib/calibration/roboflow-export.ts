@@ -5,6 +5,49 @@ import { LANDMARKS, type LandmarkId, type Point } from "@/lib/calibration/landma
 const ROBOFLOW_API = "https://api.roboflow.com";
 const HORSE_CATEGORY = "horse";
 
+/** Roboflow keypoint template order and label strings. */
+const ROBOFLOW_KEYPOINT_ORDER = [
+  "poll",
+  "withers",
+  "loin",
+  "girth",
+  "point-of-shoulder",
+  "flank",
+  "tail-head",
+  "hock",
+  "hind-fetlock",
+  "forearm",
+  "knee",
+  "front-fetlock",
+  "front-hoof",
+  "buttock",
+  "gaskin",
+  "stifle",
+  "point-of-hip",
+  "hind-hoof",
+] as const;
+
+const ROBOFLOW_TO_CANONICAL: Record<string, LandmarkId> = {
+  poll: "poll",
+  withers: "withers",
+  loin: "loin",
+  girth: "girth",
+  "point-of-shoulder": "shoulder",
+  flank: "flank",
+  "tail-head": "tail",
+  hock: "hind_hock",
+  "hind-fetlock": "hind_fetlock",
+  forearm: "forearm",
+  knee: "front_knee",
+  "front-fetlock": "front_fetlock",
+  "front-hoof": "front_hoof",
+  buttock: "buttock",
+  gaskin: "gaskin",
+  stifle: "stifle",
+  "point-of-hip": "point_of_hip",
+  "hind-hoof": "hind_hoof",
+};
+
 type RoboflowConfig = {
   apiKey: string;
   workspace: string;
@@ -86,14 +129,14 @@ function buildCocoKeypointAnnotation(
   height: number,
   pixelPoints: Partial<Record<LandmarkId, { x: number; y: number }>>,
 ) {
-  const keypointNames = LANDMARKS.map((l) => l.id);
   const keypoints: number[] = [];
   const xs: number[] = [];
   const ys: number[] = [];
   let numKeypoints = 0;
 
-  for (const landmark of LANDMARKS) {
-    const point = pixelPoints[landmark.id];
+  for (const roboflowLabel of ROBOFLOW_KEYPOINT_ORDER) {
+    const canonicalId = ROBOFLOW_TO_CANONICAL[roboflowLabel];
+    const point = pixelPoints[canonicalId];
     if (point) {
       keypoints.push(point.x, point.y, 2);
       xs.push(point.x);
@@ -137,26 +180,27 @@ function buildCocoKeypointAnnotation(
         id: 0,
         name: HORSE_CATEGORY,
         supercategory: HORSE_CATEGORY,
-        keypoints: keypointNames,
-        skeleton: [
-          [0, 6],
-          [6, 8],
-          [8, 12],
-          [12, 11],
-          [6, 1],
-          [1, 2],
-          [2, 3],
-          [3, 4],
-          [4, 5],
-          [1, 7],
-          [7, 9],
-          [10, 12],
-          [10, 13],
-          [13, 14],
-          [14, 15],
-          [15, 16],
-          [16, 17],
+        keypoints: [
+          "poll",
+          "withers",
+          "loin",
+          "girth",
+          "point-of-shoulder",
+          "flank",
+          "tail-head",
+          "hock",
+          "hind-fetlock",
+          "forearm",
+          "knee",
+          "front-fetlock",
+          "front-hoof",
+          "buttock",
+          "gaskin",
+          "stifle",
+          "point-of-hip",
+          "hind-hoof",
         ],
+        skeleton: [],
       },
     ],
   };

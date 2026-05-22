@@ -1,8 +1,51 @@
-import { LANDMARKS, type LandmarkId } from "@/lib/calibration/landmarks";
+import type { LandmarkId } from "@/lib/calibration/landmarks";
 
 import type { DetectedLandmarkPoint } from "@/lib/analyze/types";
 
 const ROBOFLOW_SERVERLESS = "https://serverless.roboflow.com";
+
+const LANDMARK_ORDER = [
+  { roboflow: "poll", display: "Poll" },
+  { roboflow: "point-of-shoulder", display: "Point of Shoulder" },
+  { roboflow: "forearm", display: "Forearm" },
+  { roboflow: "knee", display: "Knee" },
+  { roboflow: "front-fetlock", display: "Front Fetlock" },
+  { roboflow: "front-hoof", display: "Front Hoof" },
+  { roboflow: "withers", display: "Withers" },
+  { roboflow: "girth", display: "Girth" },
+  { roboflow: "loin", display: "Loin" },
+  { roboflow: "flank", display: "Flank" },
+  { roboflow: "point-of-hip", display: "Point of Hip" },
+  { roboflow: "tail-head", display: "Tail Head" },
+  { roboflow: "buttock", display: "Buttock" },
+  { roboflow: "stifle", display: "Stifle" },
+  { roboflow: "gaskin", display: "Gaskin" },
+  { roboflow: "hock", display: "Hock" },
+  { roboflow: "hind-fetlock", display: "Hind Fetlock" },
+  { roboflow: "hind-hoof", display: "Hind Hoof" },
+] as const;
+
+/** Calibration record keys for each Roboflow label (output mapping only). */
+const LANDMARK_OUTPUT_ID: Record<string, LandmarkId> = {
+  poll: "poll",
+  "point-of-shoulder": "shoulder",
+  forearm: "forearm",
+  knee: "front_knee",
+  "front-fetlock": "front_fetlock",
+  "front-hoof": "front_hoof",
+  withers: "withers",
+  girth: "girth",
+  loin: "loin",
+  flank: "flank",
+  "point-of-hip": "point_of_hip",
+  "tail-head": "tail",
+  buttock: "buttock",
+  stifle: "stifle",
+  gaskin: "gaskin",
+  hock: "hind_hock",
+  "hind-fetlock": "hind_fetlock",
+  "hind-hoof": "hind_hoof",
+};
 
 type RoboflowKeypoint = {
   x: number;
@@ -70,6 +113,26 @@ function selectHorsePrediction(
   );
 }
 
+/** Compare poll vs tail-head x in pixel space to determine facing direction. */
+function detectHorseDirection(
+  keypoints: RoboflowKeypoint[],
+): "left" | "right" | "unknown" {
+  let pollX: number | null = null;
+  let tailX: number | null = null;
+
+  for (const kp of keypoints) {
+    const id = normalizeKeypointName(keypointClassName(kp));
+    if (typeof kp.x !== "number") continue;
+    if (id === "poll") pollX = kp.x;
+    if (id === "tail") tailX = kp.x;
+  }
+
+  if (pollX === null || tailX === null) return "unknown";
+  if (pollX > tailX) return "right";
+  if (pollX < tailX) return "left";
+  return "unknown";
+}
+
 /** Parse Roboflow serverless keypoint detection JSON into normalized landmark map. */
 export function parseRoboflowKeypointResponse(
   data: unknown,
@@ -90,52 +153,52 @@ export function parseRoboflowKeypointResponse(
     throw new Error("Roboflow horse prediction has no keypoints");
   }
 
-  console.log(
-    "[roboflow-inference] Raw Roboflow response:",
-    JSON.stringify(data, null, 2),
-  );
-  console.log(
-    "[roboflow-inference] Horse keypoints (pre-normalization, model order):",
-    keypoints.map((kp, index) => ({
-      index,
-      class_name: kp.class_name ?? kp.class ?? null,
-      x: kp.x,
-      y: kp.y,
-    })),
-  );
+  const keypointByName: Record<string, RoboflowKeypoint> = {};
+  for (const kp of keypoints) {
+    if (kp.class !== undefined && kp.class !== null) {
+      keypointByName[kp.class] = kp;
+    }
+  }
+
+  const roboflowWidth = payload.image?.width;
+  const roboflowHeight = payload.image?.height;
 
   const width =
-    payload.image?.width && payload.image.width > 0
-      ? payload.image.width
-      : imageWidth;
+    roboflowWidth && roboflowWidth > 0 ? roboflowWidth : imageWidth;
   const height =
-    payload.image?.height && payload.image.height > 0
-      ? payload.image.height
-      : imageHeight;
+    roboflowHeight && roboflowHeight > 0 ? roboflowHeight : imageHeight;
 
   if (width <= 0 || height <= 0) {
     throw new Error("Invalid image dimensions for Roboflow keypoint normalization");
   }
 
-  const validIds = new Set(LANDMARKS.map((landmark) => landmark.id));
+  const direction = detectHorseDirection(keypoints);
+  const mirrorX = direction === "right";
+
   const landmarks: Record<string, DetectedLandmarkPoint> = {};
 
-  for (const kp of keypoints) {
-    const id = normalizeKeypointName(keypointClassName(kp));
-    if (!validIds.has(id as LandmarkId)) continue;
-    if (typeof kp.x !== "number" || typeof kp.y !== "number") continue;
-    if (kp.confidence !== undefined && kp.confidence <= 0) continue;
+  for (const entry of LANDMARK_ORDER) {
+    const kp = keypointByName[entry.roboflow];
+    const outputId = LANDMARK_OUTPUT_ID[entry.roboflow];
 
-    landmarks[id] = {
-      x: clamp01(kp.x / width),
-      y: clamp01(kp.y / height),
-    };
-  }
-
-  for (const landmark of LANDMARKS) {
-    if (!landmarks[landmark.id]) {
-      throw new Error(`Roboflow missing keypoint: ${landmark.id}`);
+    if (
+      !kp ||
+      typeof kp.x !== "number" ||
+      typeof kp.y !== "number" ||
+      (kp.confidence !== undefined && kp.confidence <= 0)
+    ) {
+      landmarks[outputId] = { x: 0, y: 0 };
+      continue;
     }
+
+    const rawX = kp.x;
+    const rawY = kp.y;
+    const xPx = mirrorX ? imageWidth - rawX : rawX;
+
+    landmarks[outputId] = {
+      x: clamp01(xPx / width),
+      y: clamp01(rawY / height),
+    };
   }
 
   return landmarks;
@@ -155,11 +218,6 @@ export async function detectLandmarksWithRoboflow(
   }
 
   const base64Value = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-  console.log(
-    "[roboflow-inference] base64 after strip (first 100 chars):",
-    base64Value.slice(0, 100),
-  );
-  console.log("[roboflow-inference] base64 length:", base64Value.length);
 
   const url = new URL(`${ROBOFLOW_SERVERLESS}/${modelId}`);
   url.searchParams.set("api_key", apiKey);

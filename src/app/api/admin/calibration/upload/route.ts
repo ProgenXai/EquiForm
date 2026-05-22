@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -58,7 +57,13 @@ export async function POST(request: Request) {
     );
   }
 
-  let buffer = Buffer.from(await file.arrayBuffer());
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+  if (fileBuffer.length === 0) {
+    return NextResponse.json({ error: "Empty file provided" }, { status: 400 });
+  }
+
+  let buffer = fileBuffer;
   let contentType = file.type;
   let ext =
     file.type === "image/png"
@@ -69,12 +74,39 @@ export async function POST(request: Request) {
 
   if (isHeicFile(file)) {
     try {
-      const jpegBuffer = await sharp(buffer).jpeg({ quality: 92 }).toBuffer();
+      console.log("[calibration/upload] HEIC conversion starting", {
+        fileName: file.name,
+        fileType: file.type,
+        inputBytes: fileBuffer.length,
+      });
+      const heicConvert = require("heic-convert") as (options: {
+        buffer: Buffer;
+        format: "JPEG";
+        quality: number;
+      }) => Promise<Uint8Array>;
+      const jpegBuffer = await heicConvert({
+        buffer: fileBuffer,
+        format: "JPEG",
+        quality: 0.92,
+      });
       buffer = Buffer.from(jpegBuffer);
       contentType = "image/jpeg";
       ext = "jpg";
+      console.log("[calibration/upload] HEIC conversion succeeded", {
+        fileName: file.name,
+        outputBytes: buffer.length,
+        contentType,
+        ext,
+      });
     } catch (err) {
-      console.error("[calibration/upload] HEIC conversion failed", err);
+      console.error("[calibration/upload] HEIC conversion failed", {
+        fileName: file.name,
+        fileType: file.type,
+        inputBytes: fileBuffer.length,
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        err,
+      });
       return NextResponse.json(
         { error: "Failed to convert HEIC image to JPEG" },
         { status: 400 },

@@ -117,6 +117,7 @@ export default function CalibrationTool() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reexportingAll, setReexportingAll] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(
     null,
@@ -527,6 +528,23 @@ export default function CalibrationTool() {
     }
   };
 
+  const handleReexportAll = async () => {
+    setReexportingAll(true);
+    try {
+      const response = await fetch("/api/admin/reexport-all", { method: "POST" });
+      const result = await response.json();
+      alert(JSON.stringify(result));
+    } catch (err) {
+      alert(
+        JSON.stringify({
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    } finally {
+      setReexportingAll(false);
+    }
+  };
+
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas || !imageLoaded) return;
@@ -549,6 +567,14 @@ export default function CalibrationTool() {
           <p className="mt-1 text-xs text-zinc-400">
             Place 18 landmarks in order on the horse photo.
           </p>
+          <button
+            type="button"
+            onClick={() => void handleReexportAll()}
+            disabled={reexportingAll || busy}
+            className="mt-3 w-full rounded-lg border border-zinc-600 px-3 py-2 text-sm hover:bg-zinc-800 disabled:opacity-40"
+          >
+            {reexportingAll ? "Exporting..." : "Re-export All to Roboflow"}
+          </button>
         </div>
 
         <div>

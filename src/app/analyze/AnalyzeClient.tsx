@@ -195,7 +195,7 @@ export default function AnalyzeClient() {
           <button
             type="button"
             onClick={() => void handleAnalyze()}
-            disabled={!selectedFile || loading}
+            disabled={typeof window === "undefined" ? true : !selectedFile || loading}
             className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? "Analyzing…" : "Analyze This Horse"}
