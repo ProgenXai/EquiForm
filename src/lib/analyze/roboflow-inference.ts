@@ -113,26 +113,6 @@ function selectHorsePrediction(
   );
 }
 
-/** Compare poll vs tail-head x in pixel space to determine facing direction. */
-function detectHorseDirection(
-  keypoints: RoboflowKeypoint[],
-): "left" | "right" | "unknown" {
-  let pollX: number | null = null;
-  let tailX: number | null = null;
-
-  for (const kp of keypoints) {
-    const id = normalizeKeypointName(keypointClassName(kp));
-    if (typeof kp.x !== "number") continue;
-    if (id === "poll") pollX = kp.x;
-    if (id === "tail") tailX = kp.x;
-  }
-
-  if (pollX === null || tailX === null) return "unknown";
-  if (pollX > tailX) return "right";
-  if (pollX < tailX) return "left";
-  return "unknown";
-}
-
 /** Parse Roboflow serverless keypoint detection JSON into normalized landmark map. */
 export function parseRoboflowKeypointResponse(
   data: unknown,
@@ -172,9 +152,6 @@ export function parseRoboflowKeypointResponse(
     throw new Error("Invalid image dimensions for Roboflow keypoint normalization");
   }
 
-  const direction = detectHorseDirection(keypoints);
-  const mirrorX = direction === "right";
-
   const landmarks: Record<string, DetectedLandmarkPoint> = {};
 
   for (const entry of LANDMARK_ORDER) {
@@ -193,7 +170,7 @@ export function parseRoboflowKeypointResponse(
 
     const rawX = kp.x;
     const rawY = kp.y;
-    const xPx = mirrorX ? imageWidth - rawX : rawX;
+    const xPx = rawX;
 
     landmarks[outputId] = {
       x: clamp01(xPx / width),
