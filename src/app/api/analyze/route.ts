@@ -21,6 +21,15 @@ const ALLOWED_MIME = new Set([
   "image/webp",
 ]);
 
+const IMAGE_VALIDATION_SYSTEM_PROMPT =
+  'You are an image validator for a horse conformation analysis app. Respond with only valid JSON: {"valid": true} or {"valid": false}';
+
+const IMAGE_VALIDATION_USER_PROMPT =
+  "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible.";
+
+const INVALID_IMAGE_ERROR =
+  "Your horse photo didn't meet the criteria. Please review the photo guidelines and resubmit.";
+
 export const maxDuration = 120;
 
 function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
@@ -119,6 +128,44 @@ export async function POST(request: Request) {
         data: imageBase64,
       },
     };
+
+    const validationMessage = await anthropic.messages.create({
+      model: "claude-opus-4-5-20251101",
+      max_tokens: 256,
+      system: IMAGE_VALIDATION_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [imageContent, { type: "text", text: IMAGE_VALIDATION_USER_PROMPT }],
+        },
+      ],
+    });
+
+    const validationText = validationMessage.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+      .trim();
+
+    let imageIsValid = false;
+    try {
+      const parsed = JSON.parse(validationText) as { valid?: boolean };
+      imageIsValid = parsed.valid === true;
+    } catch {
+      const jsonMatch = validationText.match(/\{[\s\S]*"valid"[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]) as { valid?: boolean };
+          imageIsValid = parsed.valid === true;
+        } catch {
+          imageIsValid = false;
+        }
+      }
+    }
+
+    if (!imageIsValid) {
+      return NextResponse.json({ error: INVALID_IMAGE_ERROR }, { status: 400 });
+    }
 
     const detectedLandmarks = await detectLandmarksWithRoboflow(
       imageBase64,
