@@ -17,6 +17,8 @@ const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fontkit = require("fontkit");
 
+export const maxDuration = 30;
+
 type PdfRequestBody = {
   overlayImageBase64?: string;
   report?: ConformationReport;
