@@ -441,7 +441,7 @@ export default function AnalyzeClient() {
               </p>
             ) : rosetteBalance !== null && rosetteBalance > 0 ? (
               <p className="mb-2 text-center text-xs text-zinc-400">
-                <RosetteIcon size={18} /> {rosetteBalance} Rosettes remaining
+                <RosetteIcon size={18} /> {rosetteBalance} Report Tokens remaining
               </p>
             ) : isLoggedIn ? (
               <p className="mb-2 text-center text-xs text-zinc-400">
