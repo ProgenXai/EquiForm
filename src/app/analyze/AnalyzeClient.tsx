@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
+import { createClient } from "@/lib/supabase/client";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -88,6 +89,7 @@ const REPORT_SECTIONS: {
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
 export default function AnalyzeClient() {
+  const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -200,8 +202,15 @@ export default function AnalyzeClient() {
       const formData = new FormData();
       formData.append("image", selectedFile);
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await fetch("/api/analyze", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
         body: formData,
       });
 
