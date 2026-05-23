@@ -647,14 +647,19 @@ export default function AnalyzeClient() {
                 <h2 className="text-lg font-semibold text-white">
                   Overlay analysis
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => void handleDownloadPdf()}
-                  disabled={pdfLoading}
-                  className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
-                </button>
+                <div className="flex flex-col items-end">
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadPdf()}
+                    disabled={pdfLoading}
+                    className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
+                  </button>
+                  <p className="mt-1 text-xs text-amber-400">
+                    ⚠️ Download now — PDF is only available on this screen
+                  </p>
+                </div>
               </div>
               <div className="relative mt-4 w-full">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

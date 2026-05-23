@@ -21,6 +21,7 @@ type ParsedReportText =
 type ReportDetail = {
   id: string;
   created_at: string;
+  horse_name: string | null;
   overall_score: number | null;
   balance_score: number | null;
   shoulder_score: number | null;
@@ -155,7 +156,7 @@ export default function ReportDetailPage() {
       const { data, error } = await supabase
         .from("reports")
         .select(
-          "id, created_at, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text",
+          "id, created_at, horse_name, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text",
         )
         .eq("id", reportId)
         .eq("user_id", session.user.id)
@@ -219,7 +220,10 @@ export default function ReportDetailPage() {
           </div>
         ) : (
           <article>
-            <p className="text-sm text-zinc-400">
+            <h1 className="text-2xl font-semibold text-white">
+              {report.horse_name?.trim() || "Unnamed Horse"}
+            </h1>
+            <p className="mt-2 text-sm text-zinc-400">
               {formatReportDate(report.created_at)}
             </p>
 
