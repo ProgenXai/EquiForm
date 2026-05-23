@@ -359,12 +359,6 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      <Link
-        href="/buy-rosettes"
-        className="absolute right-4 top-4 z-10 text-sm font-medium text-accent transition hover:text-accent-hover"
-      >
-        Buy Rosettes <RosetteIcon size={18} />
-      </Link>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
@@ -379,6 +373,12 @@ export default function AnalyzeClient() {
         <p className="mt-2 text-sm text-zinc-400">
           AI-powered equine conformation analysis from a single side profile photo
         </p>
+        <Link
+          href="/buy-rosettes"
+          className="mt-4 inline-flex items-center gap-1 text-base font-semibold text-accent transition hover:text-accent-hover"
+        >
+          Buy Rosettes <RosetteIcon size={18} />
+        </Link>
       </header>
 
       <main className="w-full max-w-5xl mx-auto">
