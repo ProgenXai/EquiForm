@@ -111,6 +111,7 @@ export default function AnalyzeClient() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -171,6 +172,20 @@ export default function AnalyzeClient() {
     setEmail("");
     setEmailSubmitted(false);
     setEmailError(null);
+  }
+
+  async function handleShareScore() {
+    if (!result) return;
+
+    const text = `My horse scored ${result.report.overall_score}/100 on EquiForm! How does your horse measure up? equi-form-pied.vercel.app`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Ignore clipboard errors
+    }
   }
 
   function handleAnalyzeAnotherHorse() {
@@ -688,8 +703,15 @@ export default function AnalyzeClient() {
               </ul>
               <button
                 type="button"
+                onClick={() => void handleShareScore()}
+                className="mt-6 w-full rounded-lg border border-accent bg-transparent px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent/10"
+              >
+                {shareCopied ? "Copied! 🎉" : "Share Your Score"}
+              </button>
+              <button
+                type="button"
                 onClick={handleAnalyzeAnotherHorse}
-                className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                className="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 Analyze Another Horse
               </button>
