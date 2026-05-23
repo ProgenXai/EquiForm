@@ -487,6 +487,10 @@ export default function AnalyzeClient() {
                   Photo should be taken at horse&apos;s level, not from above or below
                 </li>
                 <li>Avoid photos with multiple horses</li>
+                <li>
+                  For sale catalog photos, lay the book completely flat and shoot straight
+                  down from directly above
+                </li>
               </ul>
             </div>
           ) : null}
