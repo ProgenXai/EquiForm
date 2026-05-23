@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
+import type { Session } from "@supabase/supabase-js";
+
 import { createClient } from "@/lib/supabase/client";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -100,6 +102,46 @@ export default function AnalyzeClient() {
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [rosetteBalance, setRosetteBalance] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+
+      if (session?.user) {
+        setIsLoggedIn(true);
+
+        const { data: tokenRow } = await supabase
+          .from("user_tokens")
+          .select("balance")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        setRosetteBalance(tokenRow?.balance ?? 0);
+
+        const adminResponse = await fetch("/api/check-admin", {
+          headers: {
+            Authorization: `Bearer ${session.access_token ?? ""}`,
+          },
+        });
+
+        const adminData = (await adminResponse.json()) as { isAdmin?: boolean };
+        setIsAdmin(adminData.isAdmin === true);
+        console.log("isAdmin:", adminData.isAdmin === true);
+      } else {
+        setRosetteBalance(0);
+        setIsAdmin(false);
+        console.log("isAdmin:", false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -214,15 +256,29 @@ export default function AnalyzeClient() {
         body: formData,
       });
 
-      const data = (await response.json()) as AnalyzeApiResponse & {
+      const result = (await response.json()) as AnalyzeApiResponse & {
         error?: string;
+        requiresPayment?: boolean;
+        overlayUrl?: string;
       };
 
+      console.log("API response:", result);
+
       if (!response.ok) {
-        throw new Error(data.error ?? "Analysis failed");
+        throw new Error(result.error ?? "Analysis failed");
       }
 
-      setResult(data);
+      const hasDirectResults = Boolean(
+        result.overlayUrl || result.overlayImage || result.report,
+      );
+
+      if (hasDirectResults && !result.requiresPayment) {
+        setEmailSubmitted(true);
+      } else if (result.requiresPayment) {
+        setEmailSubmitted(false);
+      }
+
+      setResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
@@ -311,8 +367,16 @@ export default function AnalyzeClient() {
     }
   }
 
+  const hasAnalyzeAccess =
+    isAdmin || (isLoggedIn && rosetteBalance !== null && rosetteBalance > 0);
+  const analyzeButtonDisabled =
+    typeof window === "undefined" ||
+    !selectedFile ||
+    loading ||
+    !hasAnalyzeAccess;
+
   return (
-    <div className="relative min-h-screen bg-black text-zinc-100">
+    <div className="min-h-screen bg-black text-white w-full px-6 py-8">
       <Link
         href="/buy-rosettes"
         className="absolute right-4 top-4 z-10 text-sm font-medium text-accent transition hover:text-accent-hover"
@@ -324,8 +388,8 @@ export default function AnalyzeClient() {
           <Image
             src="/equiform-logo.png"
             alt="EquiForm"
-            width={300}
-            height={300}
+            width={500}
+            height={500}
             priority
             className="object-contain"
           />
@@ -335,26 +399,28 @@ export default function AnalyzeClient() {
         </p>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="w-full max-w-5xl mx-auto">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-          <label
-            className="flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 text-center transition hover:border-accent/60 hover:bg-accent/10"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-          >
-            <span className="text-sm font-medium text-zinc-200">
-              Upload horse photo
-            </span>
-            <span className="mt-2 text-xs text-zinc-500">
-              JPG, PNG, or WEBP · max 10MB · side profile recommended
-            </span>
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleFileInput}
-            />
-          </label>
+          {!previewUrl ? (
+            <label
+              className="flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 text-center transition hover:border-accent/60 hover:bg-accent/10"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+            >
+              <span className="text-sm font-medium text-zinc-200">
+                Upload horse photo
+              </span>
+              <span className="mt-2 text-xs text-zinc-500">
+                JPG, PNG, or WEBP · max 10MB · side profile recommended
+              </span>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileInput}
+              />
+            </label>
+          ) : null}
 
           {previewUrl ? (
             <div className="mt-6">
@@ -384,14 +450,57 @@ export default function AnalyzeClient() {
             </ul>
           </div>
 
-          <button
-            type="button"
-            onClick={() => void handleAnalyze()}
-            disabled={typeof window === "undefined" ? true : !selectedFile || loading}
-            className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {loading ? "Analyzing…" : "Analyze This Horse"}
-          </button>
+          {console.log("Auth state:", {
+            isAdmin,
+            rosetteBalance,
+            user: session?.user?.email,
+          })}
+          <div className="mt-6">
+            {isAdmin ? null : !isLoggedIn ? (
+              <p className="mb-2 text-center text-xs text-zinc-400">
+                Sign in to analyze your horse
+              </p>
+            ) : rosetteBalance !== null && rosetteBalance > 0 ? (
+              <p className="mb-2 text-center text-xs text-zinc-400">
+                💎 {rosetteBalance} Rosettes remaining
+              </p>
+            ) : isLoggedIn ? (
+              <p className="mb-2 text-center text-xs text-zinc-400">
+                You need Rosettes to analyze
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void handleAnalyze()}
+              disabled={analyzeButtonDisabled}
+              className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                hasAnalyzeAccess
+                  ? "bg-accent text-white hover:bg-accent-hover disabled:opacity-40"
+                  : "cursor-not-allowed bg-zinc-700 text-zinc-400"
+              }`}
+            >
+              {loading ? "Analyzing…" : "Analyze This Horse"}
+            </button>
+
+            {!isAdmin && !isLoggedIn ? (
+              <Link
+                href="/"
+                className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+              >
+                Sign In
+              </Link>
+            ) : null}
+
+            {!isAdmin && isLoggedIn && (rosetteBalance === 0 || rosetteBalance === null) ? (
+              <Link
+                href="/buy-rosettes"
+                className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+              >
+                Buy Rosettes 💎
+              </Link>
+            ) : null}
+          </div>
 
           {loading ? (
             <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
@@ -408,7 +517,9 @@ export default function AnalyzeClient() {
         </section>
 
         {result && !emailSubmitted ? (
-          <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <>
+            {console.log("showing payment gate, isAdmin:", isAdmin)}
+            <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
             <h2 className="text-lg font-semibold text-white">
               Your analysis is ready!
             </h2>
@@ -442,6 +553,7 @@ export default function AnalyzeClient() {
               </button>
             </div>
           </section>
+          </>
         ) : null}
 
         {result && emailSubmitted ? (

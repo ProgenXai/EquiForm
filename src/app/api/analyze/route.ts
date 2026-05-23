@@ -11,7 +11,6 @@ import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
-import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
@@ -65,33 +64,27 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = createClient(
+  const authHeader = request.headers.get("Authorization");
+  const token = authHeader?.replace("Bearer ", "") ?? "";
+
+  const supabaseAuth = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${request.headers.get("Authorization") ?? ""}`,
-        },
-      },
-    },
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabaseAuth.auth.getUser(token);
 
   let isAdmin = false;
-
   if (user) {
-    const serviceClient = createServiceRoleClient();
-    const { data: roleRow } = await serviceClient
+    const { data: roleData } = await supabaseAuth
       .from("user_roles")
       .select("is_admin")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .single();
 
-    isAdmin = roleRow?.is_admin === true;
+    isAdmin = roleData?.is_admin === true;
   }
 
   if (!isAdmin) {
