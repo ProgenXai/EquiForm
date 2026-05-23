@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 
@@ -66,19 +65,30 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${request.headers.get("Authorization") ?? ""}`,
+        },
+      },
+    },
+  );
+
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let isAdmin = false;
 
-  if (session?.user) {
+  if (user) {
     const serviceClient = createServiceRoleClient();
     const { data: roleRow } = await serviceClient
       .from("user_roles")
       .select("is_admin")
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .maybeSingle();
 
     isAdmin = roleRow?.is_admin === true;
