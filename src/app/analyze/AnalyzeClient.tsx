@@ -108,6 +108,7 @@ export default function AnalyzeClient() {
   const [rosetteBalance, setRosetteBalance] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -134,13 +135,14 @@ export default function AnalyzeClient() {
       if (session?.user) {
         setIsLoggedIn(true);
 
-        const { data: tokenRow } = await supabase
-          .from("user_tokens")
-          .select("balance")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        const balanceResponse = await fetch("/api/get-balance", {
+          headers: {
+            Authorization: `Bearer ${session.access_token ?? ""}`,
+          },
+        });
 
-        setRosetteBalance(tokenRow?.balance ?? 0);
+        const balanceData = (await balanceResponse.json()) as { balance?: number };
+        setRosetteBalance(balanceData.balance ?? 0);
 
         const adminResponse = await fetch("/api/check-admin", {
           headers: {
@@ -156,6 +158,8 @@ export default function AnalyzeClient() {
         setIsAdmin(false);
         console.log("isAdmin:", false);
       }
+
+      setAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -372,54 +376,52 @@ export default function AnalyzeClient() {
     typeof window === "undefined" ||
     !selectedFile ||
     loading ||
-    !hasAnalyzeAccess;
+    (!authLoading && !hasAnalyzeAccess);
 
   return (
-    <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
-        <div className="flex justify-end">
-          <div ref={menuRef} className="relative z-10">
+    <div className="relative min-h-screen bg-black text-white w-full px-6 py-8">
+      <div ref={menuRef} className="absolute right-4 top-4 z-50">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className="text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
+          aria-label="Menu"
+        >
+          ☰
+        </button>
+        {menuOpen ? (
+          <div className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
+            <Link
+              href="/my-reports"
+              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              My Reports
+            </Link>
+            <Link
+              href="/buy-rosettes"
+              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              Buy Report Tokens <RosetteIcon size={18} />
+            </Link>
             <button
               type="button"
-              onClick={() => setMenuOpen((open) => !open)}
-              className="z-50 text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
-              aria-expanded={menuOpen}
-              aria-haspopup="true"
-              aria-label="Menu"
+              onClick={async () => {
+                setMenuOpen(false);
+                await supabase.auth.signOut();
+                router.push("/");
+              }}
+              className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
-              ☰
+              Sign Out
             </button>
-            {menuOpen ? (
-              <div className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
-                <Link
-                  href="/my-reports"
-                  className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  My Reports
-                </Link>
-                <Link
-                  href="/buy-rosettes"
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Buy Report Tokens <RosetteIcon size={18} />
-                </Link>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setMenuOpen(false);
-                    await supabase.auth.signOut();
-                    router.push("/");
-                  }}
-                  className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : null}
           </div>
-        </div>
+        ) : null}
+      </div>
+      <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
             src="/equiform-logo.png"
@@ -489,18 +491,22 @@ export default function AnalyzeClient() {
           ) : null}
 
           <div className="mt-6">
-            {isAdmin ? null : !isLoggedIn ? (
-              <p className="mb-2 text-center text-xs text-zinc-400">
-                Sign in to analyze your horse
-              </p>
-            ) : rosetteBalance !== null && rosetteBalance > 0 ? (
-              <p className="mb-2 text-center text-xs text-zinc-400">
-                <RosetteIcon size={18} /> {rosetteBalance} Report Tokens remaining
-              </p>
-            ) : isLoggedIn ? (
-              <p className="mb-2 text-center text-xs text-zinc-400">
-                You need Rosettes to analyze
-              </p>
+            {!authLoading ? (
+              <>
+                {isAdmin ? null : !isLoggedIn ? (
+                  <p className="mb-2 text-center text-xs text-zinc-400">
+                    Sign in to analyze your horse
+                  </p>
+                ) : rosetteBalance !== null && rosetteBalance > 0 ? (
+                  <p className="mb-2 text-center text-xs text-zinc-400">
+                    <RosetteIcon size={18} /> {rosetteBalance} Report Tokens remaining
+                  </p>
+                ) : isLoggedIn ? (
+                  <p className="mb-2 text-center text-xs text-zinc-400">
+                    You need Rosettes to analyze
+                  </p>
+                ) : null}
+              </>
             ) : null}
 
             <button
@@ -508,7 +514,7 @@ export default function AnalyzeClient() {
               onClick={() => void handleAnalyze()}
               disabled={analyzeButtonDisabled}
               className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
-                hasAnalyzeAccess
+                authLoading || hasAnalyzeAccess
                   ? "bg-accent text-white hover:bg-accent-hover disabled:opacity-40"
                   : "cursor-not-allowed bg-zinc-700 text-zinc-400"
               }`}
@@ -516,7 +522,7 @@ export default function AnalyzeClient() {
               {loading ? "Analyzing…" : "Analyze This Horse"}
             </button>
 
-            {!isAdmin && !isLoggedIn ? (
+            {!authLoading && !isAdmin && !isLoggedIn ? (
               <Link
                 href="/"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
@@ -525,7 +531,7 @@ export default function AnalyzeClient() {
               </Link>
             ) : null}
 
-            {!isAdmin && isLoggedIn && (rosetteBalance === 0 || rosetteBalance === null) ? (
+            {!authLoading && !isAdmin && isLoggedIn && (rosetteBalance === 0 || rosetteBalance === null) ? (
               <Link
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
