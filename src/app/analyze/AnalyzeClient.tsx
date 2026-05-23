@@ -380,51 +380,49 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      <div className="relative max-w-5xl mx-auto w-full">
-      <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
-        <div className="flex justify-end w-full mb-2">
-          <div ref={menuRef} className="relative">
+      <div ref={menuRef} className="fixed top-4 right-4 z-[100]">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className="relative z-[100] text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
+          aria-label="Menu"
+        >
+          ☰
+        </button>
+        {menuOpen ? (
+          <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
+            <Link
+              href="/my-reports"
+              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              My Reports
+            </Link>
+            <Link
+              href="/buy-rosettes"
+              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              Buy Report Tokens <RosetteIcon size={18} />
+            </Link>
             <button
               type="button"
-              onClick={() => setMenuOpen((open) => !open)}
-              className="relative z-[100] text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
-              aria-expanded={menuOpen}
-              aria-haspopup="true"
-              aria-label="Menu"
+              onClick={async () => {
+                setMenuOpen(false);
+                await supabase.auth.signOut();
+                router.push("/");
+              }}
+              className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
-              ☰
+              Sign Out
             </button>
-            {menuOpen ? (
-              <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
-                <Link
-                  href="/my-reports"
-                  className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  My Reports
-                </Link>
-                <Link
-                  href="/buy-rosettes"
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Buy Report Tokens <RosetteIcon size={18} />
-                </Link>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setMenuOpen(false);
-                    await supabase.auth.signOut();
-                    router.push("/");
-                  }}
-                  className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : null}
           </div>
-        </div>
+        ) : null}
+      </div>
+      <div className="relative max-w-5xl mx-auto w-full">
+      <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
             src="/equiform-logo.png"
