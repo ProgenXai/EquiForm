@@ -492,7 +492,10 @@ export default function AnalyzeClient() {
             <div className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
               <p className="font-medium text-accent">For best results:</p>
               <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-                <li>Use a clear side profile photo (left or right facing)</li>
+                <li>
+                  Use a clear side profile photo — ideally a squared-up sale ad style photo
+                  with all four legs visible and the horse standing square
+                </li>
                 <li>
                   Horse must be standing still — walking or moving photos won&apos;t
                   work
