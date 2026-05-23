@@ -377,7 +377,7 @@ export default function AnalyzeClient() {
           href="/buy-rosettes"
           className="mt-4 inline-flex items-center gap-1 text-base font-semibold text-accent transition hover:text-accent-hover"
         >
-          Buy Rosettes <RosetteIcon size={18} />
+          Buy Report Tokens <RosetteIcon size={18} />
         </Link>
       </header>
 
@@ -476,7 +476,7 @@ export default function AnalyzeClient() {
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
-                Buy Rosettes <RosetteIcon size={18} />
+                Buy Report Tokens <RosetteIcon size={18} />
               </Link>
             ) : null}
           </div>
