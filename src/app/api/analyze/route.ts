@@ -10,6 +10,7 @@ import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
@@ -61,6 +62,27 @@ export async function POST(request: Request) {
       { error: "File must be 10MB or smaller" },
       { status: 400 },
     );
+  }
+
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  let isAdmin = false;
+
+  if (session?.user) {
+    const serviceClient = createServiceRoleClient();
+    const { data: roleRow } = await serviceClient
+      .from("user_roles")
+      .select("is_admin")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    isAdmin = roleRow?.is_admin === true;
+  }
+
+  if (!isAdmin) {
   }
 
   try {
