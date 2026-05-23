@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 
@@ -10,7 +12,7 @@ import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = createClient();
+  const supabase = createRouteHandlerClient({ cookies });
   const {
     data: { session },
   } = await supabase.auth.getSession();
