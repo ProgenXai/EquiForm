@@ -276,11 +276,41 @@ export default function AnalyzeClient() {
         body: formData,
       });
 
-      const result = (await response.json()) as AnalyzeApiResponse & {
+      const contentType = response.headers.get("content-type") ?? "";
+      const isJson = contentType.includes("application/json");
+
+      let result: AnalyzeApiResponse & {
         error?: string;
         requiresPayment?: boolean;
         overlayUrl?: string;
       };
+
+      try {
+        if (!response.ok || !isJson) {
+          if (!isJson) {
+            await response.text();
+            throw new Error(
+              "Photo file is too large. Please try a smaller image.",
+            );
+          }
+        }
+
+        result = (await response.json()) as AnalyzeApiResponse & {
+          error?: string;
+          requiresPayment?: boolean;
+          overlayUrl?: string;
+        };
+      } catch (parseError) {
+        if (
+          parseError instanceof Error &&
+          parseError.message ===
+            "Photo file is too large. Please try a smaller image."
+        ) {
+          throw parseError;
+        }
+
+        throw new Error("Photo file is too large. Please try a smaller image.");
+      }
 
       console.log("API response:", result);
 
