@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 type AuthMode = "login" | "signup";
 
 export default function AuthPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +39,11 @@ export default function AuthPage() {
 
     if (authError) {
       setError(authError.message);
+      return;
+    }
+
+    if (mode === "login") {
+      router.push("/analyze");
     }
   }
 

@@ -9,6 +9,70 @@ import { LANDMARKS } from "@/lib/calibration/landmarks";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
+const COMPRESS_TARGET_BYTES = 4 * 1024 * 1024;
+
+async function compressImageIfNeeded(
+  file: File,
+): Promise<{ file: File; previewUrl: string }> {
+  if (file.size <= COMPRESS_TARGET_BYTES) {
+    return { file, previewUrl: URL.createObjectURL(file) };
+  }
+
+  const imageBitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    imageBitmap.close();
+    throw new Error("Failed to process image");
+  }
+
+  let width = imageBitmap.width;
+  let height = imageBitmap.height;
+  let quality = 0.92;
+  let blob: Blob | null = null;
+
+  try {
+    while (width >= 64 && height >= 64) {
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(imageBitmap, 0, 0, width, height);
+
+      blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/jpeg", quality);
+      });
+
+      if (!blob) {
+        throw new Error("Failed to compress image");
+      }
+
+      if (blob.size < COMPRESS_TARGET_BYTES) {
+        break;
+      }
+
+      if (quality > 0.55) {
+        quality -= 0.1;
+      } else {
+        width = Math.floor(width * 0.85);
+        height = Math.floor(height * 0.85);
+        quality = 0.85;
+      }
+    }
+
+    if (!blob || blob.size >= COMPRESS_TARGET_BYTES) {
+      throw new Error("Failed to compress image below 4MB");
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
+    const compressedFile = new File([blob], `${baseName}.jpg`, {
+      type: "image/jpeg",
+    });
+
+    return { file: compressedFile, previewUrl: URL.createObjectURL(blob) };
+  } finally {
+    imageBitmap.close();
+  }
+}
 
 const REPORT_SECTIONS: {
   key: keyof Omit<ConformationReport, "overall_score" | "summary">;
@@ -79,7 +143,7 @@ export default function AnalyzeClient() {
     }
   }
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     resetResult();
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -96,21 +160,27 @@ export default function AnalyzeClient() {
       URL.revokeObjectURL(previewUrl);
     }
 
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-    setError(null);
+    try {
+      const { file: processedFile, previewUrl: nextPreviewUrl } =
+        await compressImageIfNeeded(file);
+      setSelectedFile(processedFile);
+      setPreviewUrl(nextPreviewUrl);
+      setError(null);
+    } catch {
+      setError("Failed to process image. Please try another photo.");
+    }
   }
 
   function handleFileInput(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
     event.target.value = "";
   }
 
   function handleDrop(event: React.DragEvent) {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   async function handleAnalyze() {
