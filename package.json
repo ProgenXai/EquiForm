@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "@stripe/stripe-js": "^9.6.0",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.106.0",
     "canvas": "^3.2.3",
     "fontkit": "^2.0.4",
