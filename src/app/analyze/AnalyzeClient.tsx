@@ -415,21 +415,23 @@ export default function AnalyzeClient() {
             </div>
           ) : null}
 
-          <div className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
-            <p className="font-medium text-accent">For best results:</p>
-            <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-              <li>Use a clear side profile photo (left or right facing)</li>
-              <li>
-                Horse must be standing still — walking or moving photos won&apos;t
-                work
-              </li>
-              <li>Horse should fill most of the frame</li>
-              <li>
-                Photo should be taken at horse&apos;s level, not from above or below
-              </li>
-              <li>Avoid photos with multiple horses</li>
-            </ul>
-          </div>
+          {!previewUrl ? (
+            <div className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
+              <p className="font-medium text-accent">For best results:</p>
+              <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
+                <li>Use a clear side profile photo (left or right facing)</li>
+                <li>
+                  Horse must be standing still — walking or moving photos won&apos;t
+                  work
+                </li>
+                <li>Horse should fill most of the frame</li>
+                <li>
+                  Photo should be taken at horse&apos;s level, not from above or below
+                </li>
+                <li>Avoid photos with multiple horses</li>
+              </ul>
+            </div>
+          ) : null}
 
           <div className="mt-6">
             {isAdmin ? null : !isLoggedIn ? (
