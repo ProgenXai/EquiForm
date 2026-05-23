@@ -373,15 +373,15 @@ export default function AnalyzeClient() {
         <p className="mt-2 text-sm text-zinc-400">
           AI-powered equine conformation analysis from a single side profile photo
         </p>
-        <Link
-          href="/buy-rosettes"
-          className="mt-4 inline-flex items-center gap-1 text-base font-semibold text-accent transition hover:text-accent-hover"
-        >
-          Buy Report Tokens <RosetteIcon size={18} />
-        </Link>
       </header>
 
       <main className="w-full max-w-5xl mx-auto">
+        <Link
+          href="/buy-rosettes"
+          className="mt-4 block w-full text-center text-base font-semibold text-accent transition hover:text-accent-hover"
+        >
+          Buy Report Tokens <RosetteIcon size={18} />
+        </Link>
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           {!previewUrl ? (
             <label
