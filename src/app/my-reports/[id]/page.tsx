@@ -73,8 +73,6 @@ function parseReportText(text: string): ParsedReportText {
       };
     };
 
-    console.log("parsed:", parsed);
-
     const reportData = data.report;
     const notes: Record<ReportSectionKey, string | undefined> = {
       balance: reportData?.balance?.notes,
