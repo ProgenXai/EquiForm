@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
@@ -92,6 +93,7 @@ const REPORT_SECTIONS: {
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
 export default function AnalyzeClient() {
+  const router = useRouter();
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -359,6 +361,16 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
+      <button
+        type="button"
+        onClick={async () => {
+          await supabase.auth.signOut();
+          router.push("/");
+        }}
+        className="absolute left-4 top-4 text-sm font-semibold text-accent transition hover:text-accent-hover"
+      >
+        Sign Out
+      </button>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
