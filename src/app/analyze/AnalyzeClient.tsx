@@ -506,7 +506,7 @@ export default function AnalyzeClient() {
                   </p>
                 ) : isLoggedIn ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
-                    You need Rosettes to analyze
+                    You need Report Tokens to analyze
                   </p>
                 ) : null}
               </>
