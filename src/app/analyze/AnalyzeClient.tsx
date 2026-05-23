@@ -8,6 +8,7 @@ import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types
 import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
 
+import RosetteIcon from "@/components/RosetteIcon";
 import { createClient } from "@/lib/supabase/client";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -362,7 +363,7 @@ export default function AnalyzeClient() {
         href="/buy-rosettes"
         className="absolute right-4 top-4 z-10 text-sm font-medium text-accent transition hover:text-accent-hover"
       >
-        Buy Rosettes 💎
+        Buy Rosettes <RosetteIcon />
       </Link>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
