@@ -19,6 +19,14 @@ const fontkit = require("fontkit");
 
 export const maxDuration = 30;
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb",
+    },
+  },
+};
+
 type PdfRequestBody = {
   overlayImageBase64?: string;
   report?: ConformationReport;
