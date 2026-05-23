@@ -380,7 +380,7 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      <div ref={menuRef} className="fixed top-4 right-4 z-[100]">
+      <div ref={menuRef} className="fixed top-4 z-[100] right-4 lg:right-[calc(50%-532px)]">
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
