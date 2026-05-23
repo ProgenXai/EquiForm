@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
@@ -109,6 +109,21 @@ export default function AnalyzeClient() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   useEffect(() => {
     const {
@@ -361,16 +376,47 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      <button
-        type="button"
-        onClick={async () => {
-          await supabase.auth.signOut();
-          router.push("/");
-        }}
-        className="absolute left-4 top-4 text-sm font-semibold text-accent transition hover:text-accent-hover"
-      >
-        Sign Out
-      </button>
+      <div ref={menuRef} className="absolute right-4 top-4 z-10">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className="text-2xl leading-none text-zinc-200 transition hover:text-white"
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
+          aria-label="Menu"
+        >
+          ☰
+        </button>
+        {menuOpen ? (
+          <div className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
+            <Link
+              href="/my-reports"
+              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              My Reports
+            </Link>
+            <Link
+              href="/buy-rosettes"
+              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              Buy Report Tokens <RosetteIcon size={18} />
+            </Link>
+            <button
+              type="button"
+              onClick={async () => {
+                setMenuOpen(false);
+                await supabase.auth.signOut();
+                router.push("/");
+              }}
+              className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Sign Out
+            </button>
+          </div>
+        ) : null}
+      </div>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
@@ -388,12 +434,6 @@ export default function AnalyzeClient() {
       </header>
 
       <main className="w-full max-w-5xl mx-auto">
-        <Link
-          href="/buy-rosettes"
-          className="mt-4 block w-full text-center text-base font-semibold text-accent transition hover:text-accent-hover"
-        >
-          Buy Report Tokens <RosetteIcon size={24} />
-        </Link>
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           {!previewUrl ? (
             <label
