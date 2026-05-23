@@ -1,0 +1,34 @@
+export const ROSETTE_PACKS = [
+  {
+    id: 'starter',
+    name: 'Starter Pack',
+    rosettes: 3,
+    price: 1200,
+    priceDisplay: '$12.00',
+    perReport: '$4.00 per report',
+  },
+  {
+    id: 'ten',
+    name: '10-Pack',
+    rosettes: 10,
+    price: 3500,
+    priceDisplay: '$35.00',
+    perReport: '$3.50 per report',
+  },
+  {
+    id: 'twentyfive',
+    name: '25-Pack',
+    rosettes: 25,
+    price: 7500,
+    priceDisplay: '$75.00',
+    perReport: '$3.00 per report',
+  },
+  {
+    id: 'hundred',
+    name: '100-Pack',
+    rosettes: 100,
+    price: 25000,
+    priceDisplay: '$250.00',
+    perReport: '$2.50 per report',
+  },
+];
