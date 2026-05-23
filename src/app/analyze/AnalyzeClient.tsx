@@ -363,7 +363,7 @@ export default function AnalyzeClient() {
         href="/buy-rosettes"
         className="absolute right-4 top-4 z-10 text-sm font-medium text-accent transition hover:text-accent-hover"
       >
-        Buy Rosettes <RosetteIcon />
+        Buy Rosettes <RosetteIcon size={18} />
       </Link>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
@@ -441,7 +441,7 @@ export default function AnalyzeClient() {
               </p>
             ) : rosetteBalance !== null && rosetteBalance > 0 ? (
               <p className="mb-2 text-center text-xs text-zinc-400">
-                💎 {rosetteBalance} Rosettes remaining
+                <RosetteIcon size={18} /> {rosetteBalance} Rosettes remaining
               </p>
             ) : isLoggedIn ? (
               <p className="mb-2 text-center text-xs text-zinc-400">
@@ -476,7 +476,7 @@ export default function AnalyzeClient() {
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
-                Buy Rosettes 💎
+                Buy Rosettes <RosetteIcon size={18} />
               </Link>
             ) : null}
           </div>
