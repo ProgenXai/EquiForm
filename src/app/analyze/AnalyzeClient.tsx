@@ -143,25 +143,6 @@ export default function AnalyzeClient() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("success") !== "true") return;
-
-    try {
-      const stored = sessionStorage.getItem(PENDING_RESULT_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as AnalyzeApiResponse;
-        setResult(parsed);
-        setEmailSubmitted(true);
-        sessionStorage.removeItem(PENDING_RESULT_KEY);
-      }
-    } catch {
-      // Ignore invalid stored result
-    }
-
-    window.history.replaceState({}, "", "/analyze");
-  }, []);
-
   function resetResult() {
     setResult(null);
     setError(null);
@@ -450,11 +431,6 @@ export default function AnalyzeClient() {
             </ul>
           </div>
 
-          {console.log("Auth state:", {
-            isAdmin,
-            rosetteBalance,
-            user: session?.user?.email,
-          })}
           <div className="mt-6">
             {isAdmin ? null : !isLoggedIn ? (
               <p className="mb-2 text-center text-xs text-zinc-400">
