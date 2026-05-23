@@ -180,6 +180,29 @@ export async function POST(request: Request) {
       console.error("[analyze] failed to save report:", insertError);
     }
 
+    if (!isAdmin && user) {
+      const { data: tokenRow, error: fetchError } = await serviceClient
+        .from("user_tokens")
+        .select("balance")
+        .eq("user_id", user.id)
+        .gt("balance", 0)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error("[analyze] failed to deduct token:", fetchError);
+      } else if (tokenRow) {
+        const { error: deductError } = await serviceClient
+          .from("user_tokens")
+          .update({ balance: tokenRow.balance - 1 })
+          .eq("user_id", user.id)
+          .gt("balance", 0);
+
+        if (deductError) {
+          console.error("[analyze] failed to deduct token:", deductError);
+        }
+      }
+    }
+
     return NextResponse.json({
       overlayImage,
       report,
