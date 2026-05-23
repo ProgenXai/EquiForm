@@ -383,11 +383,11 @@ export default function AnalyzeClient() {
       <div className="relative max-w-5xl mx-auto w-full">
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-end w-full mb-2">
-          <div ref={menuRef}>
+          <div ref={menuRef} className="relative">
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className="text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
+              className="relative z-[100] text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
               aria-expanded={menuOpen}
               aria-haspopup="true"
               aria-label="Menu"
@@ -395,7 +395,7 @@ export default function AnalyzeClient() {
               ☰
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
+              <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
                 <Link
                   href="/my-reports"
                   className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
