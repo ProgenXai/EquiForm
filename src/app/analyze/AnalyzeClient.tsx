@@ -380,7 +380,7 @@ export default function AnalyzeClient() {
           href="/buy-rosettes"
           className="mt-4 block w-full text-center text-base font-semibold text-accent transition hover:text-accent-hover"
         >
-          Buy Report Tokens <RosetteIcon size={18} />
+          Buy Report Tokens <RosetteIcon size={24} />
         </Link>
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           {!previewUrl ? (
