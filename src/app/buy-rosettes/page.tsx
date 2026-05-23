@@ -88,7 +88,7 @@ export default function BuyRosettesPage() {
       >
         ← Back
       </button>
-      <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
+      <header className="border-b border-zinc-800 bg-black px-6 py-4 text-center sm:py-8">
         <div className="flex justify-center">
           <Image
             src="/equiform-logo.png"
@@ -96,7 +96,7 @@ export default function BuyRosettesPage() {
             width={300}
             height={300}
             priority
-            className="object-contain"
+            className="h-52 w-52 object-contain sm:h-[300px] sm:w-[300px]"
           />
         </div>
         <p className="mt-2 text-sm text-zinc-400">
