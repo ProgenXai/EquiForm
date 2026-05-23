@@ -299,6 +299,17 @@ export default function AnalyzeClient() {
       }
 
       setResult(result);
+
+      if (session?.access_token) {
+        const balanceResponse = await fetch("/api/get-balance", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        const balanceData = (await balanceResponse.json()) as { balance?: number };
+        setRosetteBalance(balanceData.balance ?? 0);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
