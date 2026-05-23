@@ -62,6 +62,7 @@ function parseReportText(text: string): ParsedReportText {
         leg_alignment?: { score?: number; notes?: string };
       };
     };
+    console.log("parsed:", parsed);
     const reportData = parsed.report;
 
     if (parsed.summary) {
