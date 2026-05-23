@@ -25,6 +25,7 @@ export type ClaudeAnalyzeResponse = {
 
 export type AnalyzeApiResponse = {
   overlayImage: string;
+  overlayUrl?: string;
   report: ConformationReport;
   landmarks: Record<string, DetectedLandmarkPoint>;
 };
