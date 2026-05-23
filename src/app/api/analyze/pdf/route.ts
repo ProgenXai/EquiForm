@@ -28,7 +28,7 @@ export const config = {
 };
 
 type PdfRequestBody = {
-  overlayImageBase64?: string;
+  overlayUrl?: string;
   report?: ConformationReport;
   horse_name?: string;
 };
@@ -152,9 +152,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (!body.overlayImageBase64?.trim()) {
+  if (!body.overlayUrl?.trim()) {
     return NextResponse.json(
-      { error: "overlayImageBase64 is required" },
+      { error: "overlayUrl is required" },
       { status: 400 },
     );
   }
@@ -169,10 +169,20 @@ export async function POST(request: Request) {
 
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const overlayImage = await embedOverlayImage(
-      pdfDoc,
-      body.overlayImageBase64,
-    );
+
+    const overlayResponse = await fetch(body.overlayUrl.trim());
+    if (!overlayResponse.ok) {
+      return NextResponse.json(
+        { error: "Failed to fetch overlay image" },
+        { status: 400 },
+      );
+    }
+
+    const overlayImageBase64 = Buffer.from(
+      await overlayResponse.arrayBuffer(),
+    ).toString("base64");
+
+    const overlayImage = await embedOverlayImage(pdfDoc, overlayImageBase64);
 
     const report = body.report;
     const generatedAt = new Date().toLocaleDateString("en-US", {

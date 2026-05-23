@@ -30,6 +30,8 @@ const IMAGE_VALIDATION_USER_PROMPT =
 const INVALID_IMAGE_ERROR =
   "Your horse photo didn't meet the criteria. Please review the photo guidelines and resubmit.";
 
+const OVERLAY_STORAGE_BUCKET = "horse-photos";
+
 export const maxDuration = 120;
 
 function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
@@ -216,6 +218,25 @@ export async function POST(request: Request) {
     const overlayImage = `data:image/jpeg;base64,${overlayBase64}`;
 
     const serviceClient = createServiceRoleClient();
+
+    const overlayStoragePath = `overlays/${user?.id ?? "anonymous"}/${Date.now()}.jpg`;
+    const { error: overlayUploadError } = await serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .upload(overlayStoragePath, overlayBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    let overlayUrl = overlayImage;
+    if (!overlayUploadError) {
+      const { data: overlayPublicUrl } = serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .getPublicUrl(overlayStoragePath);
+      overlayUrl = overlayPublicUrl.publicUrl;
+    } else {
+      console.error("[analyze] failed to upload overlay:", overlayUploadError);
+    }
+
     const { error: insertError } = await serviceClient.from("reports").insert({
       user_id: user?.id ?? null,
       horse_name: horseName,
@@ -226,7 +247,7 @@ export async function POST(request: Request) {
       topline_score: report.topline_quality.score,
       leg_score: report.leg_alignment.score,
       report_text: reportText,
-      overlay_url: overlayImage,
+      overlay_url: overlayUrl,
     });
 
     if (insertError) {
@@ -258,6 +279,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       overlayImage,
+      overlayUrl,
       report,
       landmarks: detectedLandmarks,
     });

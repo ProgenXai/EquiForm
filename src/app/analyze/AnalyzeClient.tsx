@@ -354,15 +354,11 @@ export default function AnalyzeClient() {
     setError(null);
 
     try {
-      const overlayImageBase64 = result.overlayImage.includes(",")
-        ? result.overlayImage.split(",")[1]!
-        : result.overlayImage;
-
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          overlayImageBase64,
+          overlayUrl: result.overlayUrl,
           report: result.report,
           horse_name: horseName,
         }),
