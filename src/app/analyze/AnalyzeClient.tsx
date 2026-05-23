@@ -323,6 +323,7 @@ export default function AnalyzeClient() {
         body: JSON.stringify({
           overlayImageBase64,
           report: result.report,
+          horse_name: horseName,
         }),
       });
 

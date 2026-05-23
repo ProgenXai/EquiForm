@@ -20,6 +20,7 @@ const fontkit = require("fontkit");
 type PdfRequestBody = {
   overlayImageBase64?: string;
   report?: ConformationReport;
+  horse_name?: string;
 };
 
 const PAGE_WIDTH = 612;
@@ -190,6 +191,19 @@ export async function POST(request: Request) {
       color: rgb(0.2, 0.2, 0.2),
     });
     y -= 22;
+
+    const horseName =
+      typeof body.horse_name === "string" ? body.horse_name.trim() : "";
+    if (horseName) {
+      page.drawText(`Horse: ${horseName}`, {
+        x: MARGIN,
+        y,
+        size: 11,
+        font: fontRegular,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      y -= 18;
+    }
 
     page.drawText(`Generated: ${generatedAt}`, {
       x: MARGIN,
