@@ -368,9 +368,12 @@ export default function AnalyzeClient() {
         }),
       });
 
-      if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        throw new Error(data.error ?? "PDF generation failed");
+      const contentType = response.headers.get("content-type") ?? "";
+      const isPdf = contentType.includes("application/pdf");
+
+      if (!response.ok || !isPdf) {
+        await response.text();
+        throw new Error("PDF generation failed. Please try again.");
       }
 
       const blob = await response.blob();
