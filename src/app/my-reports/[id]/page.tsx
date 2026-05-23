@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import type { ConformationReport } from "@/lib/analyze/types";
 import { createClient } from "@/lib/supabase/client";
 
 type ReportSectionKey =
@@ -52,19 +51,29 @@ const SCORE_SECTIONS: {
 
 function parseReportText(text: string): ParsedReportText {
   try {
-    const parsed = JSON.parse(text) as { report?: ConformationReport };
+    const parsed = JSON.parse(text) as {
+      summary?: string;
+      overall_score?: number;
+      report?: {
+        balance?: { score?: number; notes?: string };
+        shoulder_angle?: { score?: number; notes?: string };
+        hip_angle?: { score?: number; notes?: string };
+        topline_quality?: { score?: number; notes?: string };
+        leg_alignment?: { score?: number; notes?: string };
+      };
+    };
     const reportData = parsed.report;
 
-    if (reportData?.summary) {
+    if (parsed.summary) {
       return {
         ok: true,
-        summary: reportData.summary,
+        summary: parsed.summary,
         notes: {
-          balance: reportData.balance?.notes,
-          shoulder_angle: reportData.shoulder_angle?.notes,
-          hip_angle: reportData.hip_angle?.notes,
-          topline_quality: reportData.topline_quality?.notes,
-          leg_alignment: reportData.leg_alignment?.notes,
+          balance: reportData?.balance?.notes,
+          shoulder_angle: reportData?.shoulder_angle?.notes,
+          hip_angle: reportData?.hip_angle?.notes,
+          topline_quality: reportData?.topline_quality?.notes,
+          leg_alignment: reportData?.leg_alignment?.notes,
         },
       };
     }
