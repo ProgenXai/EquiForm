@@ -51,7 +51,17 @@ const SCORE_SECTIONS: {
 
 function parseReportText(text: string): ParsedReportText {
   try {
-    const parsed = JSON.parse(text) as {
+    let parsed: unknown = JSON.parse(text);
+
+    if (typeof parsed === "string") {
+      parsed = JSON.parse(parsed);
+    }
+
+    if (typeof parsed !== "object" || parsed === null) {
+      return { ok: false, raw: text };
+    }
+
+    const data = parsed as {
       summary?: string;
       overall_score?: number;
       report?: {
@@ -62,21 +72,45 @@ function parseReportText(text: string): ParsedReportText {
         leg_alignment?: { score?: number; notes?: string };
       };
     };
-    console.log("parsed:", parsed);
-    const reportData = parsed.report;
 
-    if (parsed.summary) {
+    console.log("parsed:", parsed);
+
+    const reportData = data.report;
+    const notes: Record<ReportSectionKey, string | undefined> = {
+      balance: reportData?.balance?.notes,
+      shoulder_angle: reportData?.shoulder_angle?.notes,
+      hip_angle: reportData?.hip_angle?.notes,
+      topline_quality: reportData?.topline_quality?.notes,
+      leg_alignment: reportData?.leg_alignment?.notes,
+    };
+
+    if (data.summary) {
       return {
         ok: true,
-        summary: parsed.summary,
-        notes: {
-          balance: reportData?.balance?.notes,
-          shoulder_angle: reportData?.shoulder_angle?.notes,
-          hip_angle: reportData?.hip_angle?.notes,
-          topline_quality: reportData?.topline_quality?.notes,
-          leg_alignment: reportData?.leg_alignment?.notes,
-        },
+        summary: data.summary,
+        notes,
       };
+    }
+
+    if (reportData) {
+      const summaryFromSections = [
+        ["Balance", notes.balance],
+        ["Shoulder Angle", notes.shoulder_angle],
+        ["Hip Angle", notes.hip_angle],
+        ["Topline Quality", notes.topline_quality],
+        ["Leg Alignment", notes.leg_alignment],
+      ]
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        .map(([label, note]) => `${label}\n${note}`)
+        .join("\n\n");
+
+      if (summaryFromSections) {
+        return {
+          ok: true,
+          summary: summaryFromSections,
+          notes,
+        };
+      }
     }
   } catch {
     // fall through to raw display
