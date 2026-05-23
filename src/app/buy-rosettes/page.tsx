@@ -81,6 +81,13 @@ export default function BuyRosettesPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <button
+        type="button"
+        onClick={() => router.push("/analyze")}
+        className="px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
+      >
+        ← Back
+      </button>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
