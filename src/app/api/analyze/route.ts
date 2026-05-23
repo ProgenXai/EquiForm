@@ -220,6 +220,10 @@ export async function POST(request: Request) {
     const serviceClient = createServiceRoleClient();
 
     const overlayStoragePath = `overlays/${user?.id ?? "anonymous"}/${Date.now()}.jpg`;
+    console.log("Uploading overlay to Supabase...", {
+      bucket: OVERLAY_STORAGE_BUCKET,
+      path: overlayStoragePath,
+    });
     const { error: overlayUploadError } = await serviceClient.storage
       .from(OVERLAY_STORAGE_BUCKET)
       .upload(overlayStoragePath, overlayBuffer, {
@@ -233,8 +237,27 @@ export async function POST(request: Request) {
         .from(OVERLAY_STORAGE_BUCKET)
         .getPublicUrl(overlayStoragePath);
       overlayUrl = overlayPublicUrl.publicUrl;
+      console.log("Overlay URL:", overlayUrl);
     } else {
-      console.error("[analyze] failed to upload overlay:", overlayUploadError);
+      console.log("Overlay upload error:", overlayUploadError);
+      const uploadErrorMessage = overlayUploadError.message.toLowerCase();
+      if (
+        uploadErrorMessage.includes("bucket") ||
+        uploadErrorMessage.includes("not found")
+      ) {
+        console.log(
+          "[analyze] Overlay upload failed: the horse-photos bucket may not exist. Create it in Supabase Storage.",
+        );
+      } else if (
+        uploadErrorMessage.includes("policy") ||
+        uploadErrorMessage.includes("rls") ||
+        uploadErrorMessage.includes("denied") ||
+        uploadErrorMessage.includes("unauthorized")
+      ) {
+        console.log(
+          "[analyze] Overlay upload failed: storage RLS or policy is blocking upload to overlays/.",
+        );
+      }
     }
 
     const { error: insertError } = await serviceClient.from("reports").insert({
