@@ -362,7 +362,7 @@ export default function AnalyzeClient() {
         href="/buy-rosettes"
         className="absolute right-4 top-4 z-10 text-sm font-medium text-accent transition hover:text-accent-hover"
       >
-        Buy Rosettes 🌹
+        Buy Rosettes 💎
       </Link>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
