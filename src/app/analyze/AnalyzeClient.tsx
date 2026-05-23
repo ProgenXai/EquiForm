@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
@@ -232,7 +233,13 @@ export default function AnalyzeClient() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100">
+    <div className="relative min-h-screen bg-black text-zinc-100">
+      <Link
+        href="/buy-rosettes"
+        className="absolute right-4 top-4 z-10 text-sm font-medium text-accent transition hover:text-accent-hover"
+      >
+        Buy Rosettes 🌹
+      </Link>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
           <Image
