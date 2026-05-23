@@ -11,6 +11,7 @@ type ReportRow = {
   id: string;
   created_at: string;
   overall_score: number | null;
+  horse_name: string | null;
 };
 
 function formatReportDate(isoDate: string): string {
@@ -40,7 +41,7 @@ export default function MyReportsPage() {
 
       const { data, error } = await supabase
         .from("reports")
-        .select("id, created_at, overall_score")
+        .select("id, created_at, overall_score, horse_name")
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false });
 
@@ -113,6 +114,9 @@ export default function MyReportsPage() {
               >
                 <div>
                   <p className="text-sm font-medium text-white">
+                    {report.horse_name?.trim() || "Unnamed Horse"}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
                     {formatReportDate(report.created_at)}
                   </p>
                   <p className="mt-1 text-sm text-zinc-400">

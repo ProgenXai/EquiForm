@@ -97,6 +97,7 @@ export default function AnalyzeClient() {
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [horseName, setHorseName] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +262,7 @@ export default function AnalyzeClient() {
     try {
       const formData = new FormData();
       formData.append("image", selectedFile);
+      formData.append("horseName", horseName.trim());
 
       const {
         data: { session },
@@ -510,6 +512,25 @@ export default function AnalyzeClient() {
                   down from directly above
                 </li>
               </ul>
+            </div>
+          ) : null}
+
+          {previewUrl ? (
+            <div className="mt-6">
+              <label
+                htmlFor="horse-name"
+                className="mb-2 block text-xs font-medium text-zinc-400"
+              >
+                Horse name (optional)
+              </label>
+              <input
+                id="horse-name"
+                type="text"
+                value={horseName}
+                onChange={(event) => setHorseName(event.target.value)}
+                placeholder="e.g. Blazin High Alibi"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+              />
             </div>
           ) : null}
 

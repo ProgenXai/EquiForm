@@ -55,6 +55,11 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("image");
+  const horseNameRaw = formData.get("horseName");
+  const horseName =
+    typeof horseNameRaw === "string" && horseNameRaw.trim()
+      ? horseNameRaw.trim()
+      : null;
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No image provided" }, { status: 400 });
@@ -213,6 +218,7 @@ export async function POST(request: Request) {
     const serviceClient = createServiceRoleClient();
     const { error: insertError } = await serviceClient.from("reports").insert({
       user_id: user?.id ?? null,
+      horse_name: horseName,
       overall_score: report.overall_score,
       balance_score: report.balance.score,
       shoulder_score: report.shoulder_angle.score,
