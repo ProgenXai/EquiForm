@@ -5,7 +5,19 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import type { ConformationReport } from "@/lib/analyze/types";
 import { createClient } from "@/lib/supabase/client";
+
+type ReportSectionKey =
+  | "balance"
+  | "shoulder_angle"
+  | "hip_angle"
+  | "topline_quality"
+  | "leg_alignment";
+
+type ParsedReportText =
+  | { ok: true; summary: string; notes: Record<ReportSectionKey, string | undefined> }
+  | { ok: false; raw: string };
 
 type ReportDetail = {
   id: string;
@@ -19,20 +31,49 @@ type ReportDetail = {
   report_text: string | null;
 };
 
-const SCORE_SECTIONS: { label: string; key: keyof Pick<
-  ReportDetail,
-  | "balance_score"
-  | "shoulder_score"
-  | "hip_score"
-  | "topline_score"
-  | "leg_score"
-> }[] = [
-  { label: "Balance", key: "balance_score" },
-  { label: "Shoulder Angle", key: "shoulder_score" },
-  { label: "Hip Angle", key: "hip_score" },
-  { label: "Topline Quality", key: "topline_score" },
-  { label: "Leg Alignment", key: "leg_score" },
+const SCORE_SECTIONS: {
+  label: string;
+  key: keyof Pick<
+    ReportDetail,
+    | "balance_score"
+    | "shoulder_score"
+    | "hip_score"
+    | "topline_score"
+    | "leg_score"
+  >;
+  reportKey: ReportSectionKey;
+}[] = [
+  { label: "Balance", key: "balance_score", reportKey: "balance" },
+  { label: "Shoulder Angle", key: "shoulder_score", reportKey: "shoulder_angle" },
+  { label: "Hip Angle", key: "hip_score", reportKey: "hip_angle" },
+  { label: "Topline Quality", key: "topline_score", reportKey: "topline_quality" },
+  { label: "Leg Alignment", key: "leg_score", reportKey: "leg_alignment" },
 ];
+
+function parseReportText(text: string): ParsedReportText {
+  try {
+    const parsed = JSON.parse(text) as { report?: ConformationReport };
+    const reportData = parsed.report;
+
+    if (reportData?.summary) {
+      return {
+        ok: true,
+        summary: reportData.summary,
+        notes: {
+          balance: reportData.balance?.notes,
+          shoulder_angle: reportData.shoulder_angle?.notes,
+          hip_angle: reportData.hip_angle?.notes,
+          topline_quality: reportData.topline_quality?.notes,
+          leg_alignment: reportData.leg_alignment?.notes,
+        },
+      };
+    }
+  } catch {
+    // fall through to raw display
+  }
+
+  return { ok: false, raw: text };
+}
 
 function formatReportDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString(undefined, {
@@ -89,6 +130,9 @@ export default function ReportDetailPage() {
 
     void loadReport();
   }, [reportId, router]);
+
+  const parsedReportText =
+    report?.report_text != null ? parseReportText(report.report_text) : null;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -149,25 +193,39 @@ export default function ReportDetailPage() {
               <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
                 <h2 className="text-lg font-semibold text-white">Report</h2>
                 <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
-                  {report.report_text}
+                  {parsedReportText?.ok
+                    ? parsedReportText.summary
+                    : report.report_text}
                 </p>
               </div>
             ) : null}
 
             <ul className="mt-6 space-y-4">
-              {SCORE_SECTIONS.map(({ label, key }) => (
-                <li
-                  key={key}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-medium text-zinc-200">{label}</h3>
-                    <span className="text-sm font-semibold text-accent">
-                      {report[key] ?? "—"}/100
-                    </span>
-                  </div>
-                </li>
-              ))}
+              {SCORE_SECTIONS.map(({ label, key, reportKey }) => {
+                const sectionNotes =
+                  parsedReportText?.ok === true
+                    ? parsedReportText.notes[reportKey]
+                    : undefined;
+
+                return (
+                  <li
+                    key={key}
+                    className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-medium text-zinc-200">{label}</h3>
+                      <span className="text-sm font-semibold text-accent">
+                        {report[key] ?? "—"}/100
+                      </span>
+                    </div>
+                    {sectionNotes ? (
+                      <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                        {sectionNotes}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </article>
         )}
