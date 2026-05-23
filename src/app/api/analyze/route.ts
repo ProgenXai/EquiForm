@@ -11,6 +11,7 @@ import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
@@ -160,9 +161,27 @@ export async function POST(request: Request) {
     );
 
     const overlayBase64 = overlayBuffer.toString("base64");
+    const overlayImage = `data:image/jpeg;base64,${overlayBase64}`;
+
+    const serviceClient = createServiceRoleClient();
+    const { error: insertError } = await serviceClient.from("reports").insert({
+      user_id: user?.id ?? null,
+      overall_score: report.overall_score,
+      balance_score: report.balance.score,
+      shoulder_score: report.shoulder_angle.score,
+      hip_score: report.hip_angle.score,
+      topline_score: report.topline_quality.score,
+      leg_score: report.leg_alignment.score,
+      report_text: reportText,
+      overlay_url: overlayImage,
+    });
+
+    if (insertError) {
+      console.error("[analyze] failed to save report:", insertError);
+    }
 
     return NextResponse.json({
-      overlayImage: `data:image/jpeg;base64,${overlayBase64}`,
+      overlayImage,
       report,
       landmarks: detectedLandmarks,
     });
