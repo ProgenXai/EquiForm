@@ -379,8 +379,9 @@ export default function AnalyzeClient() {
     (!authLoading && !hasAnalyzeAccess);
 
   return (
-    <div className="relative min-h-screen bg-black text-white w-full px-6 py-8">
-      <div ref={menuRef} className="absolute right-4 top-4 z-50">
+    <div className="min-h-screen bg-black text-white w-full px-6 py-8">
+      <div className="relative max-w-5xl mx-auto w-full">
+      <div ref={menuRef} className="absolute right-0 top-0 z-50">
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
@@ -437,7 +438,7 @@ export default function AnalyzeClient() {
         </p>
       </header>
 
-      <main className="w-full max-w-5xl mx-auto">
+      <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           {!previewUrl ? (
             <label
@@ -692,6 +693,7 @@ export default function AnalyzeClient() {
           </section>
         ) : null}
       </main>
+      </div>
     </div>
   );
 }
