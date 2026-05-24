@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   serverExternalPackages: ["canvas"],
   experimental: {
+    proxyClientMaxBodySize: "20mb",
     serverActions: {
       bodySizeLimit: "10mb",
     },
