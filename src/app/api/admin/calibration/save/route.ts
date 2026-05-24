@@ -59,25 +59,23 @@ export async function POST(request: Request) {
     const photoUrl =
       body.photoUrl?.trim() || existing.photo_url?.trim() || "";
 
-    void (async () => {
-      console.log("[calibration/save] Starting Roboflow export", {
+    console.log("[calibration/save] Starting Roboflow export", {
+      horseName,
+      hasPhotoUrl: Boolean(photoUrl),
+      landmarkCount: Object.keys(landmarks).length,
+    });
+    try {
+      await exportCalibrationToRoboflow({
         horseName,
-        hasPhotoUrl: Boolean(photoUrl),
-        landmarkCount: Object.keys(landmarks).length,
+        photoUrl,
+        landmarks,
       });
-      try {
-        await exportCalibrationToRoboflow({
-          horseName,
-          photoUrl,
-          landmarks,
-        });
-        console.log("[calibration/save] Roboflow export completed", {
-          horseName,
-        });
-      } catch (err) {
-        console.error("[calibration/save] Roboflow export failed", err);
-      }
-    })();
+      console.log("[calibration/save] Roboflow export completed", {
+        horseName,
+      });
+    } catch (err) {
+      console.error("[calibration/save] Roboflow export failed", err);
+    }
 
     return NextResponse.json({
       success: true,
@@ -106,25 +104,23 @@ export async function POST(request: Request) {
 
   const exportPhotoUrl = body.photoUrl?.trim() || photoUrl?.trim() || "";
 
-  void (async () => {
-    console.log("[calibration/save] Starting Roboflow export", {
+  console.log("[calibration/save] Starting Roboflow export", {
+    horseName,
+    hasPhotoUrl: Boolean(exportPhotoUrl),
+    landmarkCount: Object.keys(landmarks).length,
+  });
+  try {
+    await exportCalibrationToRoboflow({
       horseName,
-      hasPhotoUrl: Boolean(exportPhotoUrl),
-      landmarkCount: Object.keys(landmarks).length,
+      photoUrl: exportPhotoUrl,
+      landmarks,
     });
-    try {
-      await exportCalibrationToRoboflow({
-        horseName,
-        photoUrl: exportPhotoUrl,
-        landmarks,
-      });
-      console.log("[calibration/save] Roboflow export completed", {
-        horseName,
-      });
-    } catch (err) {
-      console.error("[calibration/save] Roboflow export failed", err);
-    }
-  })();
+    console.log("[calibration/save] Roboflow export completed", {
+      horseName,
+    });
+  } catch (err) {
+    console.error("[calibration/save] Roboflow export failed", err);
+  }
 
   return NextResponse.json({
     success: true,
