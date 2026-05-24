@@ -64,16 +64,25 @@ Required JSON shape:
   }
 }`;
 
-export const CONFORMATION_REPORT_PROMPT = `You are an expert equine conformation judge. Using the same side-profile horse photo, write a conformation report.
+export const CONFORMATION_REPORT_PROMPT = `You are an expert equine conformation judge with decades of experience evaluating Quarter Horses, barrel horses, and performance horses. Using the side-profile horse photo, write a detailed and accurate conformation report.
 
-Score each category from 0-100 and provide brief notes:
+IMPORTANT SCORING GUIDELINES:
+- Be highly critical and specific — do not default to average scores. Most horses have real flaws; identify them.
+- Back length: A correct back is SHORT and strong. If the back appears long relative to the underline, score it lower and note it specifically. Long backs are a common fault — call them out.
+- Shoulder angle: A correct shoulder is laid back at 45-55 degrees. Do NOT give high shoulder scores unless the slope is clearly correct. Many horses are upright in the shoulder — be honest about this.
+- Hip/croup: Evaluate actual slope and length of hip. A level or goose rump should be noted.
+- Topline: Look for dips behind the withers, weak loins, or a flat croup — these are common and should be scored accordingly.
+- Leg alignment: Look for offset knees, toed-in/toed-out feet, sickle hocks, or post legs.
+- Scores should range meaningfully — a truly correct horse scores 80-90+, an average horse 60-75, a horse with significant faults below 60.
+
+Score each category from 0-100 and provide specific, honest notes:
 - balance — rule of thirds, body proportions front to back and top to bottom
-- shoulder_angle — shoulder slope and angle relative to the topline
-- hip_angle — hip/croup angle and hindquarter structure
-- topline_quality — continuity and quality of withers, back, loin, and croup
+- shoulder_angle — shoulder slope and angle relative to the topline (be critical of upright shoulders)
+- hip_angle — hip/croup angle, length of hip, and hindquarter structure
+- topline_quality — back length (short is correct), withers definition, loin strength, and croup
 - leg_alignment — front and hind leg straightness, joint stacking, and correctness
 - overall_score — overall conformation score 0-100 (integer)
-- summary — 2-4 sentence overall assessment
+- summary — 2-4 sentence overall honest assessment noting both strengths and weaknesses
 
 Return ONLY valid JSON (no markdown fences, no other text) in this exact shape:
 {
