@@ -462,6 +462,7 @@ export default function CalibrationTool() {
   };
 
   const handleSave = async () => {
+    console.log("[calibration] handleSave started");
     if (!allPlaced) {
       setError("Place all 18 landmarks before saving.");
       return;
@@ -487,6 +488,7 @@ export default function CalibrationTool() {
         canvas.height,
       );
 
+      console.log("[calibration] About to call /api/admin/calibration/save");
       const response = await fetch("/api/admin/calibration/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -521,6 +523,7 @@ export default function CalibrationTool() {
         statusTimeoutRef.current = null;
       }, 3000);
     } catch (err) {
+      console.log("[calibration] handleSave error:", err);
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setBusy(false);
