@@ -302,6 +302,15 @@ export default function AnalyzeClient() {
     }
   }
 
+  function handleTryAnotherPhoto() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    setError(null);
+  }
+
   async function handleFile(file: File) {
     resetResult();
 
@@ -736,9 +745,20 @@ export default function AnalyzeClient() {
           ) : null}
 
           {error ? (
-            <p className="mt-4 text-sm text-red-400" role="alert">
-              {error}
-            </p>
+            <div className="mt-4">
+              <p className="text-sm text-red-400" role="alert">
+                {error}
+              </p>
+              {!result && !loading ? (
+                <button
+                  type="button"
+                  onClick={handleTryAnotherPhoto}
+                  className="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                >
+                  Try Another Photo
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </section>
 
