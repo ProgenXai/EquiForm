@@ -69,6 +69,11 @@ async function compressImageBeforeAnalyze(file: File): Promise<File> {
     }
 
     await new Promise<void>((resolve, reject) => {
+      if (!blob) {
+        reject(new Error("Failed to compress image"));
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === "string") {
