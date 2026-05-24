@@ -16,7 +16,7 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
 const COMPRESS_TARGET_BYTES = 4 * 1024 * 1024;
 const ANALYZE_SEND_AS_IS_MAX_BYTES = 5 * 1024 * 1024;
-const ANALYZE_COMPRESS_TARGET_BYTES = 4.5 * 1024 * 1024;
+const ANALYZE_COMPRESS_TARGET_BYTES = 3670016;
 
 async function compressImageBeforeAnalyze(file: File): Promise<File> {
   console.log("Original size:", file.size);
@@ -82,7 +82,7 @@ async function compressImageBeforeAnalyze(file: File): Promise<File> {
     }
 
     if (!blob || blob.size > ANALYZE_COMPRESS_TARGET_BYTES) {
-      throw new Error("Failed to compress image below 4.5MB");
+      throw new Error("Failed to compress image below 3.5MB");
     }
 
     await new Promise<void>((resolve, reject) => {
