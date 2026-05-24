@@ -118,10 +118,28 @@ export async function POST(request: Request) {
       );
     }
 
+    const ANTHROPIC_MAX_BYTES = 4194304;
+    let anthropicBuffer = inputBuffer;
+
+    if (inputBuffer.length > ANTHROPIC_MAX_BYTES) {
+      let pipeline = sharp(inputBuffer);
+      if (metadata.width > 2048) {
+        pipeline = pipeline.resize({ width: 2048, withoutEnlargement: true });
+      }
+      anthropicBuffer = await pipeline.jpeg({ quality: 80 }).toBuffer();
+
+      if (anthropicBuffer.length > ANTHROPIC_MAX_BYTES) {
+        anthropicBuffer = await sharp(anthropicBuffer).jpeg({ quality: 60 }).toBuffer();
+      }
+    }
+
     const imageWidth = metadata.width;
     const imageHeight = metadata.height;
     const mediaType = toAnthropicMediaType(file.type);
     const imageBase64 = inputBuffer.toString("base64");
+    const anthropicMediaType: AnthropicImageMediaType =
+      anthropicBuffer === inputBuffer ? mediaType : "image/jpeg";
+    const anthropicBase64 = anthropicBuffer.toString("base64");
 
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -131,8 +149,8 @@ export async function POST(request: Request) {
       type: "image" as const,
       source: {
         type: "base64" as const,
-        media_type: mediaType,
-        data: imageBase64,
+        media_type: anthropicMediaType,
+        data: anthropicBase64,
       },
     };
 
