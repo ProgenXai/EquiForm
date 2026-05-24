@@ -336,7 +336,7 @@ async function annotateImageOnRoboflow(
   annotationName: string,
   annotation: ReturnType<typeof buildCocoKeypointAnnotation>,
 ): Promise<void> {
-  const annotateUrl = `${ROBOFLOW_API}/${config.workspace}/${config.project}/annotate/${imageId}`;
+  const annotateUrl = `${ROBOFLOW_API}/dataset/${config.project}/annotate/${imageId}`;
   const url = new URL(annotateUrl);
   url.searchParams.set("api_key", config.apiKey);
   url.searchParams.set("name", annotationName);
