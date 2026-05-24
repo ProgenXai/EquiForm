@@ -126,10 +126,14 @@ export async function POST(request: Request) {
       if (metadata.width > 2048) {
         pipeline = pipeline.resize({ width: 2048, withoutEnlargement: true });
       }
-      anthropicBuffer = await pipeline.jpeg({ quality: 80 }).toBuffer();
+      anthropicBuffer = Buffer.from(
+        await pipeline.jpeg({ quality: 80 }).toBuffer(),
+      ) as Buffer<ArrayBuffer>;
 
       if (anthropicBuffer.length > ANTHROPIC_MAX_BYTES) {
-        anthropicBuffer = await sharp(anthropicBuffer).jpeg({ quality: 60 }).toBuffer();
+        anthropicBuffer = Buffer.from(
+          await sharp(anthropicBuffer).jpeg({ quality: 60 }).toBuffer(),
+        ) as Buffer<ArrayBuffer>;
       }
     }
 
