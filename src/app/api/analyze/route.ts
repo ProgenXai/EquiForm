@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const ANTHROPIC_MAX_BYTES = 4194304;
+    const ANTHROPIC_MAX_BYTES = 3145728;
     let anthropicBuffer = inputBuffer;
 
     if (inputBuffer.length > ANTHROPIC_MAX_BYTES) {
