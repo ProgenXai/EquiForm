@@ -644,6 +644,9 @@ export default function AnalyzeClient() {
                 </li>
                 <li>Horse should fill most of the frame</li>
                 <li>
+                  No people, other horses, or objects blocking the horse&apos;s body
+                </li>
+                <li>
                   Photo should be taken at horse&apos;s level, not from above or below
                 </li>
                 <li>Avoid photos with multiple horses</li>
