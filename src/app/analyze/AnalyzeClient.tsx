@@ -38,34 +38,47 @@ async function compressImageBeforeAnalyze(file: File): Promise<File> {
 
   let width = imageBitmap.width;
   let height = imageBitmap.height;
-  let quality = 0.85;
   let blob: Blob | null = null;
 
-  try {
-    while (width >= 64 && height >= 64) {
+  const scaleToMaxWidth = (maxWidth: number) => {
+    if (width <= maxWidth) return;
+    height = Math.round((height * maxWidth) / width);
+    width = maxWidth;
+  };
+
+  const compressAtCurrentDimensions = async (): Promise<Blob | null> => {
+    let latestBlob: Blob | null = null;
+
+    for (let quality = 0.85; quality >= 0.3; quality -= 0.1) {
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(imageBitmap, 0, 0, width, height);
 
-      blob = await new Promise<Blob | null>((resolve) => {
+      latestBlob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/jpeg", quality);
       });
 
-      if (!blob) {
+      if (!latestBlob) {
         throw new Error("Failed to compress image");
       }
 
-      if (blob.size <= ANALYZE_COMPRESS_TARGET_BYTES) {
-        break;
+      if (latestBlob.size <= ANALYZE_COMPRESS_TARGET_BYTES) {
+        return latestBlob;
       }
+    }
 
-      if (quality > 0.55) {
-        quality -= 0.1;
-      } else {
-        width = Math.floor(width * 0.85);
-        height = Math.floor(height * 0.85);
-        quality = 0.85;
-      }
+    return latestBlob;
+  };
+
+  try {
+    scaleToMaxWidth(2048);
+    blob = await compressAtCurrentDimensions();
+
+    if (!blob || blob.size > ANALYZE_COMPRESS_TARGET_BYTES) {
+      width = imageBitmap.width;
+      height = imageBitmap.height;
+      scaleToMaxWidth(1600);
+      blob = await compressAtCurrentDimensions();
     }
 
     if (!blob || blob.size > ANALYZE_COMPRESS_TARGET_BYTES) {
