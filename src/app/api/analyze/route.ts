@@ -123,8 +123,8 @@ export async function POST(request: Request) {
 
     if (inputBuffer.length > ANTHROPIC_MAX_BYTES) {
       let pipeline = sharp(inputBuffer);
-      if (metadata.width > 2048) {
-        pipeline = pipeline.resize({ width: 2048, withoutEnlargement: true });
+      if (metadata.width > 1600) {
+        pipeline = pipeline.resize({ width: 1600, withoutEnlargement: true });
       }
       anthropicBuffer = Buffer.from(
         await pipeline.jpeg({ quality: 80 }).toBuffer(),
@@ -133,6 +133,15 @@ export async function POST(request: Request) {
       if (anthropicBuffer.length > ANTHROPIC_MAX_BYTES) {
         anthropicBuffer = Buffer.from(
           await sharp(anthropicBuffer).jpeg({ quality: 60 }).toBuffer(),
+        ) as Buffer<ArrayBuffer>;
+      }
+
+      if (anthropicBuffer.length > ANTHROPIC_MAX_BYTES) {
+        anthropicBuffer = Buffer.from(
+          await sharp(anthropicBuffer)
+            .resize({ width: 1200, withoutEnlargement: true })
+            .jpeg({ quality: 50 })
+            .toBuffer(),
         ) as Buffer<ArrayBuffer>;
       }
     }
