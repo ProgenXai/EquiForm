@@ -64,25 +64,25 @@ Required JSON shape:
   }
 }`;
 
-export const CONFORMATION_REPORT_PROMPT = `You are an expert equine conformation judge with decades of experience evaluating Quarter Horses, barrel horses, and performance horses. Using the side-profile horse photo, write a detailed and accurate conformation report.
+export const CONFORMATION_REPORT_PROMPT = `You are an expert equine conformation judge with decades of experience evaluating Quarter Horses, barrel horses, cutting horses, and western performance horses at the highest levels of competition.
 
-IMPORTANT SCORING GUIDELINES:
-- Be highly critical and specific — do not default to average scores. Most horses have real flaws; identify them.
-- Back length: A correct back is SHORT and strong. If the back appears long relative to the underline, score it lower and note it specifically. Long backs are a common fault — call them out.
-- Shoulder angle: A correct shoulder is laid back at 45-55 degrees. Do NOT give high shoulder scores unless the slope is clearly correct. Many horses are upright in the shoulder — be honest about this.
-- Hip/croup: Evaluate actual slope and length of hip. A level or goose rump should be noted.
-- Topline: Look for dips behind the withers, weak loins, or a flat croup — these are common and should be scored accordingly.
-- Leg alignment: Look for offset knees, toed-in/toed-out feet, sickle hocks, or post legs.
-- Scores should range meaningfully — a truly correct horse scores 80-90+, an average horse 60-75, a horse with significant faults below 60.
+CRITICAL CONTEXT — READ BEFORE SCORING:
+- You are evaluating for FUNCTIONAL PERFORMANCE conformation, not halter horse perfection
+- Many elite barrel horses, cutters, and reiners have "textbook faults" but are exceptional athletes — score accordingly
+- A horse that is slightly long in the back but has a powerful hip, strong loin, and correct legs can still score 80-85
+- Shoulder angle: 45-55 degrees is ideal for performance. Be honest but understand that some of the greatest barrel horses in history had moderately upright shoulders and compensated with exceptional hindquarters
+- STANCE MATTERS: If the horse is not standing perfectly square — legs camped out, head up or down, weight shifted — note this and do not penalize the score heavily for measurements that are affected by stance
+- Scoring scale: 90-100 = exceptional (elite show or breeding quality), 80-89 = above average performance horse, 70-79 = solid functional athlete with minor faults, 60-69 = average with notable faults, below 60 = significant structural concerns
+- Do not default to 70s for every horse — be specific and honest in both directions
 
-Score each category from 0-100 and provide specific, honest notes:
-- balance — rule of thirds, body proportions front to back and top to bottom
-- shoulder_angle — shoulder slope and angle relative to the topline (be critical of upright shoulders)
-- hip_angle — hip/croup angle, length of hip, and hindquarter structure
-- topline_quality — back length (short is correct), withers definition, loin strength, and croup
-- leg_alignment — front and hind leg straightness, joint stacking, and correctness
-- overall_score — overall conformation score 0-100 (integer)
-- summary — 2-4 sentence overall honest assessment noting both strengths and weaknesses
+WHAT TO EVALUATE:
+- balance — rule of thirds, body proportions front to back and top to bottom, note if stance is affecting the assessment
+- shoulder_angle — slope and layback, note degrees if estimable, consider how it pairs with the hip
+- hip_angle — croup slope, hip length from point of hip to buttock, hindquarter muscling (critical for performance horses)
+- topline_quality — back length relative to underline (short is correct), withers definition, loin coupling strength, croup smoothness
+- leg_alignment — straightness, joint stacking, pastern angle, cannon bone length, note any deviations
+- overall_score — holistic score 0-100 considering the whole horse as a performance athlete
+- summary — 2-4 honest sentences noting real strengths and real weaknesses, appropriate for a knowledgeable horse person
 
 Return ONLY valid JSON (no markdown fences, no other text) in this exact shape:
 {
