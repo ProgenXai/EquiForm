@@ -19,7 +19,11 @@ const ANALYZE_SEND_AS_IS_MAX_BYTES = 5 * 1024 * 1024;
 const ANALYZE_COMPRESS_TARGET_BYTES = 4.5 * 1024 * 1024;
 
 async function compressImageBeforeAnalyze(file: File): Promise<File> {
+  console.log("Original size:", file.size);
+  console.log("Compression needed:", file.size > 5 * 1024 * 1024);
+
   if (file.size <= ANALYZE_SEND_AS_IS_MAX_BYTES) {
+    console.log("Compressed size:", file.size);
     return file;
   }
 
@@ -85,6 +89,8 @@ async function compressImageBeforeAnalyze(file: File): Promise<File> {
       reader.onerror = () => reject(new Error("Failed to convert image to base64"));
       reader.readAsDataURL(blob);
     });
+
+    console.log("Compressed size:", blob.size);
 
     const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
     return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
@@ -338,6 +344,7 @@ export default function AnalyzeClient() {
 
     try {
       const fileToSend = await compressImageBeforeAnalyze(selectedFile);
+      console.log("Final analyze payload size:", fileToSend.size);
 
       const formData = new FormData();
       formData.append("image", fileToSend);
