@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { drawPlacementPreview } from "@/lib/calibration/draw-placement";
 import { renderConformationOverlayLayers } from "@/lib/calibration/overlay-layers";
@@ -10,9 +10,11 @@ import {
   type LandmarkMap,
 } from "@/lib/calibration/pixel-landmarks";
 import {
-  LANDMARKS,
-  LANDMARK_COUNT,
+  getLandmarkCountForView,
+  getLandmarksForView,
+  type CalibrationViewMode,
   type HorseFacing,
+  type LandmarkDefinition,
   type LandmarkId,
   type Point,
 } from "@/lib/calibration/landmarks";
@@ -73,13 +75,16 @@ function drawSelectedPointHighlight(
   ctx.restore();
 }
 
-function emptyPoints(): (Point | null)[] {
-  return Array.from({ length: LANDMARK_COUNT }, () => null);
+function emptyPoints(count: number): (Point | null)[] {
+  return Array.from({ length: count }, () => null);
 }
 
-function pointsToMap(points: (Point | null)[]): LandmarkMap {
+function pointsToMap(
+  points: (Point | null)[],
+  landmarks: LandmarkDefinition[],
+): LandmarkMap {
   const map: LandmarkMap = {};
-  LANDMARKS.forEach((landmark, index) => {
+  landmarks.forEach((landmark, index) => {
     const point = points[index];
     if (point) map[landmark.id] = point;
   });
@@ -106,12 +111,15 @@ export default function CalibrationTool() {
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [horseId, setHorseId] = useState("");
+  const [viewMode, setViewMode] = useState<CalibrationViewMode>("side");
   const [facing, setFacing] = useState<HorseFacing>("LEFT");
   const [photoUrl, setPhotoUrl] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [points, setPoints] = useState<(Point | null)[]>(emptyPoints);
+  const [points, setPoints] = useState<(Point | null)[]>(() =>
+    emptyPoints(getLandmarkCountForView("side")),
+  );
   const [step, setStep] = useState(0);
   const [showOverlay, setShowOverlay] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -122,8 +130,10 @@ export default function CalibrationTool() {
     null,
   );
 
-  const currentLandmark = LANDMARKS[step];
-  const allPlaced = points.every((p) => p !== null);
+  const landmarks = useMemo(() => getLandmarksForView(viewMode), [viewMode]);
+  const landmarkCount = landmarks.length;
+  const currentLandmark = landmarks[step];
+  const allPlaced = points.length === landmarkCount && points.every((p) => p !== null);
   const horseIdValid = horseId.trim().length > 0;
   const photoControlsDisabled = !horseIdValid || busy;
 
@@ -142,18 +152,18 @@ export default function CalibrationTool() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      const map = pointsToMap(snapshot);
+      const map = pointsToMap(snapshot, landmarks);
 
-      if (showOverlay) {
+      if (showOverlay && viewMode === "side") {
         try {
-          const landmarks = landmarkMapToConformation(
+          const conformationLandmarks = landmarkMapToConformation(
             map,
             canvas.width,
             canvas.height,
           );
           renderConformationOverlayLayers(
             ctx,
-            landmarks,
+            conformationLandmarks,
             canvas.width,
             canvas.height,
           );
@@ -165,7 +175,7 @@ export default function CalibrationTool() {
       if (!showOverlay) {
         snapshot.forEach((point, index) => {
           if (!point) return;
-          const landmark = LANDMARKS[index];
+          const landmark = landmarks[index];
           const suffix = landmark.referenceOnly ? " (ref)" : "";
           drawPlacementPreview(ctx, point, `${landmark.label}${suffix}`);
         });
@@ -174,7 +184,7 @@ export default function CalibrationTool() {
       if (highlightIndex !== null) {
         const selected = snapshot[highlightIndex];
         if (selected) {
-          const landmark = LANDMARKS[highlightIndex];
+          const landmark = landmarks[highlightIndex];
           const suffix = landmark.referenceOnly ? " (ref)" : "";
           drawSelectedPointHighlight(
             ctx,
@@ -184,7 +194,7 @@ export default function CalibrationTool() {
         }
       }
     },
-    [imageLoaded, showOverlay],
+    [imageLoaded, landmarks, showOverlay, viewMode],
   );
 
   const redraw = useCallback(() => {
@@ -213,6 +223,33 @@ export default function CalibrationTool() {
     };
   }, []);
 
+  const clearPhotoAndLandmarks = useCallback((mode: CalibrationViewMode) => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    imageRef.current = null;
+    setUrlInput("");
+    setPhotoUrl("");
+    setStoragePath(null);
+    setImageLoaded(false);
+    setPoints(emptyPoints(getLandmarkCountForView(mode)));
+    setStep(0);
+    setShowOverlay(false);
+    setSelectedPointIndex(null);
+    setStatus(null);
+    setError(null);
+  }, []);
+
+  const handleViewModeChange = (mode: CalibrationViewMode) => {
+    if (mode === viewMode) return;
+    setViewMode(mode);
+    clearPhotoAndLandmarks(mode);
+  };
+
   const resetForNextHorse = useCallback(() => {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -227,12 +264,12 @@ export default function CalibrationTool() {
     setPhotoUrl("");
     setStoragePath(null);
     setImageLoaded(false);
-    setPoints(emptyPoints());
+    setPoints(emptyPoints(getLandmarkCountForView(viewMode)));
     setStep(0);
     setShowOverlay(false);
     setSelectedPointIndex(null);
     setError(null);
-  }, []);
+  }, [viewMode]);
 
   const drawImageToCanvas = useCallback((img: HTMLImageElement) => {
     const canvas = canvasRef.current;
@@ -274,7 +311,7 @@ export default function CalibrationTool() {
             }
 
             imageRef.current = img;
-            setPoints(emptyPoints());
+            setPoints(emptyPoints(landmarkCount));
             setStep(0);
             setShowOverlay(false);
             setSelectedPointIndex(null);
@@ -289,7 +326,7 @@ export default function CalibrationTool() {
         img.src = src;
       });
     },
-    [drawImageToCanvas],
+    [drawImageToCanvas, landmarkCount],
   );
 
   const handleLoadFromUrl = async () => {
@@ -416,14 +453,14 @@ export default function CalibrationTool() {
       return;
     }
 
-    if (step >= LANDMARK_COUNT || showOverlay) return;
+    if (step >= landmarkCount || showOverlay) return;
 
     setPoints((prev) => {
       const next = [...prev];
       next[step] = point;
       return next;
     });
-    if (step < LANDMARK_COUNT - 1) {
+    if (step < landmarkCount - 1) {
       setStep((s) => s + 1);
     }
     setError(null);
@@ -443,7 +480,7 @@ export default function CalibrationTool() {
   };
 
   const handleReset = () => {
-    setPoints(emptyPoints());
+    setPoints(emptyPoints(landmarkCount));
     setStep(0);
     setShowOverlay(false);
     setSelectedPointIndex(null);
@@ -453,7 +490,11 @@ export default function CalibrationTool() {
 
   const handleGenerateOverlay = () => {
     if (!allPlaced) {
-      setError("Place all 18 landmarks before generating the overlay.");
+      setError(
+        viewMode === "side"
+          ? "Place all 18 landmarks before generating the overlay."
+          : `Place all ${landmarkCount} landmarks before generating the overlay.`,
+      );
       return;
     }
     setShowOverlay(true);
@@ -463,7 +504,11 @@ export default function CalibrationTool() {
 
   const handleSave = async () => {
     if (!allPlaced) {
-      setError("Place all 18 landmarks before saving.");
+      setError(
+        viewMode === "side"
+          ? "Place all 18 landmarks before saving."
+          : `Place all ${landmarkCount} landmarks before saving.`,
+      );
       return;
     }
     if (!horseIdValid) {
@@ -480,7 +525,7 @@ export default function CalibrationTool() {
     setBusy(true);
     setError(null);
     try {
-      const pixelMap = pointsToMap(points);
+      const pixelMap = pointsToMap(points, landmarks);
       const fractionalPoints = landmarkMapToFractional(
         pixelMap,
         canvas.width,
@@ -493,6 +538,7 @@ export default function CalibrationTool() {
         body: JSON.stringify({
           horseId: horseId.trim(),
           facing,
+          viewMode,
           photoUrl: photoUrl || undefined,
           points: fractionalPoints,
         }),
@@ -544,10 +590,39 @@ export default function CalibrationTool() {
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
       <aside className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r border-zinc-800 bg-zinc-900 p-4">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+          <p className="text-xs font-medium text-zinc-400">View mode</p>
+          <div className="mt-2 flex flex-col gap-2">
+            {(
+              [
+                { id: "side", label: "Side View" },
+                { id: "front", label: "Front View" },
+                { id: "hind", label: "Hind View" },
+              ] as const
+            ).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleViewModeChange(id)}
+                disabled={busy}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  viewMode === id
+                    ? "bg-accent text-white"
+                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                } disabled:opacity-40`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <h1 className="text-lg font-semibold">EquiForm Calibration</h1>
           <p className="mt-1 text-xs text-zinc-400">
-            Place 18 landmarks in order on the horse photo.
+            {viewMode === "side"
+              ? "Place 18 landmarks in order on the horse photo."
+              : `Place ${landmarkCount} landmarks in order on the horse photo.`}
           </p>
         </div>
 
@@ -595,7 +670,7 @@ export default function CalibrationTool() {
           </p>
           {imageLoaded && !allPlaced ? (
             <p className="mt-1 text-xs text-zinc-500">
-              Point {step + 1} of {LANDMARK_COUNT}
+              Point {step + 1} of {landmarkCount}
             </p>
           ) : null}
           <p className="mt-2 text-xs leading-relaxed text-zinc-300">
@@ -610,7 +685,7 @@ export default function CalibrationTool() {
         </div>
 
         <ul className="space-y-1 text-xs">
-          {LANDMARKS.map((landmark, index) => {
+          {landmarks.map((landmark, index) => {
             const placed = points[index] !== null;
             const active = index === step && !allPlaced;
             const selected = selectedPointIndex === index;

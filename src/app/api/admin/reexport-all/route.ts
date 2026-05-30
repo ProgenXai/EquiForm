@@ -50,6 +50,8 @@ export async function POST() {
         horseName,
         photoUrl,
         landmarks,
+        project: process.env.ROBOFLOW_PROJECT?.trim() ?? "",
+        viewMode: "side",
       });
       success += 1;
     } catch (err) {

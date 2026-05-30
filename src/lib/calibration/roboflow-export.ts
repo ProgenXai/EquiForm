@@ -1,6 +1,12 @@
 import sharp from "sharp";
 
-import { LANDMARKS, type LandmarkId, type Point } from "@/lib/calibration/landmarks";
+import {
+  getLandmarksForView,
+  type CalibrationViewMode,
+  type LandmarkDefinition,
+  type LandmarkId,
+  type Point,
+} from "@/lib/calibration/landmarks";
 
 const ROBOFLOW_API = "https://api.roboflow.com";
 const HORSE_CATEGORY = "horse";
@@ -89,16 +95,16 @@ function extractImageIdFromUploadResponse(
   return null;
 }
 
-function getRoboflowConfig(): RoboflowConfig | null {
+function getRoboflowConfig(project: string): RoboflowConfig | null {
   const apiKey = process.env.ROBOFLOW_API_KEY?.trim();
   const workspace = process.env.ROBOFLOW_WORKSPACE?.trim();
-  const project = process.env.ROBOFLOW_PROJECT?.trim();
+  const trimmedProject = project.trim();
 
-  if (!apiKey || !workspace || !project) {
+  if (!apiKey || !workspace || !trimmedProject) {
     return null;
   }
 
-  return { apiKey, workspace, project };
+  return { apiKey, workspace, project: trimmedProject };
 }
 
 function sanitizeFilename(name: string): string {
@@ -123,7 +129,7 @@ function toPixelPoint(
   };
 }
 
-function buildCocoKeypointAnnotation(
+function buildSideCocoKeypointAnnotation(
   fileName: string,
   width: number,
   height: number,
@@ -204,6 +210,97 @@ function buildCocoKeypointAnnotation(
       },
     ],
   };
+}
+
+function landmarkIdToRoboflowLabel(id: LandmarkId): string {
+  return id.replace(/_/g, "-");
+}
+
+function buildViewCocoKeypointAnnotation(
+  fileName: string,
+  width: number,
+  height: number,
+  pixelPoints: Partial<Record<LandmarkId, { x: number; y: number }>>,
+  landmarkDefinitions: LandmarkDefinition[],
+) {
+  const keypointLabels = landmarkDefinitions.map((landmark) =>
+    landmarkIdToRoboflowLabel(landmark.id),
+  );
+  const keypoints: number[] = [];
+  const xs: number[] = [];
+  const ys: number[] = [];
+  let numKeypoints = 0;
+
+  for (const landmark of landmarkDefinitions) {
+    const point = pixelPoints[landmark.id];
+    if (point) {
+      keypoints.push(point.x, point.y, 2);
+      xs.push(point.x);
+      ys.push(point.y);
+      numKeypoints += 1;
+    } else {
+      keypoints.push(0, 0, 0);
+    }
+  }
+
+  const minX = xs.length ? Math.min(...xs) : 0;
+  const minY = ys.length ? Math.min(...ys) : 0;
+  const maxX = xs.length ? Math.max(...xs) : width;
+  const maxY = ys.length ? Math.max(...ys) : height;
+  const bboxWidth = Math.max(1, maxX - minX);
+  const bboxHeight = Math.max(1, maxY - minY);
+
+  return {
+    images: [
+      {
+        id: 0,
+        file_name: fileName,
+        width,
+        height,
+      },
+    ],
+    annotations: [
+      {
+        id: 0,
+        image_id: 0,
+        category_id: 0,
+        keypoints,
+        num_keypoints: numKeypoints,
+        bbox: [minX, minY, bboxWidth, bboxHeight],
+        area: bboxWidth * bboxHeight,
+        iscrowd: 0,
+      },
+    ],
+    categories: [
+      {
+        id: 0,
+        name: HORSE_CATEGORY,
+        supercategory: HORSE_CATEGORY,
+        keypoints: keypointLabels,
+        skeleton: [],
+      },
+    ],
+  };
+}
+
+function buildCocoKeypointAnnotation(
+  fileName: string,
+  width: number,
+  height: number,
+  pixelPoints: Partial<Record<LandmarkId, { x: number; y: number }>>,
+  viewMode: CalibrationViewMode,
+) {
+  if (viewMode === "side") {
+    return buildSideCocoKeypointAnnotation(fileName, width, height, pixelPoints);
+  }
+
+  return buildViewCocoKeypointAnnotation(
+    fileName,
+    width,
+    height,
+    pixelPoints,
+    getLandmarksForView(viewMode),
+  );
 }
 
 async function fetchImage(
@@ -398,8 +495,12 @@ export async function exportCalibrationToRoboflow(options: {
   horseName: string;
   photoUrl: string;
   landmarks: Partial<Record<LandmarkId, Point>>;
+  project: string;
+  viewMode?: CalibrationViewMode;
 }): Promise<void> {
-  const config = getRoboflowConfig();
+  const viewMode = options.viewMode ?? "side";
+  const landmarkDefinitions = getLandmarksForView(viewMode);
+  const config = getRoboflowConfig(options.project);
   if (!config) {
     console.warn("[roboflow-export] Missing ROBOFLOW_* env vars — skipping export");
     return;
@@ -414,13 +515,13 @@ export async function exportCalibrationToRoboflow(options: {
   const { buffer, contentType, width, height } = await fetchImage(photoUrl);
 
   const pixelPoints: Partial<Record<LandmarkId, { x: number; y: number }>> = {};
-  for (const landmark of LANDMARKS) {
+  for (const landmark of landmarkDefinitions) {
     const point = options.landmarks[landmark.id];
     if (!point) continue;
     pixelPoints[landmark.id] = toPixelPoint(point, width, height);
   }
 
-  const firstThreeKeypoints = LANDMARKS.slice(0, 3).map((landmark) => {
+  const firstThreeKeypoints = landmarkDefinitions.slice(0, 3).map((landmark) => {
     const pixel = pixelPoints[landmark.id];
     const source = options.landmarks[landmark.id];
     return {
@@ -443,6 +544,7 @@ export async function exportCalibrationToRoboflow(options: {
     width,
     height,
     pixelPoints,
+    viewMode,
   );
 
   const imageId = await uploadImageToRoboflow(

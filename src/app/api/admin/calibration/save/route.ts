@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { exportCalibrationToRoboflow } from "@/lib/calibration/roboflow-export";
-import type { HorseFacing, LandmarkId, Point } from "@/lib/calibration/landmarks";
+import type {
+  CalibrationViewMode,
+  HorseFacing,
+  LandmarkId,
+  Point,
+} from "@/lib/calibration/landmarks";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type SaveBody = {
@@ -10,7 +15,24 @@ type SaveBody = {
   facing?: HorseFacing;
   photoUrl?: string;
   points?: Partial<Record<LandmarkId, Point>>;
+  viewMode?: CalibrationViewMode;
 };
+
+function parseViewMode(value: unknown): CalibrationViewMode {
+  if (value === "front" || value === "hind") return value;
+  return "side";
+}
+
+function getRoboflowProjectForView(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+      return process.env.ROBOFLOW_FRONT_PROJECT?.trim() ?? "";
+    case "hind":
+      return process.env.ROBOFLOW_HIND_PROJECT?.trim() ?? "";
+    default:
+      return process.env.ROBOFLOW_PROJECT?.trim() ?? "";
+  }
+}
 
 export async function POST(request: Request) {
   console.log("[calibration/save] Route hit");
@@ -34,6 +56,8 @@ export async function POST(request: Request) {
   }
 
   const facing: HorseFacing = body.facing === "RIGHT" ? "RIGHT" : "LEFT";
+  const viewMode = parseViewMode(body.viewMode);
+  const roboflowProject = getRoboflowProjectForView(viewMode);
   const landmarks = body.points;
 
   const { data: existing, error: lookupError } = await supabaseAdmin
@@ -69,6 +93,8 @@ export async function POST(request: Request) {
         horseName,
         photoUrl,
         landmarks,
+        project: roboflowProject,
+        viewMode,
       });
       console.log("[calibration/save] Roboflow export completed", {
         horseName,
@@ -114,6 +140,8 @@ export async function POST(request: Request) {
       horseName,
       photoUrl: exportPhotoUrl,
       landmarks,
+      project: roboflowProject,
+      viewMode,
     });
     console.log("[calibration/save] Roboflow export completed", {
       horseName,
