@@ -37,6 +37,24 @@ function drawPlumbLine(
   ctx.restore();
 }
 
+function drawFrontLegPlumbLine(
+  ctx: CanvasRenderingContext2D,
+  kneeX: number,
+  pollY: number,
+  hoofY: number,
+  lineWidth: number,
+) {
+  ctx.save();
+  ctx.strokeStyle = RED;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(kneeX, hoofY + 30);
+  ctx.lineTo(kneeX, pollY);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawVerticalCenterline(
   ctx: CanvasRenderingContext2D,
   top: Point,
@@ -119,15 +137,17 @@ export function renderFrontViewOverlayLayers(
 ) {
   const { lineWidth, legLineWidth, jointRadius } = overlayScale(imageWidth);
 
-  const leftShoulder = requirePoint(map, "left_shoulder");
+  const leftKnee = requirePoint(map, "left_knee");
   const leftHoof = requirePoint(map, "left_front_hoof");
-  const rightShoulder = requirePoint(map, "right_shoulder");
+  const rightKnee = requirePoint(map, "right_knee");
   const rightHoof = requirePoint(map, "right_front_hoof");
   const poll = requirePoint(map, "poll");
   const muzzle = requirePoint(map, "muzzle");
+  const leftShoulder = requirePoint(map, "left_shoulder");
+  const rightShoulder = requirePoint(map, "right_shoulder");
 
-  drawPlumbLine(ctx, leftShoulder, leftHoof, legLineWidth);
-  drawPlumbLine(ctx, rightShoulder, rightHoof, legLineWidth);
+  drawFrontLegPlumbLine(ctx, leftKnee.x, poll.y, leftHoof.y, legLineWidth);
+  drawFrontLegPlumbLine(ctx, rightKnee.x, poll.y, rightHoof.y, legLineWidth);
   drawVerticalCenterline(
     ctx,
     poll,
