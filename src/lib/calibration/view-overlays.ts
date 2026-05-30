@@ -119,17 +119,15 @@ export function renderFrontViewOverlayLayers(
 ) {
   const { lineWidth, legLineWidth, jointRadius } = overlayScale(imageWidth);
 
-  const leftKnee = requirePoint(map, "left_knee");
+  const leftShoulder = requirePoint(map, "left_shoulder");
   const leftHoof = requirePoint(map, "left_front_hoof");
-  const rightKnee = requirePoint(map, "right_knee");
+  const rightShoulder = requirePoint(map, "right_shoulder");
   const rightHoof = requirePoint(map, "right_front_hoof");
   const poll = requirePoint(map, "poll");
   const muzzle = requirePoint(map, "muzzle");
-  const leftShoulder = requirePoint(map, "left_shoulder");
-  const rightShoulder = requirePoint(map, "right_shoulder");
 
-  drawPlumbLine(ctx, leftKnee, leftHoof, legLineWidth);
-  drawPlumbLine(ctx, rightKnee, rightHoof, legLineWidth);
+  drawPlumbLine(ctx, leftShoulder, leftHoof, legLineWidth);
+  drawPlumbLine(ctx, rightShoulder, rightHoof, legLineWidth);
   drawVerticalCenterline(
     ctx,
     poll,
