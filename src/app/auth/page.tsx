@@ -44,7 +44,7 @@ export default function AuthPage() {
     }
 
     if (mode === "login") {
-      router.push("/analyze");
+      router.push("/examples");
     }
   }
 

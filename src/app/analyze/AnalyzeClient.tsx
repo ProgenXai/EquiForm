@@ -560,6 +560,13 @@ export default function AnalyzeClient() {
         {menuOpen ? (
           <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
             <Link
+              href="/examples"
+              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              Examples
+            </Link>
+            <Link
               href="/my-reports"
               className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
               onClick={() => setMenuOpen(false)}
@@ -607,24 +614,59 @@ export default function AnalyzeClient() {
       <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           {!previewUrl ? (
-            <label
-              className="flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 text-center transition hover:border-accent/60 hover:bg-accent/10"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-            >
-              <span className="text-sm font-medium text-zinc-200">
-                Upload horse photo
-              </span>
-              <span className="mt-2 text-xs text-zinc-500">
-                JPG, PNG, or WEBP · max 10MB · side profile recommended
-              </span>
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileInput}
-              />
-            </label>
+            <>
+              <div className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
+                <p className="font-medium text-accent">For best results:</p>
+                <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
+                  <li>
+                    Use a clear side profile photo — ideally a squared-up sale ad style photo
+                    with all four legs visible and the horse standing square
+                  </li>
+                  <li>
+                    Horse must be standing still — walking or moving photos won&apos;t
+                    work
+                  </li>
+                  <li>Horse should fill most of the frame</li>
+                  <li>
+                    No people, other horses, or objects blocking the horse&apos;s body
+                  </li>
+                  <li>
+                    Photo should be taken at horse&apos;s level, not from above or below
+                  </li>
+                  <li>Avoid photos with multiple horses</li>
+                  <li>
+                    For sale catalog photos, lay the book completely flat and shoot straight
+                    down from directly above
+                  </li>
+                </ul>
+              </div>
+              <p className="mt-4 text-center">
+                <Link
+                  href="/examples"
+                  className="text-sm font-medium text-accent transition hover:text-accent-hover"
+                >
+                  View Photo Examples
+                </Link>
+              </p>
+              <label
+                className="mt-4 flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 text-center transition hover:border-accent/60 hover:bg-accent/10"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+              >
+                <span className="text-sm font-medium text-zinc-200">
+                  Upload horse photo
+                </span>
+                <span className="mt-2 text-xs text-zinc-500">
+                  JPG, PNG, or WEBP · max 10MB · side profile recommended
+                </span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleFileInput}
+                />
+              </label>
+            </>
           ) : null}
 
           {previewUrl ? (
@@ -636,34 +678,6 @@ export default function AnalyzeClient() {
                 alt="Uploaded horse"
                 className="mx-auto max-h-96 w-full rounded-lg border border-zinc-800 object-contain"
               />
-            </div>
-          ) : null}
-
-          {!previewUrl ? (
-            <div className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
-              <p className="font-medium text-accent">For best results:</p>
-              <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-                <li>
-                  Use a clear side profile photo — ideally a squared-up sale ad style photo
-                  with all four legs visible and the horse standing square
-                </li>
-                <li>
-                  Horse must be standing still — walking or moving photos won&apos;t
-                  work
-                </li>
-                <li>Horse should fill most of the frame</li>
-                <li>
-                  No people, other horses, or objects blocking the horse&apos;s body
-                </li>
-                <li>
-                  Photo should be taken at horse&apos;s level, not from above or below
-                </li>
-                <li>Avoid photos with multiple horses</li>
-                <li>
-                  For sale catalog photos, lay the book completely flat and shoot straight
-                  down from directly above
-                </li>
-              </ul>
             </div>
           ) : null}
 

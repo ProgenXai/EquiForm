@@ -44,7 +44,7 @@ export default function Home() {
     }
 
     if (mode === "login") {
-      router.push("/analyze");
+      router.push("/examples");
     } else {
       router.push("/buy-rosettes");
     }
