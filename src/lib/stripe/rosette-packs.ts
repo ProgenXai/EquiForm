@@ -24,6 +24,14 @@ export const ROSETTE_PACKS = [
     perReport: '$3.00 per report',
   },
   {
+    id: 'fifty',
+    name: '50-Pack',
+    rosettes: 50,
+    price: 13750,
+    priceDisplay: '$137.50',
+    perReport: '$2.75 per report',
+  },
+  {
     id: 'hundred',
     name: '100-Pack',
     rosettes: 100,
