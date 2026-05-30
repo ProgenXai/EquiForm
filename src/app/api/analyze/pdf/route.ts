@@ -234,6 +234,26 @@ export async function POST(request: Request) {
     });
     y -= 24;
 
+    const forceNewPage = () => {
+      drawFooter(page, fontRegular);
+      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      y = PAGE_HEIGHT - MARGIN;
+    };
+
+    const ensureSpace = (needed: number) => {
+      if (y - needed >= MARGIN + 40) return;
+      forceNewPage();
+    };
+
+    // page-break-inside: avoid — keep block on one page when it fits
+    const avoidBreakInside = (blockHeight: number) => {
+      const minY = MARGIN + 40;
+      const maxPageContent = PAGE_HEIGHT - MARGIN - minY;
+      if (blockHeight <= maxPageContent && y - blockHeight < minY) {
+        forceNewPage();
+      }
+    };
+
     const maxImageHeight = 340;
     const imageScale = Math.min(
       CONTENT_WIDTH / overlayImage.width,
@@ -242,6 +262,9 @@ export async function POST(request: Request) {
     const imageWidth = overlayImage.width * imageScale;
     const imageHeight = overlayImage.height * imageScale;
 
+    // page-break-inside: avoid — overlay image container
+    avoidBreakInside(imageHeight + 28);
+
     page.drawImage(overlayImage, {
       x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
       y: y - imageHeight,
@@ -249,13 +272,6 @@ export async function POST(request: Request) {
       height: imageHeight,
     });
     y -= imageHeight + 28;
-
-    const ensureSpace = (needed: number) => {
-      if (y - needed >= MARGIN + 40) return;
-      drawFooter(page, fontRegular);
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      y = PAGE_HEIGHT - MARGIN;
-    };
 
     ensureSpace(120);
     page.drawText("Conformation Scores", {
@@ -268,7 +284,8 @@ export async function POST(request: Request) {
     y -= 26;
 
     for (const { key, label } of SCORE_ROWS) {
-      ensureSpace(22);
+      // page-break-inside: avoid — individual score row
+      avoidBreakInside(20);
       const section = report[key];
       page.drawText(label, {
         x: MARGIN,
@@ -300,7 +317,9 @@ export async function POST(request: Request) {
     });
     y -= 32;
 
-    ensureSpace(40);
+    // page-break-before: always — Written Report section
+    forceNewPage();
+
     page.drawText("Written Report", {
       x: MARGIN,
       y,
@@ -310,7 +329,12 @@ export async function POST(request: Request) {
     });
     y -= 24;
 
-    const writeParagraph = (text: string, fontSize: number, gap: number) => {
+    const writeParagraph = (
+      text: string,
+      fontSize: number,
+      gap: number,
+      color = rgb(0.15, 0.15, 0.15),
+    ) => {
       const lines = wrapText(text, fontRegular, fontSize, CONTENT_WIDTH);
       const lineHeight = fontSize + 4;
 
@@ -325,7 +349,7 @@ export async function POST(request: Request) {
           y,
           size: fontSize,
           font: fontRegular,
-          color: rgb(0.15, 0.15, 0.15),
+          color,
         });
         y -= lineHeight;
       }
@@ -333,15 +357,20 @@ export async function POST(request: Request) {
       y -= gap;
     };
 
+    {
+      const summaryLines = wrapText(report.summary, fontRegular, 11, CONTENT_WIDTH);
+      const summaryLineHeight = 11 + 4;
+      // page-break-inside: avoid — Written Report summary paragraph
+      avoidBreakInside(summaryLines.length * summaryLineHeight + 16);
+    }
     writeParagraph(report.summary, 11, 16);
 
     for (const { key, label } of SCORE_ROWS) {
       const section = report[key];
-      if (y - 40 < MARGIN + 40) {
-        drawFooter(page, fontRegular);
-        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-        y = PAGE_HEIGHT - MARGIN;
-      }
+      const notesLines = wrapText(section.notes, fontRegular, 10, CONTENT_WIDTH);
+      const notesLineHeight = 14;
+      // page-break-inside: avoid — individual score section block
+      avoidBreakInside(16 + notesLines.length * notesLineHeight + 12);
 
       page.drawText(label, {
         x: MARGIN,
@@ -352,18 +381,7 @@ export async function POST(request: Request) {
       });
       y -= 16;
 
-      y = drawWrappedParagraph(
-        page,
-        section.notes,
-        MARGIN,
-        y,
-        fontRegular,
-        10,
-        CONTENT_WIDTH,
-        14,
-        rgb(0.25, 0.25, 0.25),
-      );
-      y -= 12;
+      writeParagraph(section.notes, 10, 12, rgb(0.25, 0.25, 0.25));
     }
 
     for (const pdfPage of pdfDoc.getPages()) {
