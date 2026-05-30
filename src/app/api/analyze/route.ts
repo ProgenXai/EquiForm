@@ -11,6 +11,7 @@ import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
+import { sendFirstReportEmail } from "@/lib/email/templates";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -306,6 +307,22 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("[analyze] failed to save report:", insertError);
+    } else if (user?.email) {
+      const { count, error: countError } = await serviceClient
+        .from("reports")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      if (!countError && count === 1) {
+        try {
+          await sendFirstReportEmail({
+            email: user.email,
+            horseName: horseName ?? undefined,
+          });
+        } catch (emailError) {
+          console.error("[analyze] first-report email failed:", emailError);
+        }
+      }
     }
 
     if (!isAdmin && user) {

@@ -43,6 +43,15 @@ export default function AuthPage() {
       return;
     }
 
+    if (mode === "signup") {
+      void fetch("/api/email/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+      return;
+    }
+
     if (mode === "login") {
       router.push("/examples");
     }
