@@ -178,8 +178,8 @@ export function renderHindViewOverlayLayers(
   const leftHip = requirePoint(map, "left_point_of_hip");
   const rightHip = requirePoint(map, "right_point_of_hip");
 
-  drawPlumbLine(ctx, leftHock, leftHoof, legLineWidth);
-  drawPlumbLine(ctx, rightHock, rightHoof, legLineWidth);
+  drawFrontLegPlumbLine(ctx, leftHock.x, tail.y, leftHoof.y, legLineWidth);
+  drawFrontLegPlumbLine(ctx, rightHock.x, tail.y, rightHoof.y, legLineWidth);
   drawVerticalCenterline(ctx, tail, imageHeight, lineWidth);
   drawHorizontalGuide(ctx, leftHip, rightHip, lineWidth);
   drawHorizontalGuide(ctx, leftHock, rightHock, lineWidth);
