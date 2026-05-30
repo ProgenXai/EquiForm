@@ -5,6 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { drawPlacementPreview } from "@/lib/calibration/draw-placement";
 import { renderConformationOverlayLayers } from "@/lib/calibration/overlay-layers";
 import {
+  renderFrontViewOverlayLayers,
+  renderHindViewOverlayLayers,
+} from "@/lib/calibration/view-overlays";
+import {
   landmarkMapToConformation,
   landmarkMapToFractional,
   type LandmarkMap,
@@ -164,6 +168,30 @@ export default function CalibrationTool() {
           renderConformationOverlayLayers(
             ctx,
             conformationLandmarks,
+            canvas.width,
+            canvas.height,
+          );
+        } catch {
+          // Incomplete landmarks — skip overlay until all points are placed
+        }
+      } else if (showOverlay && viewMode === "front") {
+        try {
+          renderFrontViewOverlayLayers(
+            ctx,
+            map,
+            landmarks,
+            canvas.width,
+            canvas.height,
+          );
+        } catch {
+          // Incomplete landmarks — skip overlay until all points are placed
+        }
+      } else if (showOverlay && viewMode === "hind") {
+        try {
+          renderHindViewOverlayLayers(
+            ctx,
+            map,
+            landmarks,
             canvas.width,
             canvas.height,
           );
