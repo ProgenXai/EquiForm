@@ -55,6 +55,24 @@ function drawFrontLegPlumbLine(
   ctx.restore();
 }
 
+function drawHindLegPlumbLine(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  tailHeadY: number,
+  hoofY: number,
+  lineWidth: number,
+) {
+  ctx.save();
+  ctx.strokeStyle = RED;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x, hoofY + 30);
+  ctx.lineTo(x, tailHeadY);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawVerticalCenterline(
   ctx: CanvasRenderingContext2D,
   top: Point,
@@ -170,7 +188,8 @@ export function renderHindViewOverlayLayers(
 ) {
   const { lineWidth, legLineWidth, jointRadius } = overlayScale(imageWidth);
 
-  const tail = requirePoint(map, "tail");
+  const tailHead = requirePoint(map, "tail");
+  const tailHeadY = tailHead.y;
   const leftHock = requirePoint(map, "left_hock");
   const leftHoof = requirePoint(map, "left_hind_hoof");
   const rightHock = requirePoint(map, "right_hock");
@@ -178,9 +197,9 @@ export function renderHindViewOverlayLayers(
   const leftHip = requirePoint(map, "left_point_of_hip");
   const rightHip = requirePoint(map, "right_point_of_hip");
 
-  drawFrontLegPlumbLine(ctx, leftHock.x, tail.y, leftHoof.y, legLineWidth);
-  drawFrontLegPlumbLine(ctx, rightHock.x, tail.y, rightHoof.y, legLineWidth);
-  drawVerticalCenterline(ctx, tail, imageHeight, lineWidth);
+  drawHindLegPlumbLine(ctx, leftHock.x, tailHeadY, leftHoof.y, legLineWidth);
+  drawHindLegPlumbLine(ctx, rightHock.x, tailHeadY, rightHoof.y, legLineWidth);
+  drawVerticalCenterline(ctx, tailHead, imageHeight, lineWidth);
   drawHorizontalGuide(ctx, leftHip, rightHip, lineWidth);
   drawHorizontalGuide(ctx, leftHock, rightHock, lineWidth);
   drawHorizontalGuide(ctx, leftHoof, rightHoof, lineWidth);
