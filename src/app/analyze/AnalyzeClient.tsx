@@ -1676,6 +1676,12 @@ export default function AnalyzeClient() {
                       const activeLabel =
                         FULL_REPORT_SLOTS.find((slot) => slot.view === fullReportTab)
                           ?.label ?? fullReportTab;
+                      const isBetterSideTab =
+                        (fullReportTab === "left" || fullReportTab === "right") &&
+                        fullReportTab === fullReportResult.betterSide;
+                      const tabPhotoSrc = isBetterSideTab
+                        ? fullReportResult.overlayImage
+                        : fullReportPhotos[fullReportTab]?.previewUrl;
 
                       return (
                         <div className="mt-6" role="tabpanel">
@@ -1694,6 +1700,48 @@ export default function AnalyzeClient() {
                           <p className="mt-4 text-sm leading-relaxed text-zinc-300">
                             {activeReport.summary}
                           </p>
+
+                          {tabPhotoSrc ? (
+                            <div className="relative mx-auto mt-6 flex max-h-[300px] w-full justify-center">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={tabPhotoSrc}
+                                alt={
+                                  isBetterSideTab
+                                    ? `${activeLabel} conformation overlay`
+                                    : `${activeLabel} uploaded photo`
+                                }
+                                className="max-h-[300px] w-full rounded-lg border border-zinc-800 object-contain"
+                              />
+                              {isBetterSideTab
+                                ? LANDMARKS.map((landmark) => {
+                                    const point =
+                                      fullReportResult.landmarks[
+                                        fullReportResult.betterSide
+                                      ][landmark.id];
+                                    if (!point) return null;
+                                    return (
+                                      <span
+                                        key={landmark.id}
+                                        style={{
+                                          position: "absolute",
+                                          left: `${point.x * 100}%`,
+                                          top: `${point.y * 100}%`,
+                                          transform: "translate(12px, -50%)",
+                                          fontSize: "11px",
+                                          color: "white",
+                                          textShadow: "0 0 3px black",
+                                          whiteSpace: "nowrap",
+                                          pointerEvents: "none",
+                                        }}
+                                      >
+                                        {landmark.label}
+                                      </span>
+                                    );
+                                  })
+                                : null}
+                            </div>
+                          ) : null}
 
                           <ul className="mt-6 space-y-4">
                             {REPORT_SECTIONS_BY_VIEW[fullReportTab].map(
