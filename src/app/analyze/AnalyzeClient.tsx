@@ -796,12 +796,22 @@ export default function AnalyzeClient() {
     setError(null);
     setFullReportResult(null);
 
+    let compressedPhotos: Awaited<ReturnType<typeof compressImageIfNeeded>>[] =
+      [];
+
     try {
+      compressedPhotos = await Promise.all([
+        compressImageIfNeeded(left),
+        compressImageIfNeeded(right),
+        compressImageIfNeeded(front),
+        compressImageIfNeeded(hind),
+      ]);
+
       const formData = new FormData();
-      formData.append("left", left);
-      formData.append("right", right);
-      formData.append("front", front);
-      formData.append("hind", hind);
+      formData.append("left", compressedPhotos[0].file);
+      formData.append("right", compressedPhotos[1].file);
+      formData.append("front", compressedPhotos[2].file);
+      formData.append("hind", compressedPhotos[3].file);
       formData.append("horseName", horseName.trim());
 
       const {
@@ -870,6 +880,9 @@ export default function AnalyzeClient() {
         err instanceof Error ? err.message : "Full report analysis failed",
       );
     } finally {
+      for (const { previewUrl } of compressedPhotos) {
+        URL.revokeObjectURL(previewUrl);
+      }
       setLoading(false);
     }
   }
