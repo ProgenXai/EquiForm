@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { ROSETTE_PACKS } from "@/lib/stripe/rosette-packs";
+import { findRosettePack } from "@/lib/stripe/rosette-packs";
 
 type BuyRosettesBody = {
   packId?: string;
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
 
-  const pack = ROSETTE_PACKS.find((item) => item.id === packId);
+  const pack = findRosettePack(packId);
 
   if (!pack) {
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
@@ -45,20 +45,14 @@ export async function POST(request: Request) {
       mode: "payment",
       line_items: [
         {
-          price_data: {
-            currency: "usd",
-            unit_amount: pack.price,
-            product_data: {
-              name: `EquiForm ${pack.name}`,
-              description: `${pack.rosettes} report credits`,
-            },
-          },
+          price: pack.stripePriceId,
           quantity: 1,
         },
       ],
       metadata: {
         packId: pack.id,
         userId,
+        reportType: pack.reportType,
       },
       success_url: `${appUrl}/analyze?rosettes_success=true`,
       cancel_url: `${appUrl}/analyze`,
