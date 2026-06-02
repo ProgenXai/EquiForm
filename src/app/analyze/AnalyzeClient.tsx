@@ -274,12 +274,35 @@ const ANALYSIS_MODE_OPTIONS: {
   { value: "full", label: "FULL REPORT", subtext: "4 Views + 3D", cost: "30 credits" },
 ];
 
+type FullReportView = "left" | "right" | "front" | "hind";
+
+type FullReportSlot = {
+  file: File;
+  previewUrl: string;
+};
+
+const FULL_REPORT_CREDIT_COST = 30;
+
+const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
+  { view: "left", label: "Left Side" },
+  { view: "right", label: "Right Side" },
+  { view: "front", label: "Front View" },
+  { view: "hind", label: "Hind View" },
+];
+
 export default function AnalyzeClient() {
   const router = useRouter();
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("quick");
+  const [fullReportPhotos, setFullReportPhotos] = useState<
+    Partial<Record<FullReportView, FullReportSlot>>
+  >({});
+  const [fullReportUploadingView, setFullReportUploadingView] =
+    useState<FullReportView | null>(null);
+  const fullReportPhotosRef = useRef(fullReportPhotos);
+  fullReportPhotosRef.current = fullReportPhotos;
   const [viewMode, setViewMode] = useState<CalibrationViewMode>("left");
   const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
@@ -312,6 +335,35 @@ export default function AnalyzeClient() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
+
+  function revokeFullReportPreviewUrls(
+    photos: Partial<Record<FullReportView, FullReportSlot>>,
+  ) {
+    for (const slot of Object.values(photos)) {
+      if (slot?.previewUrl) {
+        URL.revokeObjectURL(slot.previewUrl);
+      }
+    }
+  }
+
+  function clearFullReportPhotos() {
+    setFullReportPhotos((current) => {
+      revokeFullReportPreviewUrls(current);
+      return {};
+    });
+  }
+
+  useEffect(() => {
+    if (analysisMode !== "full") {
+      clearFullReportPhotos();
+    }
+  }, [analysisMode]);
+
+  useEffect(() => {
+    return () => {
+      revokeFullReportPreviewUrls(fullReportPhotosRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const {
@@ -378,6 +430,7 @@ export default function AnalyzeClient() {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
+    clearFullReportPhotos();
     setPreviewUrl(null);
     setSelectedFile(null);
     setLoading(false);
@@ -438,6 +491,53 @@ export default function AnalyzeClient() {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
     if (file) void handleFile(file);
+  }
+
+  async function handleFullReportFile(view: FullReportView, file: File) {
+    const slotLabel =
+      FULL_REPORT_SLOTS.find((slot) => slot.view === view)?.label ?? "photo";
+
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setError("Only JPG, PNG, and WEBP files are allowed.");
+      return;
+    }
+
+    if (file.size > MAX_BYTES) {
+      setError("File must be 10MB or smaller.");
+      return;
+    }
+
+    setFullReportUploadingView(view);
+    setError(null);
+
+    try {
+      const { file: processedFile, previewUrl } = await compressImageIfNeeded(file);
+
+      setFullReportPhotos((current) => {
+        const existing = current[view];
+        if (existing?.previewUrl) {
+          URL.revokeObjectURL(existing.previewUrl);
+        }
+
+        return {
+          ...current,
+          [view]: { file: processedFile, previewUrl },
+        };
+      });
+    } catch {
+      setError(`Failed to process ${slotLabel} photo. Please try another.`);
+    } finally {
+      setFullReportUploadingView(null);
+    }
+  }
+
+  function handleFullReportFileInput(
+    view: FullReportView,
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (file) void handleFullReportFile(view, file);
+    event.target.value = "";
   }
 
   async function handleAnalyze() {
@@ -628,11 +728,37 @@ export default function AnalyzeClient() {
 
   const hasAnalyzeAccess =
     isAdmin || (isLoggedIn && rosetteBalance !== null && rosetteBalance > 0);
+  const fullReportFilledCount = FULL_REPORT_SLOTS.filter(
+    (slot) => fullReportPhotos[slot.view]?.file,
+  ).length;
+  const fullReportComplete = fullReportFilledCount === FULL_REPORT_SLOTS.length;
+  const hasFullReportAccess =
+    isAdmin ||
+    (isLoggedIn &&
+      rosetteBalance !== null &&
+      rosetteBalance >= FULL_REPORT_CREDIT_COST);
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !selectedFile ||
     loading ||
     (!authLoading && !hasAnalyzeAccess);
+  const fullReportSubmitDisabled =
+    typeof window === "undefined" ||
+    !fullReportComplete ||
+    loading ||
+    fullReportUploadingView !== null ||
+    (!authLoading && !hasFullReportAccess);
+
+  function handleFullReportSubmit() {
+    if (fullReportSubmitDisabled) return;
+    console.log("[analyze] Full report submit (API not wired yet)", {
+      horseName: horseName.trim(),
+      views: FULL_REPORT_SLOTS.map((slot) => ({
+        view: slot.view,
+        fileName: fullReportPhotos[slot.view]?.file.name,
+      })),
+    });
+  }
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
@@ -932,14 +1058,183 @@ export default function AnalyzeClient() {
           ) : null}
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950 px-6 py-16 text-center">
-              <p className="text-lg font-semibold text-zinc-200">
-                4-photo upload coming soon
+            <>
+              <p className="mb-4 text-center text-sm text-zinc-400">
+                Upload one photo for each view. You can add them in any order.
               </p>
-              <p className="mt-2 text-sm text-zinc-500">
-                Full reports with left side, right side, front, hind, and 3D visualization
-              </p>
-            </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {FULL_REPORT_SLOTS.map((slot) => {
+                  const uploaded = fullReportPhotos[slot.view];
+                  const isUploading = fullReportUploadingView === slot.view;
+                  const inputId = `full-report-upload-${slot.view}`;
+
+                  return (
+                    <div
+                      key={slot.view}
+                      className={`rounded-xl border bg-zinc-950 p-4 ${
+                        uploaded ? "border-accent/50" : "border-zinc-800"
+                      }`}
+                    >
+                      <div className="relative mb-3 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80">
+                        {uploaded ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={uploaded.previewUrl}
+                            alt={`${slot.label} preview`}
+                            className="h-full w-full object-contain"
+                          />
+                        ) : (
+                          <p className="px-4 text-center text-xs text-zinc-500">
+                            No photo yet
+                          </p>
+                        )}
+                        {isUploading ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                            <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <h3 className="text-sm font-semibold text-zinc-100">
+                        {slot.label}
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                        {VIEW_MODE_TIPS[slot.view][0]}
+                      </p>
+
+                      <input
+                        id={inputId}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={isUploading}
+                        onChange={(event) =>
+                          handleFullReportFileInput(slot.view, event)
+                        }
+                      />
+                      <label
+                        htmlFor={inputId}
+                        className={`mt-4 block w-full cursor-pointer rounded-lg border px-3 py-2 text-center text-sm font-medium transition ${
+                          isUploading
+                            ? "cursor-not-allowed border-zinc-800 text-zinc-600"
+                            : "border-zinc-700 text-zinc-200 hover:border-accent/60 hover:bg-accent/10"
+                        }`}
+                      >
+                        {isUploading
+                          ? "Processing…"
+                          : uploaded
+                            ? "Replace photo"
+                            : "Upload photo"}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6">
+                <label
+                  htmlFor="full-report-horse-name"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Horse name (optional)
+                </label>
+                <input
+                  id="full-report-horse-name"
+                  type="text"
+                  value={horseName}
+                  onChange={(event) => setHorseName(event.target.value)}
+                  placeholder="e.g. Blazin High Alibi"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+
+              <div className="mt-6">
+                {!authLoading ? (
+                  <>
+                    {isAdmin ? null : !isLoggedIn ? (
+                      <p className="mb-2 text-center text-xs text-zinc-400">
+                        Sign in to analyze your horse
+                      </p>
+                    ) : rosetteBalance !== null &&
+                      rosetteBalance >= FULL_REPORT_CREDIT_COST ? (
+                      <p className="mb-2 text-center text-xs text-zinc-400">
+                        <FileCheck
+                          size={18}
+                          className="inline-block shrink-0 align-middle text-accent"
+                          aria-hidden
+                        />{" "}
+                        {rosetteBalance} report credits remaining
+                      </p>
+                    ) : isLoggedIn ? (
+                      <p className="mb-2 text-center text-xs text-zinc-400">
+                        You need {FULL_REPORT_CREDIT_COST} report credits for a
+                        full report
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {!fullReportComplete ? (
+                  <p className="mb-2 text-center text-xs text-zinc-500">
+                    Complete all 4 views to analyze ({fullReportFilledCount}/4)
+                  </p>
+                ) : !authLoading && isLoggedIn && !hasFullReportAccess && !isAdmin ? (
+                  <p className="mb-2 text-center text-xs text-zinc-500">
+                    Complete all 4 views to analyze — {FULL_REPORT_CREDIT_COST}{" "}
+                    credits required
+                  </p>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={handleFullReportSubmit}
+                  disabled={fullReportSubmitDisabled}
+                  className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                    !fullReportSubmitDisabled
+                      ? "bg-accent text-white hover:bg-accent-hover disabled:opacity-40"
+                      : "cursor-not-allowed bg-zinc-700 text-zinc-400"
+                  }`}
+                >
+                  Analyze Full Report — {FULL_REPORT_CREDIT_COST} credits
+                </button>
+
+                {!authLoading && !isAdmin && !isLoggedIn ? (
+                  <Link
+                    href="/"
+                    className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+                  >
+                    Sign In
+                  </Link>
+                ) : null}
+
+                {!authLoading &&
+                !isAdmin &&
+                isLoggedIn &&
+                (rosetteBalance === null ||
+                  rosetteBalance < FULL_REPORT_CREDIT_COST) ? (
+                  <Link
+                    href="/buy-rosettes"
+                    className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+                  >
+                    Buy Report Credits{" "}
+                    <FileCheck
+                      size={18}
+                      className="inline-block shrink-0 align-middle text-white"
+                      aria-hidden
+                    />
+                  </Link>
+                ) : null}
+              </div>
+
+              {error && analysisMode === "full" ? (
+                <div className="mt-4">
+                  <p className="text-sm text-red-400" role="alert">
+                    {error}
+                  </p>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
 
