@@ -329,6 +329,24 @@ function drawFullReportOverlay(
   return labelY - bottomGap;
 }
 
+function drawCenteredText(
+  page: PDFPage,
+  text: string,
+  y: number,
+  font: PDFFont,
+  size: number,
+  color: ReturnType<typeof rgb>,
+) {
+  const width = font.widthOfTextAtSize(text, size);
+  page.drawText(text, {
+    x: (PAGE_WIDTH - width) / 2,
+    y,
+    size,
+    font,
+    color,
+  });
+}
+
 function drawFooter(page: PDFPage, font: PDFFont) {
   const text = "Powered by EquiForm";
   const size = 9;
@@ -424,23 +442,18 @@ export async function POST(request: Request) {
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     let y = PAGE_HEIGHT - MARGIN;
 
-    page.drawText("EquiForm", {
-      x: MARGIN,
-      y,
-      size: 26,
-      font: fontBold,
-      color: ACCENT_RGB,
-    });
-    y -= 32;
+    drawCenteredText(page, "EquiForm", y, fontBold, 26, ACCENT_RGB);
+    y -= 24;
 
-    page.drawText(PDF_SUBTITLE, {
-      x: MARGIN,
+    drawCenteredText(
+      page,
+      PDF_SUBTITLE,
       y,
-      size: 14,
-      font: fontRegular,
-      color: rgb(0.2, 0.2, 0.2),
-    });
-    y -= 22;
+      fontRegular,
+      11,
+      rgb(0.2, 0.2, 0.2),
+    );
+    y -= 20;
 
     const horseName =
       typeof body.horse_name === "string" ? body.horse_name.trim() : "";
