@@ -19,7 +19,6 @@ import { createClient } from "@/lib/supabase/client";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
-const COMPRESS_TARGET_BYTES = 4 * 1024 * 1024;
 const ANALYZE_SEND_AS_IS_MAX_BYTES = 5 * 1024 * 1024;
 const ANALYZE_COMPRESS_TARGET_BYTES = 3670016;
 
@@ -113,8 +112,12 @@ async function compressImageBeforeAnalyze(file: File): Promise<File> {
 
 async function compressImageIfNeeded(
   file: File,
+  options?: { maxSizeMB?: number },
 ): Promise<{ file: File; previewUrl: string }> {
-  if (file.size <= COMPRESS_TARGET_BYTES) {
+  const maxSizeMB = options?.maxSizeMB ?? 4;
+  const targetBytes = maxSizeMB * 1024 * 1024;
+
+  if (file.size <= targetBytes) {
     return { file, previewUrl: URL.createObjectURL(file) };
   }
 
@@ -146,7 +149,7 @@ async function compressImageIfNeeded(
         throw new Error("Failed to compress image");
       }
 
-      if (blob.size < COMPRESS_TARGET_BYTES) {
+      if (blob.size < targetBytes) {
         break;
       }
 
@@ -159,8 +162,8 @@ async function compressImageIfNeeded(
       }
     }
 
-    if (!blob || blob.size >= COMPRESS_TARGET_BYTES) {
-      throw new Error("Failed to compress image below 4MB");
+    if (!blob || blob.size >= targetBytes) {
+      throw new Error(`Failed to compress image below ${maxSizeMB}MB`);
     }
 
     const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
@@ -801,10 +804,10 @@ export default function AnalyzeClient() {
 
     try {
       compressedPhotos = await Promise.all([
-        compressImageIfNeeded(left),
-        compressImageIfNeeded(right),
-        compressImageIfNeeded(front),
-        compressImageIfNeeded(hind),
+        compressImageIfNeeded(left, { maxSizeMB: 1 }),
+        compressImageIfNeeded(right, { maxSizeMB: 1 }),
+        compressImageIfNeeded(front, { maxSizeMB: 1 }),
+        compressImageIfNeeded(hind, { maxSizeMB: 1 }),
       ]);
 
       const formData = new FormData();
@@ -1186,7 +1189,7 @@ export default function AnalyzeClient() {
           ) : (
             <>
               <p className="mb-4 text-center text-sm text-zinc-400">
-                Upload one photo for each view. You can add them in any order.
+                Upload one photo for each view in any order. All four photos must be of the same horse.
               </p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
