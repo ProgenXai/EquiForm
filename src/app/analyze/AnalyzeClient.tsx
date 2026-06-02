@@ -268,6 +268,11 @@ const VIEW_MODE_UPLOAD_HINT: Record<CalibrationViewMode, string> = {
 
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
+type BalanceResponse = {
+  single_view_balance?: number;
+  full_report_balance?: number;
+};
+
 type AnalysisMode = "quick" | "full";
 
 const ANALYSIS_MODE_OPTIONS: {
@@ -279,13 +284,13 @@ const ANALYSIS_MODE_OPTIONS: {
   {
     value: "full",
     label: "FULL REPORT",
-    detail: "30 credits — complete analysis + 3D model",
+    detail: "1 full report credit — complete 4-view analysis",
     recommended: true,
   },
   {
     value: "quick",
     label: "SINGLE VIEW",
-    detail: "5 credits — one view only",
+    detail: "1 single view credit — one view only",
   },
 ];
 
@@ -297,7 +302,7 @@ type FullReportSlot = {
   storagePath: string;
 };
 
-const FULL_REPORT_CREDIT_COST = 30;
+const FULL_REPORT_CREDIT_COST = 1;
 const FULL_REPORT_STORAGE_BUCKET = "horse-photos";
 const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
 
@@ -414,7 +419,8 @@ export default function AnalyzeClient() {
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [rosetteBalance, setRosetteBalance] = useState<number | null>(null);
+  const [singleViewBalance, setSingleViewBalance] = useState<number | null>(null);
+  const [fullReportBalance, setFullReportBalance] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -422,6 +428,14 @@ export default function AnalyzeClient() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  function applyBalanceData(data: BalanceResponse) {
+    setSingleViewBalance(data.single_view_balance ?? 0);
+    setFullReportBalance(data.full_report_balance ?? 0);
+  }
+
+  const activeBalance =
+    analysisMode === "full" ? fullReportBalance : singleViewBalance;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -497,8 +511,8 @@ export default function AnalyzeClient() {
           },
         });
 
-        const balanceData = (await balanceResponse.json()) as { balance?: number };
-        setRosetteBalance(balanceData.balance ?? 0);
+        const balanceData = (await balanceResponse.json()) as BalanceResponse;
+        applyBalanceData(balanceData);
 
         const adminResponse = await fetch("/api/check-admin", {
           headers: {
@@ -510,7 +524,8 @@ export default function AnalyzeClient() {
         setIsAdmin(adminData.isAdmin === true);
         console.log("isAdmin:", adminData.isAdmin === true);
       } else {
-        setRosetteBalance(0);
+        setSingleViewBalance(0);
+        setFullReportBalance(0);
         setIsAdmin(false);
         console.log("isAdmin:", false);
       }
@@ -795,8 +810,8 @@ export default function AnalyzeClient() {
           },
         });
 
-        const balanceData = (await balanceResponse.json()) as { balance?: number };
-        setRosetteBalance(balanceData.balance ?? 0);
+        const balanceData = (await balanceResponse.json()) as BalanceResponse;
+        applyBalanceData(balanceData);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
@@ -943,7 +958,8 @@ export default function AnalyzeClient() {
   }
 
   const hasAnalyzeAccess =
-    isAdmin || (isLoggedIn && rosetteBalance !== null && rosetteBalance > 0);
+    isAdmin ||
+    (isLoggedIn && singleViewBalance !== null && singleViewBalance > 0);
   const fullReportFilledCount = FULL_REPORT_SLOTS.filter(
     (slot) => fullReportPhotos[slot.view]?.supabaseUrl,
   ).length;
@@ -951,8 +967,8 @@ export default function AnalyzeClient() {
   const hasFullReportAccess =
     isAdmin ||
     (isLoggedIn &&
-      rosetteBalance !== null &&
-      rosetteBalance >= FULL_REPORT_CREDIT_COST);
+      fullReportBalance !== null &&
+      fullReportBalance >= FULL_REPORT_CREDIT_COST);
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !selectedFile ||
@@ -1042,8 +1058,8 @@ export default function AnalyzeClient() {
           },
         });
 
-        const balanceData = (await balanceResponse.json()) as { balance?: number };
-        setRosetteBalance(balanceData.balance ?? 0);
+        const balanceData = (await balanceResponse.json()) as BalanceResponse;
+        applyBalanceData(balanceData);
       }
     } catch (err) {
       setError(
@@ -1272,18 +1288,22 @@ export default function AnalyzeClient() {
                   <p className="mb-2 text-center text-xs text-zinc-400">
                     Sign in to analyze your horse
                   </p>
-                ) : rosetteBalance !== null && rosetteBalance > 0 ? (
+                ) : activeBalance !== null && activeBalance > 0 ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
                     <FileCheck
                       size={18}
                       className="inline-block shrink-0 align-middle text-accent"
                       aria-hidden
                     />{" "}
-                    {rosetteBalance} report credits remaining
+                    {activeBalance}{" "}
+                    {analysisMode === "full" ? "full report" : "single view"}{" "}
+                    credit{activeBalance === 1 ? "" : "s"} remaining
                   </p>
                 ) : isLoggedIn ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
-                    You need report credits to analyze
+                    You need{" "}
+                    {analysisMode === "full" ? "full report" : "single view"}{" "}
+                    credits to analyze
                   </p>
                 ) : null}
               </>
@@ -1311,7 +1331,7 @@ export default function AnalyzeClient() {
               </Link>
             ) : null}
 
-            {!authLoading && !isAdmin && isLoggedIn && (rosetteBalance === 0 || rosetteBalance === null) ? (
+            {!authLoading && !isAdmin && isLoggedIn && (activeBalance === 0 || activeBalance === null) ? (
               <Link
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
@@ -1457,20 +1477,21 @@ export default function AnalyzeClient() {
                       <p className="mb-2 text-center text-xs text-zinc-400">
                         Sign in to analyze your horse
                       </p>
-                    ) : rosetteBalance !== null &&
-                      rosetteBalance >= FULL_REPORT_CREDIT_COST ? (
+                    ) : fullReportBalance !== null &&
+                      fullReportBalance >= FULL_REPORT_CREDIT_COST ? (
                       <p className="mb-2 text-center text-xs text-zinc-400">
                         <FileCheck
                           size={18}
                           className="inline-block shrink-0 align-middle text-accent"
                           aria-hidden
                         />{" "}
-                        {rosetteBalance} report credits remaining
+                        {fullReportBalance} full report credit
+                        {fullReportBalance === 1 ? "" : "s"} remaining
                       </p>
                     ) : isLoggedIn ? (
                       <p className="mb-2 text-center text-xs text-zinc-400">
-                        You need {FULL_REPORT_CREDIT_COST} report credits for a
-                        full report
+                        You need {FULL_REPORT_CREDIT_COST} full report credit for
+                        a full report
                       </p>
                     ) : null}
                   </>
@@ -1483,7 +1504,7 @@ export default function AnalyzeClient() {
                 ) : !authLoading && isLoggedIn && !hasFullReportAccess && !isAdmin ? (
                   <p className="mb-2 text-center text-xs text-zinc-500">
                     Complete all 4 views to analyze — {FULL_REPORT_CREDIT_COST}{" "}
-                    credits required
+                    full report credit required
                   </p>
                 ) : null}
 
@@ -1499,7 +1520,7 @@ export default function AnalyzeClient() {
                 >
                   {loading
                     ? "Analyzing…"
-                    : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credits`}
+                    : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credit`}
                 </button>
 
                 {error ? (
@@ -1522,8 +1543,8 @@ export default function AnalyzeClient() {
                 {!authLoading &&
                 !isAdmin &&
                 isLoggedIn &&
-                (rosetteBalance === null ||
-                  rosetteBalance < FULL_REPORT_CREDIT_COST) ? (
+                (fullReportBalance === null ||
+                  fullReportBalance < FULL_REPORT_CREDIT_COST) ? (
                   <Link
                     href="/buy-rosettes"
                     className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"

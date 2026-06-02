@@ -413,9 +413,9 @@ export async function POST(request: Request) {
     if (!isAdmin && user) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
-        .select("balance")
+        .select("single_view_balance")
         .eq("user_id", user.id)
-        .gt("balance", 0)
+        .gt("single_view_balance", 0)
         .maybeSingle();
 
       if (fetchError) {
@@ -423,9 +423,11 @@ export async function POST(request: Request) {
       } else if (tokenRow) {
         const { error: deductError } = await serviceClient
           .from("user_tokens")
-          .update({ balance: tokenRow.balance - 1 })
+          .update({
+            single_view_balance: tokenRow.single_view_balance - 1,
+          })
           .eq("user_id", user.id)
-          .gt("balance", 0);
+          .gt("single_view_balance", 0);
 
         if (deductError) {
           console.error("[analyze] failed to deduct token:", deductError);

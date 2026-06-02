@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { ROSETTE_PACKS } from "@/lib/stripe/rosette-packs";
+import { findRosettePack } from "@/lib/stripe/rosette-packs";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -48,16 +48,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing session metadata" }, { status: 400 });
   }
 
-  const pack = ROSETTE_PACKS.find((item) => item.id === packId);
+  const pack = findRosettePack(packId);
 
   if (!pack) {
     console.error("[stripe-rosettes] invalid packId:", packId);
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
   }
 
+  const balanceColumn =
+    pack.reportType === "full_report"
+      ? "full_report_balance"
+      : "single_view_balance";
+
   const { data: existing, error: lookupError } = await supabaseAdmin
     .from("user_tokens")
-    .select("balance")
+    .select("single_view_balance, full_report_balance")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -66,12 +71,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: lookupError.message }, { status: 500 });
   }
 
-  const newBalance = (existing?.balance ?? 0) + pack.rosettes;
+  const currentBalance =
+    pack.reportType === "full_report"
+      ? (existing?.full_report_balance ?? 0)
+      : (existing?.single_view_balance ?? 0);
+  const newBalance = currentBalance + pack.rosettes;
 
   if (existing) {
     const { error: updateError } = await supabaseAdmin
       .from("user_tokens")
-      .update({ balance: newBalance })
+      .update({ [balanceColumn]: newBalance })
       .eq("user_id", userId);
 
     if (updateError) {
@@ -81,7 +90,10 @@ export async function POST(request: Request) {
   } else {
     const { error: insertError } = await supabaseAdmin.from("user_tokens").insert({
       user_id: userId,
-      balance: pack.rosettes,
+      single_view_balance:
+        pack.reportType === "single_view" ? pack.rosettes : 0,
+      full_report_balance:
+        pack.reportType === "full_report" ? pack.rosettes : 0,
     });
 
     if (insertError) {
@@ -96,7 +108,7 @@ export async function POST(request: Request) {
       user_id: userId,
       amount: pack.rosettes,
       type: "purchase",
-      description: pack.name,
+      description: `${pack.name} (${pack.reportType})`,
     });
 
   if (transactionError) {

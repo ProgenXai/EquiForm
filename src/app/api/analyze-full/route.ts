@@ -24,7 +24,7 @@ import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const FULL_REPORT_CREDIT_COST = 30;
+const FULL_REPORT_CREDIT_COST = 1;
 const ANTHROPIC_MAX_BYTES = 3145728;
 
 const ALLOWED_MIME = new Set([
@@ -399,7 +399,7 @@ export async function POST(request: Request) {
   if (!isAdmin) {
     const { data: tokenRow, error: balanceError } = await serviceClient
       .from("user_tokens")
-      .select("balance")
+      .select("full_report_balance")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -407,10 +407,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: balanceError.message }, { status: 500 });
     }
 
-    if ((tokenRow?.balance ?? 0) < FULL_REPORT_CREDIT_COST) {
+    if ((tokenRow?.full_report_balance ?? 0) < FULL_REPORT_CREDIT_COST) {
       return NextResponse.json(
         {
-          error: `Insufficient report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credits.`,
+          error: `Insufficient full report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`,
         },
         { status: 401 },
       );
@@ -594,21 +594,21 @@ export async function POST(request: Request) {
     if (!isAdmin) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
-        .select("balance")
+        .select("full_report_balance")
         .eq("user_id", user.id)
-        .gte("balance", FULL_REPORT_CREDIT_COST)
+        .gte("full_report_balance", FULL_REPORT_CREDIT_COST)
         .maybeSingle();
 
       if (fetchError) {
         console.error("[analyze-full] failed to fetch credits:", fetchError);
       } else if (tokenRow) {
-        const newBalance = tokenRow.balance - FULL_REPORT_CREDIT_COST;
+        const newBalance = tokenRow.full_report_balance - FULL_REPORT_CREDIT_COST;
 
         const { error: deductError } = await serviceClient
           .from("user_tokens")
-          .update({ balance: newBalance })
+          .update({ full_report_balance: newBalance })
           .eq("user_id", user.id)
-          .gte("balance", FULL_REPORT_CREDIT_COST);
+          .gte("full_report_balance", FULL_REPORT_CREDIT_COST);
 
         if (deductError) {
           console.error("[analyze-full] failed to deduct credits:", deductError);
