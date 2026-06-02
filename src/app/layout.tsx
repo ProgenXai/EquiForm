@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "EquiForm",
   description:
-    "AI-powered equine conformation analysis - How Does Your Horse Measure Up?",
+    "The most advanced AI equine conformation analysis available — four views, one complete report, in 3D",
   icons: {
     icon: "/equiform-logo.png",
     apple: "/equiform-logo.png",

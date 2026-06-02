@@ -69,7 +69,7 @@ export default function Home() {
         className="object-contain"
       />
       <p className="mt-3 max-w-md text-center text-sm text-zinc-400">
-        AI-powered equine conformation analysis from a single side profile photo
+        The most advanced AI equine conformation analysis available — four views, one complete report, in 3D
       </p>
 
       <section className="mt-10 w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">

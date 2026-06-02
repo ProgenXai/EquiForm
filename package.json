@@ -1,7 +1,7 @@
 {
   "name": "equiform",
   "version": "0.1.0",
-  "description": "EquiForm — AI-powered equine conformation analysis - How Does Your Horse Measure Up?",
+  "description": "EquiForm — The most advanced AI equine conformation analysis available — four views, one complete report, in 3D",
   "private": true,
   "scripts": {
     "dev": "next dev",

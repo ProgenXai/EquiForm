@@ -205,11 +205,8 @@ const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
   { value: "hind", label: "Hind View" },
 ];
 
-const VIEW_MODE_DESCRIPTIONS: Record<CalibrationViewMode, string> = {
-  side: "AI-powered equine conformation analysis from a single side profile photo",
-  front: "AI-powered equine conformation analysis from a front view photo",
-  hind: "AI-powered equine conformation analysis from a hind view photo",
-};
+const APP_SUBTITLE =
+  "The most advanced AI equine conformation analysis available — four views, one complete report, in 3D";
 
 const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
   side: [
@@ -678,7 +675,7 @@ export default function AnalyzeClient() {
           />
         </div>
         <p className="mt-2 text-sm text-zinc-400">
-          {VIEW_MODE_DESCRIPTIONS[viewMode]}
+          {APP_SUBTITLE}
         </p>
       </header>
 

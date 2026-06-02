@@ -198,7 +198,7 @@ export default function ReportDetailPage() {
           />
         </div>
         <p className="mt-2 text-sm text-zinc-400">
-          AI-powered equine conformation analysis from a single side profile photo
+          The most advanced AI equine conformation analysis available — four views, one complete report, in 3D
         </p>
       </header>
 
