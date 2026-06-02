@@ -29,3 +29,21 @@ export type AnalyzeApiResponse = {
   report: ConformationReport;
   landmarks: Record<string, DetectedLandmarkPoint>;
 };
+
+export type FullReportApiResponse = {
+  overlayImage: string;
+  overlayUrl?: string;
+  leftReport: ConformationReport;
+  rightReport: ConformationReport;
+  frontReport: ConformationReport;
+  hindReport: ConformationReport;
+  combinedScore: number;
+  betterSide: "left" | "right";
+  landmarks: {
+    left: Record<string, DetectedLandmarkPoint>;
+    right: Record<string, DetectedLandmarkPoint>;
+    front: Record<string, DetectedLandmarkPoint>;
+    hind: Record<string, DetectedLandmarkPoint>;
+  };
+  horseName: string | null;
+};

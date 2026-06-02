@@ -6,7 +6,11 @@ import { FileCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
+import type {
+  AnalyzeApiResponse,
+  ConformationReport,
+  FullReportApiResponse,
+} from "@/lib/analyze/types";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
@@ -312,6 +316,9 @@ export default function AnalyzeClient() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeApiResponse | null>(null);
+  const [fullReportResult, setFullReportResult] =
+    useState<FullReportApiResponse | null>(null);
+  const [fullReportTab, setFullReportTab] = useState<FullReportView>("left");
   const [email, setEmail] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -358,6 +365,8 @@ export default function AnalyzeClient() {
   useEffect(() => {
     if (analysisMode !== "full") {
       clearFullReportPhotos();
+      setFullReportResult(null);
+      setFullReportTab("left");
     }
   }, [analysisMode]);
 
@@ -435,6 +444,9 @@ export default function AnalyzeClient() {
     clearFullReportPhotos();
     setPreviewUrl(null);
     setSelectedFile(null);
+    setFullReportResult(null);
+    setFullReportTab("left");
+    setHorseName("");
     setLoading(false);
     setPdfLoading(false);
     setCheckoutLoading(false);
@@ -443,6 +455,22 @@ export default function AnalyzeClient() {
       sessionStorage.removeItem(PENDING_RESULT_KEY);
     } catch {
       // Ignore storage errors
+    }
+  }
+
+  function getFullReportForView(
+    reportResult: FullReportApiResponse,
+    view: FullReportView,
+  ): ConformationReport {
+    switch (view) {
+      case "left":
+        return reportResult.leftReport;
+      case "right":
+        return reportResult.rightReport;
+      case "front":
+        return reportResult.frontReport;
+      case "hind":
+        return reportResult.hindReport;
     }
   }
 
@@ -751,15 +779,99 @@ export default function AnalyzeClient() {
     fullReportUploadingView !== null ||
     (!authLoading && !hasFullReportAccess);
 
-  function handleFullReportSubmit() {
+  async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
-    console.log("[analyze] Full report submit (API not wired yet)", {
-      horseName: horseName.trim(),
-      views: FULL_REPORT_SLOTS.map((slot) => ({
-        view: slot.view,
-        fileName: fullReportPhotos[slot.view]?.file.name,
-      })),
-    });
+
+    const left = fullReportPhotos.left?.file;
+    const right = fullReportPhotos.right?.file;
+    const front = fullReportPhotos.front?.file;
+    const hind = fullReportPhotos.hind?.file;
+
+    if (!left || !right || !front || !hind) {
+      setError("Upload all four photos before submitting.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setFullReportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("left", left);
+      formData.append("right", right);
+      formData.append("front", front);
+      formData.append("hind", hind);
+      formData.append("horseName", horseName.trim());
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch("/api/analyze-full", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: formData,
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+      const isJson = contentType.includes("application/json");
+
+      let apiResult: FullReportApiResponse & { error?: string };
+
+      try {
+        if (!response.ok || !isJson) {
+          if (!isJson) {
+            await response.text();
+            throw new Error(
+              "Photo files are too large. Please try smaller images.",
+            );
+          }
+        }
+
+        apiResult = (await response.json()) as FullReportApiResponse & {
+          error?: string;
+        };
+      } catch (parseError) {
+        if (
+          parseError instanceof Error &&
+          parseError.message ===
+            "Photo files are too large. Please try smaller images."
+        ) {
+          throw parseError;
+        }
+
+        throw new Error(
+          "Photo files are too large. Please try smaller images.",
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(apiResult.error ?? "Full report analysis failed");
+      }
+
+      setFullReportResult(apiResult);
+      setFullReportTab(apiResult.betterSide);
+
+      if (session?.access_token) {
+        const balanceResponse = await fetch("/api/get-balance", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        const balanceData = (await balanceResponse.json()) as { balance?: number };
+        setRosetteBalance(balanceData.balance ?? 0);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Full report analysis failed",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -1197,7 +1309,7 @@ export default function AnalyzeClient() {
 
                 <button
                   type="button"
-                  onClick={handleFullReportSubmit}
+                  onClick={() => void handleFullReportSubmit()}
                   disabled={fullReportSubmitDisabled}
                   className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
                     !fullReportSubmitDisabled
@@ -1205,7 +1317,9 @@ export default function AnalyzeClient() {
                       : "cursor-not-allowed bg-zinc-700 text-zinc-400"
                   }`}
                 >
-                  Analyze Full Report — {FULL_REPORT_CREDIT_COST} credits
+                  {loading
+                    ? "Analyzing…"
+                    : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credits`}
                 </button>
 
                 {!authLoading && !isAdmin && !isLoggedIn ? (
@@ -1236,12 +1350,211 @@ export default function AnalyzeClient() {
                 ) : null}
               </div>
 
+              {loading ? (
+                <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
+                  <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
+                  Analyzing all four views — this may take a minute…
+                </div>
+              ) : null}
+
               {error && analysisMode === "full" ? (
                 <div className="mt-4">
                   <p className="text-sm text-red-400" role="alert">
                     {error}
                   </p>
                 </div>
+              ) : null}
+
+              {fullReportResult ? (
+                <section className="mt-8 space-y-8">
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                    <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
+                      <div>
+                        <h2 className="text-lg font-semibold text-white">
+                          Full Report
+                        </h2>
+                        {fullReportResult.horseName ? (
+                          <p className="mt-1 text-sm text-zinc-400">
+                            {fullReportResult.horseName}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                          Combined score
+                        </p>
+                        <p className="text-4xl font-bold text-accent">
+                          {fullReportResult.combinedScore}
+                          <span className="text-lg font-normal text-zinc-500">
+                            /100
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-xs text-zinc-500">
+                      Weighted: best side 40%, other side 20%, front 20%, hind
+                      20%
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                    <h2 className="text-lg font-semibold text-white">
+                      Overlay —{" "}
+                      {fullReportResult.betterSide === "left"
+                        ? "Left Side"
+                        : "Right Side"}{" "}
+                      <span className="text-sm font-normal text-zinc-400">
+                        (highest scoring side view)
+                      </span>
+                    </h2>
+                    <div className="relative mt-4 w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={fullReportResult.overlayImage}
+                        alt="Conformation overlay on best side view"
+                        className="w-full rounded-lg border border-zinc-800"
+                      />
+                      {LANDMARKS.map((landmark) => {
+                        const point =
+                          fullReportResult.landmarks[fullReportResult.betterSide][
+                            landmark.id
+                          ];
+                        if (!point) return null;
+                        return (
+                          <span
+                            key={landmark.id}
+                            style={{
+                              position: "absolute",
+                              left: `${point.x * 100}%`,
+                              top: `${point.y * 100}%`,
+                              transform: "translate(12px, -50%)",
+                              fontSize: "11px",
+                              color: "white",
+                              textShadow: "0 0 3px black",
+                              whiteSpace: "nowrap",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            {landmark.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                    <h2 className="text-lg font-semibold text-white">
+                      View reports
+                    </h2>
+
+                    <div
+                      className="mt-4 flex flex-wrap rounded-lg border border-zinc-700 bg-zinc-950 p-1"
+                      role="tablist"
+                      aria-label="Full report views"
+                    >
+                      {FULL_REPORT_SLOTS.map((slot) => {
+                        const viewReport = getFullReportForView(
+                          fullReportResult,
+                          slot.view,
+                        );
+                        const isActive = fullReportTab === slot.view;
+                        const isBestSide =
+                          (slot.view === "left" || slot.view === "right") &&
+                          fullReportResult.betterSide === slot.view;
+
+                        return (
+                          <button
+                            key={slot.view}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            onClick={() => setFullReportTab(slot.view)}
+                            className={`flex-1 min-w-[7rem] rounded-md px-3 py-2 text-sm font-medium transition ${
+                              isActive
+                                ? "bg-accent text-black shadow-sm"
+                                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                            }`}
+                          >
+                            <span className="block">{slot.label}</span>
+                            <span
+                              className={`mt-0.5 block text-xs ${
+                                isActive ? "text-black/70" : "text-zinc-500"
+                              }`}
+                            >
+                              {viewReport.overall_score}/100
+                              {isBestSide ? " · best side" : ""}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(() => {
+                      const activeReport = getFullReportForView(
+                        fullReportResult,
+                        fullReportTab,
+                      );
+                      const activeLabel =
+                        FULL_REPORT_SLOTS.find((slot) => slot.view === fullReportTab)
+                          ?.label ?? fullReportTab;
+
+                      return (
+                        <div className="mt-6" role="tabpanel">
+                          <div className="flex items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
+                            <h3 className="text-base font-semibold text-white">
+                              {activeLabel}
+                            </h3>
+                            <p className="text-2xl font-bold text-accent">
+                              {activeReport.overall_score}
+                              <span className="text-sm font-normal text-zinc-500">
+                                /100
+                              </span>
+                            </p>
+                          </div>
+
+                          <p className="mt-4 text-sm leading-relaxed text-zinc-300">
+                            {activeReport.summary}
+                          </p>
+
+                          <ul className="mt-6 space-y-4">
+                            {REPORT_SECTIONS_BY_VIEW[fullReportTab].map(
+                              ({ key, label }) => {
+                                const section = activeReport[key];
+                                return (
+                                  <li
+                                    key={key}
+                                    className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <h4 className="text-sm font-medium text-zinc-200">
+                                        {label}
+                                      </h4>
+                                      <span className="text-sm font-semibold text-accent">
+                                        {section.score}/100
+                                      </span>
+                                    </div>
+                                    <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                                      {section.notes}
+                                    </p>
+                                  </li>
+                                );
+                              },
+                            )}
+                          </ul>
+                        </div>
+                      );
+                    })()}
+
+                    <button
+                      type="button"
+                      onClick={handleAnalyzeAnotherHorse}
+                      className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                    >
+                      Analyze Another Horse
+                    </button>
+                  </div>
+                </section>
               ) : null}
             </>
           )}
