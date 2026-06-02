@@ -12,6 +12,7 @@ import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
+import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendFirstReportEmail } from "@/lib/email/templates";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -73,6 +74,15 @@ function getRoboflowModelIdEnvVarName(viewMode: CalibrationViewMode): string {
       return "ROBOFLOW_HIND_MODEL_ID";
     default:
       return "ROBOFLOW_MODEL_ID";
+  }
+}
+
+function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+    case "hind":
+    case "side":
+      return CONFORMATION_REPORT_PROMPT;
   }
 }
 
@@ -256,7 +266,8 @@ export async function POST(request: Request) {
       imageHeight,
       viewMode,
     );
-    const landmarks = toConformationLandmarks(detectedLandmarks);
+    const landmarks = toConformationLandmarks(detectedLandmarks, viewMode);
+    const reportPrompt = getConformationReportPrompt(viewMode);
 
     const reportMessage = await anthropic.messages.create({
       model: "claude-opus-4-5-20251101",
@@ -264,7 +275,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: [imageContent, { type: "text", text: CONFORMATION_REPORT_PROMPT }],
+          content: [imageContent, { type: "text", text: reportPrompt }],
         },
       ],
     });
@@ -284,15 +295,24 @@ export async function POST(request: Request) {
 
     const report = parseReportResponse(reportText);
 
-    const overlayBuffer = await drawConformationOverlay(
-      inputBuffer,
-      landmarks,
-      imageWidth,
-      imageHeight,
-    );
+    let overlayBuffer: Buffer;
+    let overlayContentType: string;
+
+    if (viewMode === "side") {
+      overlayBuffer = await drawConformationOverlay(
+        inputBuffer,
+        landmarks as ConformationLandmarks,
+        imageWidth,
+        imageHeight,
+      );
+      overlayContentType = "image/jpeg";
+    } else {
+      overlayBuffer = inputBuffer;
+      overlayContentType = mediaType;
+    }
 
     const overlayBase64 = overlayBuffer.toString("base64");
-    const overlayImage = `data:image/jpeg;base64,${overlayBase64}`;
+    const overlayImage = `data:${overlayContentType};base64,${overlayBase64}`;
 
     const serviceClient = createServiceRoleClient();
 
@@ -304,7 +324,7 @@ export async function POST(request: Request) {
     const { error: overlayUploadError } = await serviceClient.storage
       .from(OVERLAY_STORAGE_BUCKET)
       .upload(overlayStoragePath, overlayBuffer, {
-        contentType: "image/jpeg",
+        contentType: overlayContentType,
         upsert: false,
       });
 
