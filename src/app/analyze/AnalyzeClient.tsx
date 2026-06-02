@@ -214,39 +214,32 @@ const APP_SUBTITLE =
   "The most advanced AI equine conformation analysis available — four views, one complete report, in 3D";
 
 const SIDE_VIEW_TIPS = [
-  "Use a clear side profile photo — ideally a squared-up sale ad style photo with all four legs visible and the horse standing square",
-  "Horse must be standing still — walking or moving photos won't work",
-  "Horse should fill most of the frame with the full body visible head to tail",
-  "True side profile only — not angled toward or away from the camera",
-  "Level ground and a natural, square stance give the most accurate assessment",
-  "No people, other horses, or objects blocking the horse's body",
-  "Photo should be taken at horse's level, not from above or below",
-  "Avoid photos with multiple horses",
-  "For sale catalog photos, lay the book completely flat and shoot straight down from directly above",
+  "Use a clear side profile photo",
+  "Horse must be standing still",
+  "All four feet visible on level ground",
+  "Horse standing square with a natural stance",
+];
+
+const FRONT_VIEW_TIPS = [
+  "Horse facing directly toward the camera",
+  "All four feet visible on level ground",
+  "Camera at chest height — not from above or below",
+  "Horse standing square with a natural, still stance",
+];
+
+const HIND_VIEW_TIPS = [
+  "Horse facing directly away from the camera",
+  "All four feet visible on level ground",
+  "Camera at hip height — not from above or below",
+  "Horse standing square with a natural, still stance",
 ];
 
 const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
   side: SIDE_VIEW_TIPS,
   left: SIDE_VIEW_TIPS,
   right: SIDE_VIEW_TIPS,
-  front: [
-    "Horse facing directly toward the camera",
-    "All four feet visible on level ground",
-    "Camera at chest height — not from above or below",
-    "Horse standing square with a natural, still stance",
-    "Horse should fill most of the frame",
-    "No people, other horses, or objects blocking the horse's body",
-    "Avoid photos with multiple horses",
-  ],
-  hind: [
-    "Horse facing directly away from the camera",
-    "All four feet visible on level ground",
-    "Camera at hindquarter height — not from above or below",
-    "Horse standing square with a natural, still stance",
-    "Horse should fill most of the frame",
-    "No people, other horses, or objects blocking the horse's body",
-    "Avoid photos with multiple horses",
-  ],
+  front: FRONT_VIEW_TIPS,
+  hind: HIND_VIEW_TIPS,
 };
 
 const SIDE_VIEW_UPLOAD_HINT =
@@ -267,11 +260,20 @@ type AnalysisMode = "quick" | "full";
 const ANALYSIS_MODE_OPTIONS: {
   value: AnalysisMode;
   label: string;
-  subtext: string;
-  cost: string;
+  detail: string;
+  recommended?: boolean;
 }[] = [
-  { value: "quick", label: "QUICK ANALYSIS", subtext: "Single Photo", cost: "5 credits" },
-  { value: "full", label: "FULL REPORT", subtext: "4 Views + 3D", cost: "30 credits" },
+  {
+    value: "full",
+    label: "FULL REPORT",
+    detail: "30 credits — complete analysis + 3D model",
+    recommended: true,
+  },
+  {
+    value: "quick",
+    label: "SINGLE VIEW",
+    detail: "5 credits — one view only",
+  },
 ];
 
 type FullReportView = "left" | "right" | "front" | "hind";
@@ -295,7 +297,7 @@ export default function AnalyzeClient() {
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("quick");
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("full");
   const [fullReportPhotos, setFullReportPhotos] = useState<
     Partial<Record<FullReportView, FullReportSlot>>
   >({});
@@ -843,35 +845,34 @@ export default function AnalyzeClient() {
               const isSelected = analysisMode === option.value;
 
               return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setAnalysisMode(option.value)}
-                  aria-pressed={isSelected}
-                  className={`flex flex-col items-center rounded-xl border px-4 py-6 text-center transition ${
-                    isSelected
-                      ? "border-accent bg-accent text-black shadow-sm"
-                      : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
-                  }`}
-                >
-                  <span className="text-sm font-bold tracking-wide sm:text-base">
-                    {option.label}
-                  </span>
-                  <span
-                    className={`mt-1 text-xs sm:text-sm ${
-                      isSelected ? "text-black/70" : "text-zinc-400"
+                <div key={option.value} className="relative">
+                  {option.recommended ? (
+                    <span className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-black">
+                      RECOMMENDED
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setAnalysisMode(option.value)}
+                    aria-pressed={isSelected}
+                    className={`flex w-full flex-col items-center rounded-xl border px-4 py-6 text-center transition ${
+                      isSelected
+                        ? "border-accent bg-accent text-black shadow-sm"
+                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
                     }`}
                   >
-                    {option.subtext}
-                  </span>
-                  <span
-                    className={`mt-3 text-sm font-semibold ${
-                      isSelected ? "text-black" : "text-accent"
-                    }`}
-                  >
-                    {option.cost}
-                  </span>
-                </button>
+                    <span className="text-sm font-bold tracking-wide sm:text-base">
+                      {option.label}
+                    </span>
+                    <span
+                      className={`mt-3 text-xs font-medium sm:text-sm ${
+                        isSelected ? "text-black/80" : "text-zinc-400"
+                      }`}
+                    >
+                      {option.detail}
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -1099,9 +1100,17 @@ export default function AnalyzeClient() {
                       <h3 className="text-sm font-semibold text-zinc-100">
                         {slot.label}
                       </h3>
-                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                        {VIEW_MODE_TIPS[slot.view][0]}
-                      </p>
+
+                      <div className="mt-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2">
+                        <p className="text-xs font-medium text-accent">
+                          For best results:
+                        </p>
+                        <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-zinc-400">
+                          {VIEW_MODE_TIPS[slot.view].map((tip) => (
+                            <li key={tip}>{tip}</li>
+                          ))}
+                        </ul>
+                      </div>
 
                       <input
                         id={inputId}
