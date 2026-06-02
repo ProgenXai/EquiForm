@@ -95,16 +95,28 @@ async function embedOverlayImage(
 async function fetchEmbeddedImage(
   pdfDoc: PDFDocument,
   url: string,
+  label?: string,
 ): Promise<PDFImage> {
-  const response = await fetch(url.trim());
+  const trimmedUrl = url.trim();
+  const response = await fetch(trimmedUrl);
   if (!response.ok) {
-    throw new Error("Failed to fetch image");
+    throw new Error(
+      `Failed to fetch image${label ? ` (${label})` : ""} from URL: ${response.status} ${response.statusText}`,
+    );
   }
 
-  const imageBase64 = Buffer.from(await response.arrayBuffer()).toString(
-    "base64",
-  );
-  return embedOverlayImage(pdfDoc, imageBase64);
+  const imageBytes = new Uint8Array(await response.arrayBuffer());
+  if (imageBytes.length === 0) {
+    throw new Error(
+      `Failed to fetch image${label ? ` (${label})` : ""}: empty response`,
+    );
+  }
+
+  if (isPng(imageBytes)) {
+    return pdfDoc.embedPng(imageBytes);
+  }
+
+  return pdfDoc.embedJpg(imageBytes);
 }
 
 function hasFullReportImages(body: PdfRequestBody): boolean {
@@ -279,8 +291,8 @@ export async function POST(request: Request) {
 
     const fullReportImages = isFullReport
       ? await Promise.all(
-          FULL_REPORT_IMAGE_FIELDS.map(async ({ key }) =>
-            fetchEmbeddedImage(pdfDoc, body[key]!.trim()),
+          FULL_REPORT_IMAGE_FIELDS.map(async ({ key, label }) =>
+            fetchEmbeddedImage(pdfDoc, body[key]!.trim(), label),
           ),
         )
       : [];

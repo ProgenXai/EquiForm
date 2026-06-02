@@ -204,21 +204,6 @@ function validateTempImageUrl(url: string, userId: string): string | null {
   return path;
 }
 
-async function deleteFullReportTempFiles(
-  serviceClient: ReturnType<typeof createServiceRoleClient>,
-  paths: string[],
-) {
-  if (paths.length === 0) return;
-
-  const { error } = await serviceClient.storage
-    .from(OVERLAY_STORAGE_BUCKET)
-    .remove(paths);
-
-  if (error) {
-    console.error("[analyze-full] temp file cleanup failed:", error);
-  }
-}
-
 function buildAnthropicImageContent(prepared: PreparedViewImage) {
   return {
     type: "image" as const,
@@ -380,7 +365,6 @@ export async function POST(request: Request) {
   isAdmin = roleData?.is_admin === true;
 
   const serviceClient = createServiceRoleClient();
-  const tempPaths: string[] = [];
 
   if (!isAdmin) {
     const { data: tokenRow, error: balanceError } = await serviceClient
@@ -412,7 +396,6 @@ export async function POST(request: Request) {
         : null;
 
     const imageUrls = {} as Record<FullReportViewKey, string>;
-    const validatedPaths: string[] = [];
 
     for (const view of FULL_REPORT_VIEW_KEYS) {
       const urlField = FULL_REPORT_URL_FIELDS[view];
@@ -434,10 +417,7 @@ export async function POST(request: Request) {
       }
 
       imageUrls[view] = trimmedUrl;
-      validatedPaths.push(storagePath);
     }
-
-    tempPaths.push(...validatedPaths);
 
     const preparedByView = {} as Record<FullReportViewKey, PreparedViewImage>;
 
@@ -625,7 +605,5 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Full report analysis failed";
     return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    await deleteFullReportTempFiles(serviceClient, tempPaths);
   }
 }

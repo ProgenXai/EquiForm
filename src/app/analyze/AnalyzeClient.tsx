@@ -302,37 +302,6 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
   { view: "hind", label: "Hind View" },
 ];
 
-async function toPdfFetchableUrl(url: string): Promise<string> {
-  if (url.startsWith("data:")) {
-    return url;
-  }
-
-  if (!url.startsWith("blob:")) {
-    return url;
-  }
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Failed to read photo for PDF export");
-  }
-
-  const blob = await response.blob();
-
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-      } else {
-        reject(new Error("Failed to convert photo to data URL"));
-      }
-    };
-    reader.onerror = () =>
-      reject(new Error("Failed to convert photo to data URL"));
-    reader.readAsDataURL(blob);
-  });
-}
-
 function buildFullReportPdfReport(
   fullReportResult: FullReportApiResponse,
 ): ConformationReport {
@@ -873,12 +842,12 @@ export default function AnalyzeClient() {
   async function handleDownloadFullReportPdf() {
     if (!fullReportResult) return;
 
-    const leftPreview = fullReportPhotos.left?.previewUrl;
-    const rightPreview = fullReportPhotos.right?.previewUrl;
-    const frontPreview = fullReportPhotos.front?.previewUrl;
-    const hindPreview = fullReportPhotos.hind?.previewUrl;
+    const leftImage = fullReportPhotos.left?.supabaseUrl;
+    const rightImage = fullReportPhotos.right?.supabaseUrl;
+    const frontImage = fullReportPhotos.front?.supabaseUrl;
+    const hindImage = fullReportPhotos.hind?.supabaseUrl;
 
-    if (!leftPreview || !rightPreview || !frontPreview || !hindPreview) {
+    if (!leftImage || !rightImage || !frontImage || !hindImage) {
       setError("PDF generation failed. One or more photos are missing.");
       return;
     }
@@ -887,13 +856,6 @@ export default function AnalyzeClient() {
     setError(null);
 
     try {
-      const [leftImage, rightImage, frontImage, hindImage] = await Promise.all([
-        toPdfFetchableUrl(leftPreview),
-        toPdfFetchableUrl(rightPreview),
-        toPdfFetchableUrl(frontPreview),
-        toPdfFetchableUrl(hindPreview),
-      ]);
-
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1081,23 +1043,6 @@ export default function AnalyzeClient() {
         err instanceof Error ? err.message : "Full report analysis failed",
       );
     } finally {
-      await deleteFullReportStorageFiles(tempPaths);
-      if (tempPaths.length > 0) {
-        setFullReportPhotos((current) => {
-          const next = { ...current };
-          for (const slot of FULL_REPORT_SLOTS) {
-            const photo = next[slot.view];
-            if (photo && tempPaths.includes(photo.storagePath)) {
-              next[slot.view] = {
-                previewUrl: photo.previewUrl,
-                supabaseUrl: "",
-                storagePath: "",
-              };
-            }
-          }
-          return next;
-        });
-      }
       setLoading(false);
     }
   }
@@ -1643,10 +1588,10 @@ export default function AnalyzeClient() {
                                   <img
                                     src={photo.previewUrl}
                                     alt={`${slot.label} photo`}
-                                    className="max-h-24 w-full rounded border border-zinc-800 object-contain"
+                                    className="max-h-24 w-full rounded border border-zinc-800 object-contain sm:max-h-48"
                                   />
                                 ) : (
-                                  <div className="flex max-h-24 min-h-16 items-center justify-center rounded border border-zinc-800 bg-zinc-900/80">
+                                  <div className="flex max-h-24 min-h-16 items-center justify-center rounded border border-zinc-800 bg-zinc-900/80 sm:max-h-48 sm:min-h-32">
                                     <p className="text-xs text-zinc-600">
                                       No photo
                                     </p>
