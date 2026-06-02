@@ -40,7 +40,7 @@ type PdfRequestBody = {
 
 const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
 const FULL_REPORT_PHOTO_ROW_GAP = 8;
-const FULL_REPORT_PHOTO_MAX_HEIGHT = 200;
+const FULL_REPORT_PHOTO_ROW_HEIGHT = 150;
 const SINGLE_VIEW_SCORES_RESERVED_HEIGHT = 220;
 
 const FULL_REPORT_IMAGE_FIELDS = [
@@ -161,26 +161,10 @@ function logPdfRequest(body: PdfRequestBody, isFullReport: boolean) {
   });
 }
 
-function measureHorizontalPhotoRowHeight(
-  images: PDFImage[],
-  maxImageHeight: number,
-): number {
-  const count = images.length;
-  const gap = FULL_REPORT_PHOTO_ROW_GAP;
+function measureHorizontalPhotoRowHeight(): number {
   const labelSize = 9;
   const labelGap = 5;
-  const cellWidth = (CONTENT_WIDTH - gap * (count - 1)) / count;
-
-  let rowHeight = 0;
-  for (const image of images) {
-    const scale = Math.min(
-      cellWidth / image.width,
-      maxImageHeight / image.height,
-    );
-    rowHeight = Math.max(rowHeight, image.height * scale);
-  }
-
-  return rowHeight + labelGap + labelSize + 10;
+  return FULL_REPORT_PHOTO_ROW_HEIGHT + labelGap + labelSize + 10;
 }
 
 function drawHorizontalPhotoRow(
@@ -189,25 +173,13 @@ function drawHorizontalPhotoRow(
   images: PDFImage[],
   labels: string[],
   font: PDFFont,
-  maxImageHeight: number,
 ): number {
   const count = images.length;
   const gap = FULL_REPORT_PHOTO_ROW_GAP;
   const labelSize = 9;
   const labelGap = 5;
   const cellWidth = (CONTENT_WIDTH - gap * (count - 1)) / count;
-
-  const layouts = images.map((image) => {
-    const scale = Math.min(
-      cellWidth / image.width,
-      maxImageHeight / image.height,
-    );
-    return {
-      width: image.width * scale,
-      height: image.height * scale,
-    };
-  });
-  const rowHeight = Math.max(...layouts.map((layout) => layout.height));
+  const rowHeight = FULL_REPORT_PHOTO_ROW_HEIGHT;
   const rowBottomY = topY - rowHeight;
   const labelY = rowBottomY - labelGap - labelSize;
 
@@ -215,8 +187,14 @@ function drawHorizontalPhotoRow(
     const image = images[i]!;
     const label = labels[i]!;
     const cellX = MARGIN + i * (cellWidth + gap);
-    const { width: imageWidth, height: imageHeight } = layouts[i]!;
-    const imageY = rowBottomY + (rowHeight - imageHeight);
+
+    const scale = Math.min(
+      cellWidth / image.width,
+      rowHeight / image.height,
+    );
+    const imageWidth = image.width * scale;
+    const imageHeight = image.height * scale;
+    const imageY = rowBottomY + (rowHeight - imageHeight) / 2;
 
     page.drawImage(image, {
       x: cellX + (cellWidth - imageWidth) / 2,
@@ -485,7 +463,6 @@ export async function POST(request: Request) {
         fullReportImages,
         photoLabels,
         fontRegular,
-        FULL_REPORT_PHOTO_MAX_HEIGHT,
       );
       fullReportPhotosDrawn = true;
     };
@@ -516,7 +493,7 @@ export async function POST(request: Request) {
     };
 
     const writeSectionHeader = (label: string) => {
-      y -= 8;
+      y -= 5;
       page.drawText(label, {
         x: MARGIN,
         y,
@@ -524,7 +501,7 @@ export async function POST(request: Request) {
         font: fontBold,
         color: rgb(0.2, 0.2, 0.2),
       });
-      y -= 14;
+      y -= 12;
     };
 
     if (!isFullReport) {
@@ -634,7 +611,7 @@ export async function POST(request: Request) {
       color = rgb(0.15, 0.15, 0.15),
     ) => {
       const lines = wrapText(text, fontRegular, fontSize, CONTENT_WIDTH);
-      const lineHeight = fontSize + 4;
+      const lineHeight = fontSize + 3;
 
       for (const line of lines) {
         ensureLineSpace(lineHeight);
@@ -653,19 +630,16 @@ export async function POST(request: Request) {
       }
     };
 
-    writeParagraph(report.summary, 11, 10);
+    writeParagraph(report.summary, 11, 6);
 
     for (const { key, label } of SCORE_ROWS) {
       const section = report[key];
       writeSectionHeader(label);
-      writeParagraph(section.notes, 10, 6, rgb(0.25, 0.25, 0.25));
+      writeParagraph(section.notes, 10, 3, rgb(0.25, 0.25, 0.25));
     }
 
     if (isFullReport && !fullReportPhotosDrawn) {
-      const photoBlockHeight = measureHorizontalPhotoRowHeight(
-        fullReportImages,
-        FULL_REPORT_PHOTO_MAX_HEIGHT,
-      );
+      const photoBlockHeight = measureHorizontalPhotoRowHeight();
       if (y - photoBlockHeight >= MIN_CONTENT_Y) {
         drawFullReportPhotoRow();
       }
