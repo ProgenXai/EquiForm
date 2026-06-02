@@ -208,15 +208,15 @@ function drawHorizontalPhotoRow(
     };
   });
   const rowHeight = Math.max(...layouts.map((layout) => layout.height));
-
-  let lowestLabelY = topY - rowHeight;
+  const rowBottomY = topY - rowHeight;
+  const labelY = rowBottomY - labelGap - labelSize;
 
   for (let i = 0; i < count; i++) {
     const image = images[i]!;
     const label = labels[i]!;
     const cellX = MARGIN + i * (cellWidth + gap);
     const { width: imageWidth, height: imageHeight } = layouts[i]!;
-    const imageY = topY - rowHeight + (rowHeight - imageHeight);
+    const imageY = rowBottomY + (rowHeight - imageHeight);
 
     page.drawImage(image, {
       x: cellX + (cellWidth - imageWidth) / 2,
@@ -226,7 +226,6 @@ function drawHorizontalPhotoRow(
     });
 
     const labelWidth = font.widthOfTextAtSize(label, labelSize);
-    const labelY = imageY - labelGap - labelSize;
     page.drawText(label, {
       x: cellX + (cellWidth - labelWidth) / 2,
       y: labelY,
@@ -234,11 +233,9 @@ function drawHorizontalPhotoRow(
       font,
       color: rgb(0.2, 0.2, 0.2),
     });
-
-    lowestLabelY = Math.min(lowestLabelY, labelY - labelSize);
   }
 
-  return lowestLabelY - 8;
+  return labelY - labelSize - 8;
 }
 
 function wrapText(
@@ -519,7 +516,7 @@ export async function POST(request: Request) {
     };
 
     const writeSectionHeader = (label: string) => {
-      y -= 3;
+      y -= 8;
       page.drawText(label, {
         x: MARGIN,
         y,
@@ -527,7 +524,7 @@ export async function POST(request: Request) {
         font: fontBold,
         color: rgb(0.2, 0.2, 0.2),
       });
-      y -= 10;
+      y -= 14;
     };
 
     if (!isFullReport) {
@@ -628,7 +625,7 @@ export async function POST(request: Request) {
       font: fontBold,
       color: rgb(0.1, 0.1, 0.1),
     });
-    y -= 14;
+    y -= 18;
 
     const writeParagraph = (
       text: string,
@@ -637,7 +634,7 @@ export async function POST(request: Request) {
       color = rgb(0.15, 0.15, 0.15),
     ) => {
       const lines = wrapText(text, fontRegular, fontSize, CONTENT_WIDTH);
-      const lineHeight = fontSize + 2;
+      const lineHeight = fontSize + 4;
 
       for (const line of lines) {
         ensureLineSpace(lineHeight);
@@ -656,12 +653,12 @@ export async function POST(request: Request) {
       }
     };
 
-    writeParagraph(report.summary, 11, 4);
+    writeParagraph(report.summary, 11, 10);
 
     for (const { key, label } of SCORE_ROWS) {
       const section = report[key];
       writeSectionHeader(label);
-      writeParagraph(section.notes, 10, 0, rgb(0.25, 0.25, 0.25));
+      writeParagraph(section.notes, 10, 6, rgb(0.25, 0.25, 0.25));
     }
 
     if (isFullReport && !fullReportPhotosDrawn) {
