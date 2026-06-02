@@ -73,6 +73,36 @@ const REPORT_PROMPTS: Record<FullReportViewKey, string> = {
 const INVALID_IMAGE_ERROR =
   "One or more photos didn't meet the criteria. Please review the photo guidelines and resubmit.";
 
+const FULL_REPORT_VIEW_LABELS: Record<FullReportViewKey, string> = {
+  left: "Left Side",
+  right: "Right Side",
+  front: "Front View",
+  hind: "Hind View",
+};
+
+const ROBOFLOW_LANDMARK_FAILURE_MESSAGES = new Set([
+  "Roboflow returned no predictions",
+  "Roboflow horse prediction has no keypoints",
+]);
+
+function roboflowLandmarkDetectionError(viewLabel: string): string {
+  return `We couldn't detect horse landmarks in the ${viewLabel} photo. This can happen with certain coat colors, backgrounds, or angles. Try a photo with better contrast against the background, clearer lighting, and the horse standing square.`;
+}
+
+function toUserFacingFullReportError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Full report analysis failed";
+}
+
+function isRoboflowLandmarkFailure(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    ROBOFLOW_LANDMARK_FAILURE_MESSAGES.has(error.message)
+  );
+}
+
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
 const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
 
@@ -475,12 +505,31 @@ export async function POST(request: Request) {
     await Promise.all(
       FULL_REPORT_VIEW_KEYS.map(async (view) => {
         const prepared = preparedByView[view];
-        detectedLandmarksByView[view] = await detectLandmarksWithRoboflow(
-          prepared.imageBase64,
-          prepared.imageWidth,
-          prepared.imageHeight,
-          ROBOFLOW_VIEW_MODE[view],
+        const viewLabel = FULL_REPORT_VIEW_LABELS[view];
+
+        console.log(
+          `[analyze-full] Running Roboflow inference for ${viewLabel} (${view})`,
         );
+
+        try {
+          detectedLandmarksByView[view] = await detectLandmarksWithRoboflow(
+            prepared.imageBase64,
+            prepared.imageWidth,
+            prepared.imageHeight,
+            ROBOFLOW_VIEW_MODE[view],
+          );
+        } catch (error) {
+          console.error(
+            `[analyze-full] Roboflow inference failed for ${viewLabel} (${view}):`,
+            error,
+          );
+
+          if (isRoboflowLandmarkFailure(error)) {
+            throw new Error(roboflowLandmarkDetectionError(viewLabel));
+          }
+
+          throw error;
+        }
       }),
     );
 
@@ -602,8 +651,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);
-    const message =
-      error instanceof Error ? error.message : "Full report analysis failed";
+    const message = toUserFacingFullReportError(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

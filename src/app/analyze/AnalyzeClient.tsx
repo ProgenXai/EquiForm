@@ -1495,6 +1495,14 @@ export default function AnalyzeClient() {
                     : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credits`}
                 </button>
 
+                {error ? (
+                  <div className="mt-4">
+                    <p className="text-sm text-red-400" role="alert">
+                      {error}
+                    </p>
+                  </div>
+                ) : null}
+
                 {!authLoading && !isAdmin && !isLoggedIn ? (
                   <Link
                     href="/"
@@ -1527,14 +1535,6 @@ export default function AnalyzeClient() {
                 <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
                   <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
                   Analyzing all four views — this may take a minute…
-                </div>
-              ) : null}
-
-              {error && analysisMode === "full" ? (
-                <div className="mt-4">
-                  <p className="text-sm text-red-400" role="alert">
-                    {error}
-                  </p>
                 </div>
               ) : null}
 
