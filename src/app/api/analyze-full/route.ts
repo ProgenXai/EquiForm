@@ -50,13 +50,17 @@ const IMAGE_VALIDATION_SYSTEM_PROMPT =
 const SIDE_PROFILE_VALIDATION_PROMPT =
   "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.";
 
+const FRONT_VIEW_VALIDATION_PROMPT =
+  "Does this image show a single horse that is generally facing toward the camera in a front view? Accept if the horse is reasonably close to a front-facing view even if slightly angled — the chest and head should be visible from the front. Reject only if the horse is clearly in side profile, hind view, or too far off-angle to assess front conformation.";
+
+const HIND_VIEW_VALIDATION_PROMPT =
+  "Does this image show a single horse that is generally facing away from the camera in a hind view? Accept if the horse is reasonably close to a hind-facing view even if slightly angled — the hindquarters and tail should be visible from behind. Reject only if the horse is clearly in side profile, front view, or too far off-angle to assess hind conformation.";
+
 const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
   left: SIDE_PROFILE_VALIDATION_PROMPT,
   right: SIDE_PROFILE_VALIDATION_PROMPT,
-  front:
-    "Does this image show a single horse facing directly toward the camera in a front view?",
-  hind:
-    "Does this image show a single horse facing directly away from the camera in a hind view?",
+  front: FRONT_VIEW_VALIDATION_PROMPT,
+  hind: HIND_VIEW_VALIDATION_PROMPT,
 };
 
 const REPORT_PROMPTS: Record<FullReportViewKey, string> = {
