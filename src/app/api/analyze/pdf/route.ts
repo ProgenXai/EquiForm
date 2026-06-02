@@ -40,7 +40,7 @@ type PdfRequestBody = {
 
 const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
 const FULL_REPORT_PHOTO_ROW_GAP = 8;
-const FULL_REPORT_PHOTO_MAX_HEIGHT = 175;
+const FULL_REPORT_PHOTO_MAX_HEIGHT = 200;
 const SINGLE_VIEW_SCORES_RESERVED_HEIGHT = 220;
 
 const FULL_REPORT_IMAGE_FIELDS = [
@@ -56,6 +56,7 @@ const MARGIN = 50;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const FOOTER_Y = 28;
 const ACCENT_RGB = rgb(0, 212 / 255, 200 / 255);
+const PDF_SUBTITLE = "AI-Powered Equine Conformation Analysis Report";
 
 const SCORE_ROWS: {
   key: keyof Omit<ConformationReport, "overall_score" | "summary">;
@@ -160,6 +161,28 @@ function logPdfRequest(body: PdfRequestBody, isFullReport: boolean) {
   });
 }
 
+function measureHorizontalPhotoRowHeight(
+  images: PDFImage[],
+  maxImageHeight: number,
+): number {
+  const count = images.length;
+  const gap = FULL_REPORT_PHOTO_ROW_GAP;
+  const labelSize = 9;
+  const labelGap = 5;
+  const cellWidth = (CONTENT_WIDTH - gap * (count - 1)) / count;
+
+  let rowHeight = 0;
+  for (const image of images) {
+    const scale = Math.min(
+      cellWidth / image.width,
+      maxImageHeight / image.height,
+    );
+    rowHeight = Math.max(rowHeight, image.height * scale);
+  }
+
+  return rowHeight + labelGap + labelSize + 10;
+}
+
 function drawHorizontalPhotoRow(
   page: PDFPage,
   topY: number,
@@ -174,30 +197,36 @@ function drawHorizontalPhotoRow(
   const labelGap = 5;
   const cellWidth = (CONTENT_WIDTH - gap * (count - 1)) / count;
 
-  let lowestY = topY;
+  const layouts = images.map((image) => {
+    const scale = Math.min(
+      cellWidth / image.width,
+      maxImageHeight / image.height,
+    );
+    return {
+      width: image.width * scale,
+      height: image.height * scale,
+    };
+  });
+  const rowHeight = Math.max(...layouts.map((layout) => layout.height));
+
+  let lowestLabelY = topY - rowHeight;
 
   for (let i = 0; i < count; i++) {
     const image = images[i]!;
     const label = labels[i]!;
     const cellX = MARGIN + i * (cellWidth + gap);
-
-    const scale = Math.min(
-      cellWidth / image.width,
-      maxImageHeight / image.height,
-    );
-    const imageWidth = image.width * scale;
-    const imageHeight = image.height * scale;
-    const imageBottomY = topY - imageHeight;
+    const { width: imageWidth, height: imageHeight } = layouts[i]!;
+    const imageY = topY - rowHeight + (rowHeight - imageHeight);
 
     page.drawImage(image, {
       x: cellX + (cellWidth - imageWidth) / 2,
-      y: imageBottomY,
+      y: imageY,
       width: imageWidth,
       height: imageHeight,
     });
 
     const labelWidth = font.widthOfTextAtSize(label, labelSize);
-    const labelY = imageBottomY - labelGap - labelSize;
+    const labelY = imageY - labelGap - labelSize;
     page.drawText(label, {
       x: cellX + (cellWidth - labelWidth) / 2,
       y: labelY,
@@ -206,10 +235,10 @@ function drawHorizontalPhotoRow(
       color: rgb(0.2, 0.2, 0.2),
     });
 
-    lowestY = Math.min(lowestY, labelY - labelSize);
+    lowestLabelY = Math.min(lowestLabelY, labelY - labelSize);
   }
 
-  return lowestY - 24;
+  return lowestLabelY - 8;
 }
 
 function wrapText(
@@ -253,7 +282,7 @@ function measureFullReportOverlayBlock(
 ): number {
   const labelSize = 9;
   const labelGap = 6;
-  const bottomGap = 16;
+  const bottomGap = 10;
   const scale = Math.min(
     CONTENT_WIDTH / image.width,
     FULL_REPORT_OVERLAY_MAX_HEIGHT / image.height,
@@ -271,7 +300,7 @@ function drawFullReportOverlay(
 ): number {
   const labelSize = 9;
   const labelGap = 6;
-  const bottomGap = 16;
+  const bottomGap = 10;
   const scale = Math.min(
     CONTENT_WIDTH / image.width,
     FULL_REPORT_OVERLAY_MAX_HEIGHT / image.height,
@@ -404,7 +433,7 @@ export async function POST(request: Request) {
     });
     y -= 32;
 
-    page.drawText("AQHA Conformation Analysis Report", {
+    page.drawText(PDF_SUBTITLE, {
       x: MARGIN,
       y,
       size: 14,
@@ -435,24 +464,57 @@ export async function POST(request: Request) {
     });
     y -= 24;
 
+    let fullReportPhotosDrawn = false;
+
+    const drawFullReportPhotoRow = () => {
+      if (!isFullReport || fullReportPhotosDrawn) return;
+      const photoLabels = FULL_REPORT_IMAGE_FIELDS.map(({ label }) => label);
+      y = drawHorizontalPhotoRow(
+        page,
+        y,
+        fullReportImages,
+        photoLabels,
+        fontRegular,
+        FULL_REPORT_PHOTO_MAX_HEIGHT,
+      );
+      fullReportPhotosDrawn = true;
+    };
+
+    const MIN_CONTENT_Y = MARGIN + 32;
+
     const forceNewPage = () => {
       drawFooter(page, fontRegular);
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       y = PAGE_HEIGHT - MARGIN;
     };
 
+    const breakWrittenReportPage = () => {
+      forceNewPage();
+      if (isFullReport && !fullReportPhotosDrawn) {
+        drawFullReportPhotoRow();
+      }
+    };
+
     const ensureSpace = (needed: number) => {
-      if (y - needed >= MARGIN + 40) return;
+      if (y - needed >= MIN_CONTENT_Y) return;
       forceNewPage();
     };
 
-    // page-break-inside: avoid — keep block on one page when it fits
-    const avoidBreakInside = (blockHeight: number) => {
-      const minY = MARGIN + 40;
-      const maxPageContent = PAGE_HEIGHT - MARGIN - minY;
-      if (blockHeight <= maxPageContent && y - blockHeight < minY) {
-        forceNewPage();
-      }
+    const ensureLineSpace = (lineHeight: number) => {
+      if (y - lineHeight >= MIN_CONTENT_Y) return;
+      breakWrittenReportPage();
+    };
+
+    const writeSectionHeader = (label: string) => {
+      y -= 3;
+      page.drawText(label, {
+        x: MARGIN,
+        y,
+        size: 11,
+        font: fontBold,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      y -= 10;
     };
 
     if (!isFullReport) {
@@ -467,7 +529,7 @@ export async function POST(request: Request) {
       const imageWidth = overlayImage!.width * imageScale;
       const imageHeight = overlayImage!.height * imageScale;
 
-      avoidBreakInside(imageHeight + 28);
+      ensureSpace(imageHeight + 28);
 
       page.drawImage(overlayImage!, {
         x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
@@ -489,8 +551,6 @@ export async function POST(request: Request) {
     y -= 26;
 
     for (const { key, label } of SCORE_ROWS) {
-      // page-break-inside: avoid — individual score row
-      avoidBreakInside(20);
       const section = report[key];
       page.drawText(label, {
         x: MARGIN,
@@ -530,7 +590,7 @@ export async function POST(request: Request) {
         overlayLabel,
       );
 
-      if (y - overlayBlockHeight < MARGIN + 40) {
+      if (y - overlayBlockHeight < MIN_CONTENT_Y) {
         forceNewPage();
       }
 
@@ -543,24 +603,11 @@ export async function POST(request: Request) {
       );
     }
 
-    forceNewPage();
-
-    if (isFullReport) {
-      const photoLabels = FULL_REPORT_IMAGE_FIELDS.map(({ label }) => label);
-      const photoRowHeight =
-        FULL_REPORT_PHOTO_MAX_HEIGHT + 9 + 5 + 24;
-      avoidBreakInside(photoRowHeight);
-
-      y = drawHorizontalPhotoRow(
-        page,
-        y,
-        fullReportImages,
-        photoLabels,
-        fontRegular,
-        FULL_REPORT_PHOTO_MAX_HEIGHT,
-      );
+    if (!isFullReport) {
+      forceNewPage();
     }
 
+    ensureSpace(36);
     page.drawText("Written Report", {
       x: MARGIN,
       y,
@@ -568,7 +615,7 @@ export async function POST(request: Request) {
       font: fontBold,
       color: rgb(0.1, 0.1, 0.1),
     });
-    y -= 24;
+    y -= 14;
 
     const writeParagraph = (
       text: string,
@@ -577,14 +624,10 @@ export async function POST(request: Request) {
       color = rgb(0.15, 0.15, 0.15),
     ) => {
       const lines = wrapText(text, fontRegular, fontSize, CONTENT_WIDTH);
-      const lineHeight = fontSize + 4;
+      const lineHeight = fontSize + 2;
 
       for (const line of lines) {
-        if (y - lineHeight < MARGIN + 40) {
-          drawFooter(page, fontRegular);
-          page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-          y = PAGE_HEIGHT - MARGIN;
-        }
+        ensureLineSpace(lineHeight);
         page.drawText(line, {
           x: MARGIN,
           y,
@@ -595,34 +638,27 @@ export async function POST(request: Request) {
         y -= lineHeight;
       }
 
-      y -= gap;
+      if (gap > 0) {
+        y -= gap;
+      }
     };
 
-    {
-      const summaryLines = wrapText(report.summary, fontRegular, 11, CONTENT_WIDTH);
-      const summaryLineHeight = 11 + 4;
-      // page-break-inside: avoid — Written Report summary paragraph
-      avoidBreakInside(summaryLines.length * summaryLineHeight + 16);
-    }
-    writeParagraph(report.summary, 11, 16);
+    writeParagraph(report.summary, 11, 4);
 
     for (const { key, label } of SCORE_ROWS) {
       const section = report[key];
-      const notesLines = wrapText(section.notes, fontRegular, 10, CONTENT_WIDTH);
-      const notesLineHeight = 14;
-      // page-break-inside: avoid — individual score section block
-      avoidBreakInside(16 + notesLines.length * notesLineHeight + 12);
+      writeSectionHeader(label);
+      writeParagraph(section.notes, 10, 0, rgb(0.25, 0.25, 0.25));
+    }
 
-      page.drawText(label, {
-        x: MARGIN,
-        y,
-        size: 11,
-        font: fontBold,
-        color: rgb(0.2, 0.2, 0.2),
-      });
-      y -= 16;
-
-      writeParagraph(section.notes, 10, 12, rgb(0.25, 0.25, 0.25));
+    if (isFullReport && !fullReportPhotosDrawn) {
+      const photoBlockHeight = measureHorizontalPhotoRowHeight(
+        fullReportImages,
+        FULL_REPORT_PHOTO_MAX_HEIGHT,
+      );
+      if (y - photoBlockHeight >= MIN_CONTENT_Y) {
+        drawFullReportPhotoRow();
+      }
     }
 
     for (const pdfPage of pdfDoc.getPages()) {
