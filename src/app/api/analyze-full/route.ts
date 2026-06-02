@@ -73,6 +73,14 @@ const OVERLAY_STORAGE_BUCKET = "horse-photos";
 
 export const maxDuration = 300;
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
+};
+
 type PreparedViewImage = {
   inputBuffer: Buffer;
   imageWidth: number;
