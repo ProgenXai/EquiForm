@@ -220,8 +220,12 @@ const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
 const APP_SUBTITLE =
   "The most advanced AI equine conformation analysis available";
 
+const PHOTO_DISTANCE_TIP =
+  "Step back far enough that the full horse fills about 2/3 of the frame";
+
 const SIDE_VIEW_TIPS = [
   "Use a clear side profile photo",
+  PHOTO_DISTANCE_TIP,
   "Horse must be standing still",
   "All four feet visible on level ground",
   "Horse standing square with a natural stance",
@@ -229,6 +233,7 @@ const SIDE_VIEW_TIPS = [
 
 const FRONT_VIEW_TIPS = [
   "Horse facing directly toward the camera",
+  PHOTO_DISTANCE_TIP,
   "All four feet visible on level ground",
   "Camera at chest height — not from above or below",
   "Horse standing square with a natural, still stance",
@@ -236,6 +241,7 @@ const FRONT_VIEW_TIPS = [
 
 const HIND_VIEW_TIPS = [
   "Horse facing directly away from the camera",
+  PHOTO_DISTANCE_TIP,
   "All four feet visible on level ground",
   "Camera at hip height — not from above or below",
   "Horse standing square with a natural, still stance",
