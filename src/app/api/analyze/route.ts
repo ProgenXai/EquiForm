@@ -10,6 +10,7 @@ import {
 import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
+import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
 import { sendFirstReportEmail } from "@/lib/email/templates";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -25,8 +26,14 @@ const ALLOWED_MIME = new Set([
 const IMAGE_VALIDATION_SYSTEM_PROMPT =
   'You are an image validator for a horse conformation analysis app. Respond with only valid JSON: {"valid": true} or {"valid": false}';
 
-const IMAGE_VALIDATION_USER_PROMPT =
-  "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.";
+const IMAGE_VALIDATION_USER_PROMPTS: Record<CalibrationViewMode, string> = {
+  side:
+    "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.",
+  front:
+    "Does this image show a single horse facing directly toward the camera in a front view?",
+  hind:
+    "Does this image show a single horse facing directly away from the camera in a hind view?",
+};
 
 const INVALID_IMAGE_ERROR =
   "Your horse photo didn't meet the criteria. Please review the photo guidelines and resubmit.";
@@ -41,6 +48,34 @@ function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
   return "image/jpeg";
 }
 
+function parseViewMode(value: FormDataEntryValue | null): CalibrationViewMode {
+  if (typeof value === "string" && value.trim() === "front") return "front";
+  if (typeof value === "string" && value.trim() === "hind") return "hind";
+  return "side";
+}
+
+function getRoboflowModelIdForView(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+      return process.env.ROBOFLOW_FRONT_MODEL_ID?.trim() ?? "";
+    case "hind":
+      return process.env.ROBOFLOW_HIND_MODEL_ID?.trim() ?? "";
+    default:
+      return process.env.ROBOFLOW_MODEL_ID?.trim() ?? "";
+  }
+}
+
+function getRoboflowModelIdEnvVarName(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+      return "ROBOFLOW_FRONT_MODEL_ID";
+    case "hind":
+      return "ROBOFLOW_HIND_MODEL_ID";
+    default:
+      return "ROBOFLOW_MODEL_ID";
+  }
+}
+
 export async function POST(request: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -49,14 +84,20 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!process.env.ROBOFLOW_API_KEY?.trim() || !process.env.ROBOFLOW_MODEL_ID?.trim()) {
+  const formData = await request.formData();
+  const viewMode = parseViewMode(formData.get("viewMode"));
+  const roboflowModelId = getRoboflowModelIdForView(viewMode);
+  const roboflowModelIdEnvVar = getRoboflowModelIdEnvVarName(viewMode);
+
+  if (!process.env.ROBOFLOW_API_KEY?.trim() || !roboflowModelId) {
     return NextResponse.json(
-      { error: "Roboflow API key and model ID are not configured" },
+      {
+        error: `Roboflow API key and ${roboflowModelIdEnvVar} are not configured`,
+      },
       { status: 500 },
     );
   }
 
-  const formData = await request.formData();
   const file = formData.get("image");
   const horseNameRaw = formData.get("horseName");
   const horseName =
@@ -175,7 +216,10 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: [imageContent, { type: "text", text: IMAGE_VALIDATION_USER_PROMPT }],
+          content: [
+            imageContent,
+            { type: "text", text: IMAGE_VALIDATION_USER_PROMPTS[viewMode] },
+          ],
         },
       ],
     });
@@ -210,6 +254,7 @@ export async function POST(request: Request) {
       imageBase64,
       imageWidth,
       imageHeight,
+      viewMode,
     );
     const landmarks = toConformationLandmarks(detectedLandmarks);
 
