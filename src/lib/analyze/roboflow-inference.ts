@@ -1,51 +1,91 @@
-import type { LandmarkId } from "@/lib/calibration/landmarks";
+import {
+  FRONT_LANDMARKS,
+  HIND_LANDMARKS,
+  type CalibrationViewMode,
+  type LandmarkDefinition,
+  type LandmarkId,
+} from "@/lib/calibration/landmarks";
 
 import type { DetectedLandmarkPoint } from "@/lib/analyze/types";
 
 const ROBOFLOW_SERVERLESS = "https://serverless.roboflow.com";
 
-const LANDMARK_ORDER = [
-  { roboflow: "poll", display: "Poll" },
-  { roboflow: "point-of-shoulder", display: "Point of Shoulder" },
-  { roboflow: "forearm", display: "Forearm" },
-  { roboflow: "knee", display: "Knee" },
-  { roboflow: "front-fetlock", display: "Front Fetlock" },
-  { roboflow: "front-hoof", display: "Front Hoof" },
-  { roboflow: "withers", display: "Withers" },
-  { roboflow: "girth", display: "Girth" },
-  { roboflow: "loin", display: "Loin" },
-  { roboflow: "flank", display: "Flank" },
-  { roboflow: "point-of-hip", display: "Point of Hip" },
-  { roboflow: "tail-head", display: "Tail Head" },
-  { roboflow: "buttock", display: "Buttock" },
-  { roboflow: "stifle", display: "Stifle" },
-  { roboflow: "gaskin", display: "Gaskin" },
-  { roboflow: "hock", display: "Hock" },
-  { roboflow: "hind-fetlock", display: "Hind Fetlock" },
-  { roboflow: "hind-hoof", display: "Hind Hoof" },
-] as const;
-
-/** Calibration record keys for each Roboflow label (output mapping only). */
-const LANDMARK_OUTPUT_ID: Record<string, LandmarkId> = {
-  poll: "poll",
-  "point-of-shoulder": "shoulder",
-  forearm: "forearm",
-  knee: "front_knee",
-  "front-fetlock": "front_fetlock",
-  "front-hoof": "front_hoof",
-  withers: "withers",
-  girth: "girth",
-  loin: "loin",
-  flank: "flank",
-  "point-of-hip": "point_of_hip",
-  "tail-head": "tail",
-  buttock: "buttock",
-  stifle: "stifle",
-  gaskin: "gaskin",
-  hock: "hind_hock",
-  "hind-fetlock": "hind_fetlock",
-  "hind-hoof": "hind_hoof",
+type LandmarkMappingEntry = {
+  roboflow: string;
+  outputId: LandmarkId;
 };
+
+const SIDE_LANDMARK_ORDER: LandmarkMappingEntry[] = [
+  { roboflow: "poll", outputId: "poll" },
+  { roboflow: "point-of-shoulder", outputId: "shoulder" },
+  { roboflow: "forearm", outputId: "forearm" },
+  { roboflow: "knee", outputId: "front_knee" },
+  { roboflow: "front-fetlock", outputId: "front_fetlock" },
+  { roboflow: "front-hoof", outputId: "front_hoof" },
+  { roboflow: "withers", outputId: "withers" },
+  { roboflow: "girth", outputId: "girth" },
+  { roboflow: "loin", outputId: "loin" },
+  { roboflow: "flank", outputId: "flank" },
+  { roboflow: "point-of-hip", outputId: "point_of_hip" },
+  { roboflow: "tail-head", outputId: "tail" },
+  { roboflow: "buttock", outputId: "buttock" },
+  { roboflow: "stifle", outputId: "stifle" },
+  { roboflow: "gaskin", outputId: "gaskin" },
+  { roboflow: "hock", outputId: "hind_hock" },
+  { roboflow: "hind-fetlock", outputId: "hind_fetlock" },
+  { roboflow: "hind-hoof", outputId: "hind_hoof" },
+];
+
+function landmarkIdToRoboflowLabel(id: LandmarkId): string {
+  return id.replace(/_/g, "-");
+}
+
+function mappingsFromDefinitions(
+  definitions: LandmarkDefinition[],
+): LandmarkMappingEntry[] {
+  return definitions.map((landmark) => ({
+    roboflow: landmarkIdToRoboflowLabel(landmark.id),
+    outputId: landmark.id,
+  }));
+}
+
+const FRONT_LANDMARK_ORDER = mappingsFromDefinitions(FRONT_LANDMARKS);
+const HIND_LANDMARK_ORDER = mappingsFromDefinitions(HIND_LANDMARKS);
+
+function getLandmarkOrderForView(
+  viewMode: CalibrationViewMode,
+): LandmarkMappingEntry[] {
+  switch (viewMode) {
+    case "front":
+      return FRONT_LANDMARK_ORDER;
+    case "hind":
+      return HIND_LANDMARK_ORDER;
+    default:
+      return SIDE_LANDMARK_ORDER;
+  }
+}
+
+function getModelIdForView(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+      return process.env.ROBOFLOW_FRONT_MODEL_ID?.trim() ?? "";
+    case "hind":
+      return process.env.ROBOFLOW_HIND_MODEL_ID?.trim() ?? "";
+    default:
+      return process.env.ROBOFLOW_MODEL_ID?.trim() ?? "";
+  }
+}
+
+function getModelIdEnvVarName(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+      return "ROBOFLOW_FRONT_MODEL_ID";
+    case "hind":
+      return "ROBOFLOW_HIND_MODEL_ID";
+    default:
+      return "ROBOFLOW_MODEL_ID";
+  }
+}
 
 type RoboflowKeypoint = {
   x: number;
@@ -113,11 +153,43 @@ function selectHorsePrediction(
   );
 }
 
+function indexKeypoints(
+  keypoints: RoboflowKeypoint[],
+): Record<string, RoboflowKeypoint> {
+  const keypointByName: Record<string, RoboflowKeypoint> = {};
+
+  for (const kp of keypoints) {
+    const className = keypointClassName(kp);
+    if (!className) continue;
+
+    keypointByName[className] = kp;
+    keypointByName[normalizeKeypointName(className)] = kp;
+
+    if (kp.class && kp.class !== className) {
+      keypointByName[kp.class] = kp;
+    }
+  }
+
+  return keypointByName;
+}
+
+function findKeypoint(
+  keypointByName: Record<string, RoboflowKeypoint>,
+  entry: LandmarkMappingEntry,
+): RoboflowKeypoint | undefined {
+  return (
+    keypointByName[entry.roboflow] ??
+    keypointByName[entry.outputId] ??
+    keypointByName[normalizeKeypointName(entry.roboflow)]
+  );
+}
+
 /** Parse Roboflow serverless keypoint detection JSON into normalized landmark map. */
 export function parseRoboflowKeypointResponse(
   data: unknown,
   imageWidth: number,
   imageHeight: number,
+  viewMode: CalibrationViewMode = "side",
 ): Record<string, DetectedLandmarkPoint> {
   const payload = data as RoboflowKeypointResponse;
   const predictions = payload.predictions ?? [];
@@ -133,12 +205,7 @@ export function parseRoboflowKeypointResponse(
     throw new Error("Roboflow horse prediction has no keypoints");
   }
 
-  const keypointByName: Record<string, RoboflowKeypoint> = {};
-  for (const kp of keypoints) {
-    if (kp.class !== undefined && kp.class !== null) {
-      keypointByName[kp.class] = kp;
-    }
-  }
+  const keypointByName = indexKeypoints(keypoints);
 
   const roboflowWidth = payload.image?.width;
   const roboflowHeight = payload.image?.height;
@@ -153,10 +220,10 @@ export function parseRoboflowKeypointResponse(
   }
 
   const landmarks: Record<string, DetectedLandmarkPoint> = {};
+  const landmarkOrder = getLandmarkOrderForView(viewMode);
 
-  for (const entry of LANDMARK_ORDER) {
-    const kp = keypointByName[entry.roboflow];
-    const outputId = LANDMARK_OUTPUT_ID[entry.roboflow];
+  for (const entry of landmarkOrder) {
+    const kp = findKeypoint(keypointByName, entry);
 
     if (
       !kp ||
@@ -164,17 +231,13 @@ export function parseRoboflowKeypointResponse(
       typeof kp.y !== "number" ||
       (kp.confidence !== undefined && kp.confidence <= 0)
     ) {
-      landmarks[outputId] = { x: 0, y: 0 };
+      landmarks[entry.outputId] = { x: 0, y: 0 };
       continue;
     }
 
-    const rawX = kp.x;
-    const rawY = kp.y;
-    const xPx = rawX;
-
-    landmarks[outputId] = {
-      x: clamp01(xPx / width),
-      y: clamp01(rawY / height),
+    landmarks[entry.outputId] = {
+      x: clamp01(kp.x / width),
+      y: clamp01(kp.y / height),
     };
   }
 
@@ -186,12 +249,16 @@ export async function detectLandmarksWithRoboflow(
   imageBase64: string,
   imageWidth: number,
   imageHeight: number,
+  viewMode: CalibrationViewMode = "side",
 ): Promise<Record<string, DetectedLandmarkPoint>> {
   const apiKey = process.env.ROBOFLOW_API_KEY?.trim();
-  const modelId = process.env.ROBOFLOW_MODEL_ID?.trim();
+  const modelId = getModelIdForView(viewMode);
+  const modelIdEnvVar = getModelIdEnvVarName(viewMode);
 
   if (!apiKey || !modelId) {
-    throw new Error("ROBOFLOW_API_KEY and ROBOFLOW_MODEL_ID must be configured");
+    throw new Error(
+      `ROBOFLOW_API_KEY and ${modelIdEnvVar} must be configured`,
+    );
   }
 
   const base64Value = imageBase64.replace(/^data:image\/\w+;base64,/, "");
@@ -225,5 +292,5 @@ export async function detectLandmarksWithRoboflow(
     throw new Error(`Roboflow inference failed (${response.status}): ${message}`);
   }
 
-  return parseRoboflowKeypointResponse(data, imageWidth, imageHeight);
+  return parseRoboflowKeypointResponse(data, imageWidth, imageHeight, viewMode);
 }
