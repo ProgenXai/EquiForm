@@ -1574,35 +1574,39 @@ export default function AnalyzeClient() {
                           hind 20%
                         </p>
 
-                        <div className="mt-6 grid grid-cols-2 gap-3">
-                          {FULL_REPORT_SLOTS.map((slot) => {
-                            const photo = fullReportPhotos[slot.view];
+                        <div className="mt-6 overflow-x-auto">
+                          <div className="flex gap-3">
+                            {FULL_REPORT_SLOTS.map((slot) => {
+                              const photo = fullReportPhotos[slot.view];
 
-                            return (
-                              <div
-                                key={slot.view}
-                                className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-2"
-                              >
-                                {photo?.previewUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={photo.previewUrl}
-                                    alt={`${slot.label} photo`}
-                                    className="max-h-24 w-full rounded border border-zinc-800 object-contain sm:max-h-48"
-                                  />
-                                ) : (
-                                  <div className="flex max-h-24 min-h-16 items-center justify-center rounded border border-zinc-800 bg-zinc-900/80 sm:max-h-48 sm:min-h-32">
-                                    <p className="text-xs text-zinc-600">
-                                      No photo
-                                    </p>
+                              return (
+                                <div
+                                  key={slot.view}
+                                  className="flex min-w-[5.5rem] flex-1 flex-col"
+                                >
+                                  <div className="h-[200px] max-h-[200px] overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950/50">
+                                    {photo?.previewUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={photo.previewUrl}
+                                        alt={`${slot.label} photo`}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full items-center justify-center bg-zinc-900/80">
+                                        <p className="text-xs text-zinc-600">
+                                          No photo
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                <p className="mt-2 text-center text-xs font-medium text-zinc-400">
-                                  {slot.label}
-                                </p>
-                              </div>
-                            );
-                          })}
+                                  <p className="mt-2 text-center text-xs font-medium text-zinc-400">
+                                    {slot.label}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         <div className="mt-8">
