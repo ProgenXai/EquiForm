@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import type { AnalyzeApiResponse, ConformationReport } from "@/lib/analyze/types";
+import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
 
@@ -180,6 +181,56 @@ const REPORT_SECTIONS: {
   { key: "leg_alignment", label: "Leg alignment" },
 ];
 
+const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
+  { value: "side", label: "Side Profile" },
+  { value: "front", label: "Front View" },
+  { value: "hind", label: "Hind View" },
+];
+
+const VIEW_MODE_DESCRIPTIONS: Record<CalibrationViewMode, string> = {
+  side: "AI-powered equine conformation analysis from a single side profile photo",
+  front: "AI-powered equine conformation analysis from a front view photo",
+  hind: "AI-powered equine conformation analysis from a hind view photo",
+};
+
+const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
+  side: [
+    "Use a clear side profile photo — ideally a squared-up sale ad style photo with all four legs visible and the horse standing square",
+    "Horse must be standing still — walking or moving photos won't work",
+    "Horse should fill most of the frame with the full body visible head to tail",
+    "True side profile only — not angled toward or away from the camera",
+    "Level ground and a natural, square stance give the most accurate assessment",
+    "No people, other horses, or objects blocking the horse's body",
+    "Photo should be taken at horse's level, not from above or below",
+    "Avoid photos with multiple horses",
+    "For sale catalog photos, lay the book completely flat and shoot straight down from directly above",
+  ],
+  front: [
+    "Horse facing directly toward the camera",
+    "All four feet visible on level ground",
+    "Camera at chest height — not from above or below",
+    "Horse standing square with a natural, still stance",
+    "Horse should fill most of the frame",
+    "No people, other horses, or objects blocking the horse's body",
+    "Avoid photos with multiple horses",
+  ],
+  hind: [
+    "Horse facing directly away from the camera",
+    "All four feet visible on level ground",
+    "Camera at hindquarter height — not from above or below",
+    "Horse standing square with a natural, still stance",
+    "Horse should fill most of the frame",
+    "No people, other horses, or objects blocking the horse's body",
+    "Avoid photos with multiple horses",
+  ],
+};
+
+const VIEW_MODE_UPLOAD_HINT: Record<CalibrationViewMode, string> = {
+  side: "JPG, PNG, or WEBP · max 10MB · side profile recommended",
+  front: "JPG, PNG, or WEBP · max 10MB · front view recommended",
+  hind: "JPG, PNG, or WEBP · max 10MB · hind view recommended",
+};
+
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
 export default function AnalyzeClient() {
@@ -187,6 +238,7 @@ export default function AnalyzeClient() {
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [viewMode, setViewMode] = useState<CalibrationViewMode>("side");
   const [horseName, setHorseName] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -364,6 +416,7 @@ export default function AnalyzeClient() {
       const formData = new FormData();
       formData.append("image", fileToSend);
       formData.append("horseName", horseName.trim());
+      formData.append("viewMode", viewMode);
 
       const {
         data: { session },
@@ -600,37 +653,44 @@ export default function AnalyzeClient() {
           />
         </div>
         <p className="mt-2 text-sm text-zinc-400">
-          AI-powered equine conformation analysis from a single side profile photo
+          {VIEW_MODE_DESCRIPTIONS[viewMode]}
         </p>
       </header>
 
       <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <div className="mb-6">
+            <p className="mb-2 text-xs font-medium text-zinc-400">Photo view</p>
+            <div
+              className="flex rounded-lg border border-zinc-700 bg-zinc-950 p-1"
+              role="group"
+              aria-label="Photo view"
+            >
+              {VIEW_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setViewMode(option.value)}
+                  aria-pressed={viewMode === option.value}
+                  className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                    viewMode === option.value
+                      ? "bg-accent text-black shadow-sm"
+                      : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {!previewUrl ? (
             <>
               <div className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
                 <p className="font-medium text-accent">For best results:</p>
                 <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-                  <li>
-                    Use a clear side profile photo — ideally a squared-up sale ad style photo
-                    with all four legs visible and the horse standing square
-                  </li>
-                  <li>
-                    Horse must be standing still — walking or moving photos won&apos;t
-                    work
-                  </li>
-                  <li>Horse should fill most of the frame</li>
-                  <li>
-                    No people, other horses, or objects blocking the horse&apos;s body
-                  </li>
-                  <li>
-                    Photo should be taken at horse&apos;s level, not from above or below
-                  </li>
-                  <li>Avoid photos with multiple horses</li>
-                  <li>
-                    For sale catalog photos, lay the book completely flat and shoot straight
-                    down from directly above
-                  </li>
+                  {VIEW_MODE_TIPS[viewMode].map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
                 </ul>
               </div>
               <p className="mt-4 text-center">
@@ -650,7 +710,7 @@ export default function AnalyzeClient() {
                   Upload horse photo
                 </span>
                 <span className="mt-2 text-xs text-zinc-500">
-                  JPG, PNG, or WEBP · max 10MB · side profile recommended
+                  {VIEW_MODE_UPLOAD_HINT[viewMode]}
                 </span>
                 <input
                   type="file"
