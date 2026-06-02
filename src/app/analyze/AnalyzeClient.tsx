@@ -1747,33 +1747,6 @@ export default function AnalyzeClient() {
                                 }
                                 className="max-h-[300px] w-full rounded-lg border border-zinc-800 object-contain"
                               />
-                              {isBetterSideTab
-                                ? LANDMARKS.map((landmark) => {
-                                    const point =
-                                      fullReportResult.landmarks[
-                                        fullReportResult.betterSide
-                                      ][landmark.id];
-                                    if (!point) return null;
-                                    return (
-                                      <span
-                                        key={landmark.id}
-                                        style={{
-                                          position: "absolute",
-                                          left: `${point.x * 100}%`,
-                                          top: `${point.y * 100}%`,
-                                          transform: "translate(12px, -50%)",
-                                          fontSize: "11px",
-                                          color: "white",
-                                          textShadow: "0 0 3px black",
-                                          whiteSpace: "nowrap",
-                                          pointerEvents: "none",
-                                        }}
-                                      >
-                                        {landmark.label}
-                                      </span>
-                                    );
-                                  })
-                                : null}
                             </div>
                           ) : null}
 
