@@ -302,6 +302,25 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
   { view: "hind", label: "Hind View" },
 ];
 
+async function toPdfFetchableUrl(url: string): Promise<string> {
+  if (!url.startsWith("blob:")) {
+    return url;
+  }
+
+  const response = await fetch(url);
+  const blob = await response.blob();
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+
+  const base64 = btoa(binary);
+  const mime = blob.type || "image/jpeg";
+  return `data:${mime};base64,${base64}`;
+}
+
 function buildFullReportPdfReport(
   fullReportResult: FullReportApiResponse,
 ): ConformationReport {
@@ -837,10 +856,13 @@ export default function AnalyzeClient() {
   async function handleDownloadFullReportPdf() {
     if (!fullReportResult) return;
 
-    const overlayUrl =
-      fullReportResult.overlayUrl ?? fullReportResult.overlayImage;
-    if (!overlayUrl) {
-      setError("PDF generation failed. Overlay image is missing.");
+    const leftPreview = fullReportPhotos.left?.previewUrl;
+    const rightPreview = fullReportPhotos.right?.previewUrl;
+    const frontPreview = fullReportPhotos.front?.previewUrl;
+    const hindPreview = fullReportPhotos.hind?.previewUrl;
+
+    if (!leftPreview || !rightPreview || !frontPreview || !hindPreview) {
+      setError("PDF generation failed. One or more photos are missing.");
       return;
     }
 
@@ -848,11 +870,23 @@ export default function AnalyzeClient() {
     setError(null);
 
     try {
+      const [leftImage, rightImage, frontImage, hindImage] = await Promise.all([
+        toPdfFetchableUrl(leftPreview),
+        toPdfFetchableUrl(rightPreview),
+        toPdfFetchableUrl(frontPreview),
+        toPdfFetchableUrl(hindPreview),
+      ]);
+
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          overlayUrl,
+          overlayUrl:
+            fullReportResult.overlayUrl ?? fullReportResult.overlayImage,
+          leftImage,
+          rightImage,
+          frontImage,
+          hindImage,
           report: buildFullReportPdfReport(fullReportResult),
           horse_name: fullReportResult.horseName ?? horseName,
         }),

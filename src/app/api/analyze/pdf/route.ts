@@ -29,9 +29,20 @@ export const config = {
 
 type PdfRequestBody = {
   overlayUrl?: string;
+  leftImage?: string;
+  rightImage?: string;
+  frontImage?: string;
+  hindImage?: string;
   report?: ConformationReport;
   horse_name?: string;
 };
+
+const FULL_REPORT_IMAGE_FIELDS = [
+  { key: "leftImage" as const, label: "Left Side" },
+  { key: "rightImage" as const, label: "Right Side" },
+  { key: "frontImage" as const, label: "Front View" },
+  { key: "hindImage" as const, label: "Hind View" },
+];
 
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
@@ -79,6 +90,62 @@ async function embedOverlayImage(
     return pdfDoc.embedPng(bytes);
   }
   return pdfDoc.embedJpg(bytes);
+}
+
+async function fetchEmbeddedImage(
+  pdfDoc: PDFDocument,
+  url: string,
+): Promise<PDFImage> {
+  const response = await fetch(url.trim());
+  if (!response.ok) {
+    throw new Error("Failed to fetch image");
+  }
+
+  const imageBase64 = Buffer.from(await response.arrayBuffer()).toString(
+    "base64",
+  );
+  return embedOverlayImage(pdfDoc, imageBase64);
+}
+
+function hasFullReportImages(body: PdfRequestBody): boolean {
+  return FULL_REPORT_IMAGE_FIELDS.every(({ key }) => body[key]?.trim());
+}
+
+function drawLabeledGridCell(
+  page: PDFPage,
+  x: number,
+  topY: number,
+  cellWidth: number,
+  maxImageHeight: number,
+  label: string,
+  image: PDFImage,
+  fontRegular: PDFFont,
+): number {
+  const labelSize = 10;
+  page.drawText(label, {
+    x,
+    y: topY,
+    size: labelSize,
+    font: fontRegular,
+    color: rgb(0.2, 0.2, 0.2),
+  });
+
+  const labelBottom = topY - labelSize - 6;
+  const scale = Math.min(
+    cellWidth / image.width,
+    maxImageHeight / image.height,
+  );
+  const imageWidth = image.width * scale;
+  const imageHeight = image.height * scale;
+
+  page.drawImage(image, {
+    x: x + (cellWidth - imageWidth) / 2,
+    y: labelBottom - imageHeight,
+    width: imageWidth,
+    height: imageHeight,
+  });
+
+  return labelBottom - imageHeight;
 }
 
 function wrapText(
@@ -152,15 +219,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (!body.overlayUrl?.trim()) {
+  if (!body.report) {
+    return NextResponse.json({ error: "report is required" }, { status: 400 });
+  }
+
+  const isFullReport = hasFullReportImages(body);
+
+  if (!isFullReport && !body.overlayUrl?.trim()) {
     return NextResponse.json(
       { error: "overlayUrl is required" },
       { status: 400 },
     );
-  }
-
-  if (!body.report) {
-    return NextResponse.json({ error: "report is required" }, { status: 400 });
   }
 
   try {
@@ -170,19 +239,18 @@ export async function POST(request: Request) {
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    const overlayResponse = await fetch(body.overlayUrl.trim());
-    if (!overlayResponse.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch overlay image" },
-        { status: 400 },
-      );
+    let overlayImage: PDFImage | null = null;
+    if (!isFullReport) {
+      overlayImage = await fetchEmbeddedImage(pdfDoc, body.overlayUrl!.trim());
     }
 
-    const overlayImageBase64 = Buffer.from(
-      await overlayResponse.arrayBuffer(),
-    ).toString("base64");
-
-    const overlayImage = await embedOverlayImage(pdfDoc, overlayImageBase64);
+    const fullReportImages = isFullReport
+      ? await Promise.all(
+          FULL_REPORT_IMAGE_FIELDS.map(async ({ key }) =>
+            fetchEmbeddedImage(pdfDoc, body[key]!.trim()),
+          ),
+        )
+      : [];
 
     const report = body.report;
     const generatedAt = new Date().toLocaleDateString("en-US", {
@@ -255,23 +323,82 @@ export async function POST(request: Request) {
     };
 
     const maxImageHeight = 340;
-    const imageScale = Math.min(
-      CONTENT_WIDTH / overlayImage.width,
-      maxImageHeight / overlayImage.height,
-    );
-    const imageWidth = overlayImage.width * imageScale;
-    const imageHeight = overlayImage.height * imageScale;
 
-    // page-break-inside: avoid — overlay image container
-    avoidBreakInside(imageHeight + 28);
+    if (isFullReport) {
+      const gridGap = 12;
+      const rowGap = 16;
+      const cellWidth = (CONTENT_WIDTH - gridGap) / 2;
+      const maxCellImageHeight = 130;
+      const labelHeight = 16;
+      const gridHeight =
+        (labelHeight + maxCellImageHeight) * 2 + rowGap + 12;
 
-    page.drawImage(overlayImage, {
-      x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
-      y: y - imageHeight,
-      width: imageWidth,
-      height: imageHeight,
-    });
-    y -= imageHeight + 28;
+      avoidBreakInside(gridHeight);
+
+      const rowTopY = y;
+      const leftBottom = drawLabeledGridCell(
+        page,
+        MARGIN,
+        rowTopY,
+        cellWidth,
+        maxCellImageHeight,
+        FULL_REPORT_IMAGE_FIELDS[0]!.label,
+        fullReportImages[0]!,
+        fontRegular,
+      );
+      const rightBottom = drawLabeledGridCell(
+        page,
+        MARGIN + cellWidth + gridGap,
+        rowTopY,
+        cellWidth,
+        maxCellImageHeight,
+        FULL_REPORT_IMAGE_FIELDS[1]!.label,
+        fullReportImages[1]!,
+        fontRegular,
+      );
+
+      const secondRowTopY = Math.min(leftBottom, rightBottom) - rowGap;
+      const frontBottom = drawLabeledGridCell(
+        page,
+        MARGIN,
+        secondRowTopY,
+        cellWidth,
+        maxCellImageHeight,
+        FULL_REPORT_IMAGE_FIELDS[2]!.label,
+        fullReportImages[2]!,
+        fontRegular,
+      );
+      const hindBottom = drawLabeledGridCell(
+        page,
+        MARGIN + cellWidth + gridGap,
+        secondRowTopY,
+        cellWidth,
+        maxCellImageHeight,
+        FULL_REPORT_IMAGE_FIELDS[3]!.label,
+        fullReportImages[3]!,
+        fontRegular,
+      );
+
+      y = Math.min(frontBottom, hindBottom) - 28;
+    } else {
+      const imageScale = Math.min(
+        CONTENT_WIDTH / overlayImage!.width,
+        maxImageHeight / overlayImage!.height,
+      );
+      const imageWidth = overlayImage!.width * imageScale;
+      const imageHeight = overlayImage!.height * imageScale;
+
+      // page-break-inside: avoid — overlay image container
+      avoidBreakInside(imageHeight + 28);
+
+      page.drawImage(overlayImage!, {
+        x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
+        y: y - imageHeight,
+        width: imageWidth,
+        height: imageHeight,
+      });
+      y -= imageHeight + 28;
+    }
 
     ensureSpace(120);
     page.drawText("Conformation Scores", {
