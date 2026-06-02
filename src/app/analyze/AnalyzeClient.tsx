@@ -302,6 +302,62 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
   { view: "hind", label: "Hind View" },
 ];
 
+function buildFullReportPdfReport(
+  fullReportResult: FullReportApiResponse,
+): ConformationReport {
+  const viewReports: { label: string; report: ConformationReport }[] = [
+    { label: "Left Side", report: fullReportResult.leftReport },
+    { label: "Right Side", report: fullReportResult.rightReport },
+    { label: "Front View", report: fullReportResult.frontReport },
+    { label: "Hind View", report: fullReportResult.hindReport },
+  ];
+
+  const sectionKeys: ReportSectionKey[] = [
+    "balance",
+    "shoulder_angle",
+    "hip_angle",
+    "topline_quality",
+    "leg_alignment",
+  ];
+
+  const sections = Object.fromEntries(
+    sectionKeys.map((key) => {
+      const avgScore = Math.round(
+        viewReports.reduce((sum, view) => sum + view.report[key].score, 0) /
+          viewReports.length,
+      );
+      const notes = viewReports
+        .map(
+          (view) =>
+            `${view.label} (${view.report[key].score}/100): ${view.report[key].notes}`,
+        )
+        .join("\n\n");
+
+      return [key, { score: avgScore, notes }];
+    }),
+  ) as Pick<
+    ConformationReport,
+    | "balance"
+    | "shoulder_angle"
+    | "hip_angle"
+    | "topline_quality"
+    | "leg_alignment"
+  >;
+
+  const summary = viewReports
+    .map(
+      (view) =>
+        `${view.label} — ${view.report.overall_score}/100\n${view.report.summary}`,
+    )
+    .join("\n\n");
+
+  return {
+    ...sections,
+    overall_score: fullReportResult.combinedScore,
+    summary: `Full Report combined score: ${fullReportResult.combinedScore}/100 (weighted: best side 40%, other side 20%, front 20%, hind 20%).\n\n${summary}`,
+  };
+}
+
 export default function AnalyzeClient() {
   const router = useRouter();
   const supabase = createClient();
@@ -769,6 +825,53 @@ export default function AnalyzeClient() {
       const date = new Date().toISOString().slice(0, 10);
       link.href = url;
       link.download = `equiform-report-${date}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PDF generation failed");
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+  async function handleDownloadFullReportPdf() {
+    if (!fullReportResult) return;
+
+    const overlayUrl =
+      fullReportResult.overlayUrl ?? fullReportResult.overlayImage;
+    if (!overlayUrl) {
+      setError("PDF generation failed. Overlay image is missing.");
+      return;
+    }
+
+    setPdfLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/analyze/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          overlayUrl,
+          report: buildFullReportPdfReport(fullReportResult),
+          horse_name: fullReportResult.horseName ?? horseName,
+        }),
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+      const isPdf = contentType.includes("application/pdf");
+
+      if (!response.ok || !isPdf) {
+        await response.text();
+        throw new Error("PDF generation failed. Please try again.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `equiform-full-report-${date}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -1620,6 +1723,20 @@ export default function AnalyzeClient() {
                         </div>
                       );
                     })()}
+
+                    <div className="mt-6 flex flex-col items-center">
+                      <button
+                        type="button"
+                        onClick={() => void handleDownloadFullReportPdf()}
+                        disabled={pdfLoading}
+                        className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
+                      </button>
+                      <p className="mt-1 text-xs text-amber-400">
+                        ⚠️ Download now — PDF is only available on this screen
+                      </p>
+                    </div>
 
                     <button
                       type="button"
