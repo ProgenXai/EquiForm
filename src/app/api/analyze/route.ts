@@ -14,7 +14,10 @@ import {
   HIND_CONFORMATION_REPORT_PROMPT,
 } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
-import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
+import {
+  isSideProfileViewMode,
+  type CalibrationViewMode,
+} from "@/lib/calibration/landmarks";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendFirstReportEmail } from "@/lib/email/templates";
@@ -31,9 +34,13 @@ const ALLOWED_MIME = new Set([
 const IMAGE_VALIDATION_SYSTEM_PROMPT =
   'You are an image validator for a horse conformation analysis app. Respond with only valid JSON: {"valid": true} or {"valid": false}';
 
+const SIDE_PROFILE_VALIDATION_PROMPT =
+  "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.";
+
 const IMAGE_VALIDATION_USER_PROMPTS: Record<CalibrationViewMode, string> = {
-  side:
-    "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.",
+  side: SIDE_PROFILE_VALIDATION_PROMPT,
+  left: SIDE_PROFILE_VALIDATION_PROMPT,
+  right: SIDE_PROFILE_VALIDATION_PROMPT,
   front:
     "Does this image show a single horse facing directly toward the camera in a front view?",
   hind:
@@ -54,9 +61,14 @@ function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
 }
 
 function parseViewMode(value: FormDataEntryValue | null): CalibrationViewMode {
-  if (typeof value === "string" && value.trim() === "front") return "front";
-  if (typeof value === "string" && value.trim() === "hind") return "hind";
-  return "side";
+  if (typeof value !== "string") return "left";
+  const trimmed = value.trim();
+  if (trimmed === "front") return "front";
+  if (trimmed === "hind") return "hind";
+  if (trimmed === "right") return "right";
+  if (trimmed === "left") return "left";
+  if (trimmed === "side") return "side";
+  return "left";
 }
 
 function getRoboflowModelIdForView(viewMode: CalibrationViewMode): string {
@@ -88,6 +100,8 @@ function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
     case "hind":
       return HIND_CONFORMATION_REPORT_PROMPT;
     case "side":
+    case "left":
+    case "right":
       return CONFORMATION_REPORT_PROMPT;
   }
 }
@@ -304,7 +318,7 @@ export async function POST(request: Request) {
     let overlayBuffer: Buffer;
     let overlayContentType: string;
 
-    if (viewMode === "side") {
+    if (isSideProfileViewMode(viewMode)) {
       overlayBuffer = await drawConformationOverlay(
         inputBuffer,
         landmarks as ConformationLandmarks,

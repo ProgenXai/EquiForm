@@ -43,7 +43,7 @@ export type LandmarkId =
   | "left_hind_hoof"
   | "right_hind_hoof";
 
-export type CalibrationViewMode = "side" | "front" | "hind";
+export type CalibrationViewMode = "side" | "left" | "right" | "front" | "hind";
 
 export type Point = { x: number; y: number };
 
@@ -307,9 +307,16 @@ export function getLandmarksForView(
       return FRONT_LANDMARKS;
     case "hind":
       return HIND_LANDMARKS;
+    case "left":
+    case "right":
+    case "side":
     default:
       return LANDMARKS;
   }
+}
+
+export function isSideProfileViewMode(viewMode: CalibrationViewMode): boolean {
+  return viewMode === "side" || viewMode === "left" || viewMode === "right";
 }
 
 export function getLandmarkCountForView(viewMode: CalibrationViewMode): number {

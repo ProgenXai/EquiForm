@@ -60,6 +60,9 @@ function getLandmarkOrderForView(
       return FRONT_LANDMARK_ORDER;
     case "hind":
       return HIND_LANDMARK_ORDER;
+    case "side":
+    case "left":
+    case "right":
     default:
       return SIDE_LANDMARK_ORDER;
   }
@@ -71,6 +74,9 @@ function getModelIdForView(viewMode: CalibrationViewMode): string {
       return process.env.ROBOFLOW_FRONT_MODEL_ID?.trim() ?? "";
     case "hind":
       return process.env.ROBOFLOW_HIND_MODEL_ID?.trim() ?? "";
+    case "side":
+    case "left":
+    case "right":
     default:
       return process.env.ROBOFLOW_MODEL_ID?.trim() ?? "";
   }

@@ -172,17 +172,21 @@ async function compressImageIfNeeded(
 
 type ReportSectionKey = keyof Omit<ConformationReport, "overall_score" | "summary">;
 
+const SIDE_REPORT_SECTIONS: { key: ReportSectionKey; label: string }[] = [
+  { key: "balance", label: "Balance (rule of thirds)" },
+  { key: "shoulder_angle", label: "Shoulder Angle" },
+  { key: "hip_angle", label: "Hip Angle" },
+  { key: "topline_quality", label: "Topline Quality" },
+  { key: "leg_alignment", label: "Leg Alignment" },
+];
+
 const REPORT_SECTIONS_BY_VIEW: Record<
   CalibrationViewMode,
   { key: ReportSectionKey; label: string }[]
 > = {
-  side: [
-    { key: "balance", label: "Balance (rule of thirds)" },
-    { key: "shoulder_angle", label: "Shoulder Angle" },
-    { key: "hip_angle", label: "Hip Angle" },
-    { key: "topline_quality", label: "Topline Quality" },
-    { key: "leg_alignment", label: "Leg Alignment" },
-  ],
+  side: SIDE_REPORT_SECTIONS,
+  left: SIDE_REPORT_SECTIONS,
+  right: SIDE_REPORT_SECTIONS,
   front: [
     { key: "balance", label: "Balance (rule of thirds)" },
     { key: "shoulder_angle", label: "Chest & Shoulder Width" },
@@ -200,7 +204,8 @@ const REPORT_SECTIONS_BY_VIEW: Record<
 };
 
 const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
-  { value: "side", label: "Side Profile" },
+  { value: "left", label: "Left Side" },
+  { value: "right", label: "Right Side" },
   { value: "front", label: "Front View" },
   { value: "hind", label: "Hind View" },
 ];
@@ -208,18 +213,22 @@ const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
 const APP_SUBTITLE =
   "The most advanced AI equine conformation analysis available — four views, one complete report, in 3D";
 
+const SIDE_VIEW_TIPS = [
+  "Use a clear side profile photo — ideally a squared-up sale ad style photo with all four legs visible and the horse standing square",
+  "Horse must be standing still — walking or moving photos won't work",
+  "Horse should fill most of the frame with the full body visible head to tail",
+  "True side profile only — not angled toward or away from the camera",
+  "Level ground and a natural, square stance give the most accurate assessment",
+  "No people, other horses, or objects blocking the horse's body",
+  "Photo should be taken at horse's level, not from above or below",
+  "Avoid photos with multiple horses",
+  "For sale catalog photos, lay the book completely flat and shoot straight down from directly above",
+];
+
 const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
-  side: [
-    "Use a clear side profile photo — ideally a squared-up sale ad style photo with all four legs visible and the horse standing square",
-    "Horse must be standing still — walking or moving photos won't work",
-    "Horse should fill most of the frame with the full body visible head to tail",
-    "True side profile only — not angled toward or away from the camera",
-    "Level ground and a natural, square stance give the most accurate assessment",
-    "No people, other horses, or objects blocking the horse's body",
-    "Photo should be taken at horse's level, not from above or below",
-    "Avoid photos with multiple horses",
-    "For sale catalog photos, lay the book completely flat and shoot straight down from directly above",
-  ],
+  side: SIDE_VIEW_TIPS,
+  left: SIDE_VIEW_TIPS,
+  right: SIDE_VIEW_TIPS,
   front: [
     "Horse facing directly toward the camera",
     "All four feet visible on level ground",
@@ -240,8 +249,13 @@ const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
   ],
 };
 
+const SIDE_VIEW_UPLOAD_HINT =
+  "JPG, PNG, or WEBP · max 10MB · side profile recommended";
+
 const VIEW_MODE_UPLOAD_HINT: Record<CalibrationViewMode, string> = {
-  side: "JPG, PNG, or WEBP · max 10MB · side profile recommended",
+  side: SIDE_VIEW_UPLOAD_HINT,
+  left: SIDE_VIEW_UPLOAD_HINT,
+  right: SIDE_VIEW_UPLOAD_HINT,
   front: "JPG, PNG, or WEBP · max 10MB · front view recommended",
   hind: "JPG, PNG, or WEBP · max 10MB · hind view recommended",
 };
@@ -253,8 +267,8 @@ export default function AnalyzeClient() {
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [viewMode, setViewMode] = useState<CalibrationViewMode>("side");
-  const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("side");
+  const [viewMode, setViewMode] = useState<CalibrationViewMode>("left");
+  const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
