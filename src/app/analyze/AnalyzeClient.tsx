@@ -862,6 +862,7 @@ export default function AnalyzeClient() {
         body: JSON.stringify({
           overlayUrl:
             fullReportResult.overlayUrl ?? fullReportResult.overlayImage,
+          better_side: fullReportResult.betterSide,
           leftImage,
           rightImage,
           frontImage,

@@ -29,6 +29,7 @@ export const config = {
 
 type PdfRequestBody = {
   overlayUrl?: string;
+  better_side?: "left" | "right";
   leftImage?: string;
   rightImage?: string;
   frontImage?: string;
@@ -36,6 +37,8 @@ type PdfRequestBody = {
   report?: ConformationReport;
   horse_name?: string;
 };
+
+const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
 
 const FULL_REPORT_IMAGE_FIELDS = [
   { key: "leftImage" as const, label: "Left Side" },
@@ -218,6 +221,67 @@ function wrapText(
   return lines;
 }
 
+function getFullReportOverlayLabel(
+  betterSide: "left" | "right" | undefined,
+): string {
+  const sideLabel = betterSide === "right" ? "Right" : "Left";
+  return `Overlay — ${sideLabel} Side (highest scoring view)`;
+}
+
+function measureFullReportOverlayBlock(
+  image: PDFImage,
+  font: PDFFont,
+  label: string,
+): number {
+  const labelSize = 9;
+  const labelGap = 6;
+  const bottomGap = 16;
+  const scale = Math.min(
+    CONTENT_WIDTH / image.width,
+    FULL_REPORT_OVERLAY_MAX_HEIGHT / image.height,
+  );
+  const imageHeight = image.height * scale;
+  return imageHeight + labelGap + labelSize + bottomGap;
+}
+
+function drawFullReportOverlay(
+  page: PDFPage,
+  yTop: number,
+  image: PDFImage,
+  label: string,
+  font: PDFFont,
+): number {
+  const labelSize = 9;
+  const labelGap = 6;
+  const bottomGap = 16;
+  const scale = Math.min(
+    CONTENT_WIDTH / image.width,
+    FULL_REPORT_OVERLAY_MAX_HEIGHT / image.height,
+  );
+  const imageWidth = image.width * scale;
+  const imageHeight = image.height * scale;
+
+  const imageBottomY = yTop - imageHeight;
+  page.drawImage(image, {
+    x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
+    y: imageBottomY,
+    width: imageWidth,
+    height: imageHeight,
+  });
+
+  const labelWidth = font.widthOfTextAtSize(label, labelSize);
+  const labelY = imageBottomY - labelGap - labelSize;
+  page.drawText(label, {
+    x: MARGIN + (CONTENT_WIDTH - labelWidth) / 2,
+    y: labelY,
+    size: labelSize,
+    font,
+    color: rgb(0.45, 0.45, 0.45),
+  });
+
+  return labelY - bottomGap;
+}
+
 function drawFooter(page: PDFPage, font: PDFFont) {
   const text = "Powered by EquiForm";
   const size = 9;
@@ -285,17 +349,23 @@ export async function POST(request: Request) {
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     let overlayImage: PDFImage | null = null;
-    if (!isFullReport) {
+    let fullReportImages: PDFImage[] = [];
+    let fullReportOverlayImage: PDFImage | null = null;
+
+    if (isFullReport) {
+      const fetchResults = await Promise.all([
+        ...FULL_REPORT_IMAGE_FIELDS.map(({ key, label }) =>
+          fetchEmbeddedImage(pdfDoc, body[key]!.trim(), label),
+        ),
+        body.overlayUrl?.trim()
+          ? fetchEmbeddedImage(pdfDoc, body.overlayUrl.trim(), "overlay")
+          : Promise.resolve(null),
+      ]);
+      fullReportImages = fetchResults.slice(0, 4) as PDFImage[];
+      fullReportOverlayImage = fetchResults[4] ?? null;
+    } else {
       overlayImage = await fetchEmbeddedImage(pdfDoc, body.overlayUrl!.trim());
     }
-
-    const fullReportImages = isFullReport
-      ? await Promise.all(
-          FULL_REPORT_IMAGE_FIELDS.map(async ({ key, label }) =>
-            fetchEmbeddedImage(pdfDoc, body[key]!.trim(), label),
-          ),
-        )
-      : [];
 
     const report = body.report;
     const generatedAt = new Date().toLocaleDateString("en-US", {
@@ -488,6 +558,27 @@ export async function POST(request: Request) {
       color: ACCENT_RGB,
     });
     y -= 32;
+
+    if (isFullReport && fullReportOverlayImage) {
+      const overlayLabel = getFullReportOverlayLabel(body.better_side);
+      const overlayBlockHeight = measureFullReportOverlayBlock(
+        fullReportOverlayImage,
+        fontRegular,
+        overlayLabel,
+      );
+
+      if (y - overlayBlockHeight < MARGIN + 40) {
+        forceNewPage();
+      }
+
+      y = drawFullReportOverlay(
+        page,
+        y,
+        fullReportOverlayImage,
+        overlayLabel,
+        fontRegular,
+      );
+    }
 
     // page-break-before: always — Written Report section
     forceNewPage();
