@@ -170,16 +170,34 @@ async function compressImageIfNeeded(
   }
 }
 
-const REPORT_SECTIONS: {
-  key: keyof Omit<ConformationReport, "overall_score" | "summary">;
-  label: string;
-}[] = [
-  { key: "balance", label: "Balance (rule of thirds)" },
-  { key: "shoulder_angle", label: "Shoulder angle" },
-  { key: "hip_angle", label: "Hip angle" },
-  { key: "topline_quality", label: "Topline quality" },
-  { key: "leg_alignment", label: "Leg alignment" },
-];
+type ReportSectionKey = keyof Omit<ConformationReport, "overall_score" | "summary">;
+
+const REPORT_SECTIONS_BY_VIEW: Record<
+  CalibrationViewMode,
+  { key: ReportSectionKey; label: string }[]
+> = {
+  side: [
+    { key: "balance", label: "Balance (rule of thirds)" },
+    { key: "shoulder_angle", label: "Shoulder Angle" },
+    { key: "hip_angle", label: "Hip Angle" },
+    { key: "topline_quality", label: "Topline Quality" },
+    { key: "leg_alignment", label: "Leg Alignment" },
+  ],
+  front: [
+    { key: "balance", label: "Balance (rule of thirds)" },
+    { key: "shoulder_angle", label: "Chest & Shoulder Width" },
+    { key: "hip_angle", label: "Knee Alignment" },
+    { key: "topline_quality", label: "Cannon Bone Alignment" },
+    { key: "leg_alignment", label: "Fetlock & Hoof Symmetry" },
+  ],
+  hind: [
+    { key: "balance", label: "Balance (rule of thirds)" },
+    { key: "shoulder_angle", label: "Hip Width & Muscling" },
+    { key: "hip_angle", label: "Hindquarter Symmetry" },
+    { key: "topline_quality", label: "Hock Alignment" },
+    { key: "leg_alignment", label: "Cannon & Hoof Alignment" },
+  ],
+};
 
 const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
   { value: "side", label: "Side Profile" },
@@ -239,6 +257,7 @@ export default function AnalyzeClient() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewMode, setViewMode] = useState<CalibrationViewMode>("side");
+  const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("side");
   const [horseName, setHorseName] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -482,6 +501,7 @@ export default function AnalyzeClient() {
         setEmailSubmitted(false);
       }
 
+      setAnalyzedViewMode(viewMode);
       setResult(result);
 
       if (session?.access_token) {
@@ -938,7 +958,7 @@ export default function AnalyzeClient() {
               </p>
 
               <ul className="mt-6 space-y-4">
-                {REPORT_SECTIONS.map(({ key, label }) => {
+                {REPORT_SECTIONS_BY_VIEW[analyzedViewMode].map(({ key, label }) => {
                   const section = result.report[key];
                   return (
                     <li
