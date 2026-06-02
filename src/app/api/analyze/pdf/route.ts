@@ -39,6 +39,9 @@ type PdfRequestBody = {
 };
 
 const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
+const FULL_REPORT_PHOTO_ROW_GAP = 8;
+const FULL_REPORT_PHOTO_MAX_HEIGHT = 175;
+const SINGLE_VIEW_SCORES_RESERVED_HEIGHT = 220;
 
 const FULL_REPORT_IMAGE_FIELDS = [
   { key: "leftImage" as const, label: "Left Side" },
@@ -157,41 +160,56 @@ function logPdfRequest(body: PdfRequestBody, isFullReport: boolean) {
   });
 }
 
-function drawLabeledGridCell(
+function drawHorizontalPhotoRow(
   page: PDFPage,
-  x: number,
   topY: number,
-  cellWidth: number,
+  images: PDFImage[],
+  labels: string[],
+  font: PDFFont,
   maxImageHeight: number,
-  label: string,
-  image: PDFImage,
-  fontRegular: PDFFont,
 ): number {
-  const labelSize = 10;
-  page.drawText(label, {
-    x,
-    y: topY,
-    size: labelSize,
-    font: fontRegular,
-    color: rgb(0.2, 0.2, 0.2),
-  });
+  const count = images.length;
+  const gap = FULL_REPORT_PHOTO_ROW_GAP;
+  const labelSize = 9;
+  const labelGap = 5;
+  const cellWidth = (CONTENT_WIDTH - gap * (count - 1)) / count;
 
-  const labelBottom = topY - labelSize - 6;
-  const scale = Math.min(
-    cellWidth / image.width,
-    maxImageHeight / image.height,
-  );
-  const imageWidth = image.width * scale;
-  const imageHeight = image.height * scale;
+  let lowestY = topY;
 
-  page.drawImage(image, {
-    x: x + (cellWidth - imageWidth) / 2,
-    y: labelBottom - imageHeight,
-    width: imageWidth,
-    height: imageHeight,
-  });
+  for (let i = 0; i < count; i++) {
+    const image = images[i]!;
+    const label = labels[i]!;
+    const cellX = MARGIN + i * (cellWidth + gap);
 
-  return labelBottom - imageHeight;
+    const scale = Math.min(
+      cellWidth / image.width,
+      maxImageHeight / image.height,
+    );
+    const imageWidth = image.width * scale;
+    const imageHeight = image.height * scale;
+    const imageBottomY = topY - imageHeight;
+
+    page.drawImage(image, {
+      x: cellX + (cellWidth - imageWidth) / 2,
+      y: imageBottomY,
+      width: imageWidth,
+      height: imageHeight,
+    });
+
+    const labelWidth = font.widthOfTextAtSize(label, labelSize);
+    const labelY = imageBottomY - labelGap - labelSize;
+    page.drawText(label, {
+      x: cellX + (cellWidth - labelWidth) / 2,
+      y: labelY,
+      size: labelSize,
+      font,
+      color: rgb(0.2, 0.2, 0.2),
+    });
+
+    lowestY = Math.min(lowestY, labelY - labelSize);
+  }
+
+  return lowestY - 24;
 }
 
 function wrapText(
@@ -437,73 +455,18 @@ export async function POST(request: Request) {
       }
     };
 
-    const maxImageHeight = 340;
-
-    if (isFullReport) {
-      const gridGap = 12;
-      const rowGap = 16;
-      const cellWidth = (CONTENT_WIDTH - gridGap) / 2;
-      const maxCellImageHeight = 130;
-      const labelHeight = 16;
-      const gridHeight =
-        (labelHeight + maxCellImageHeight) * 2 + rowGap + 12;
-
-      avoidBreakInside(gridHeight);
-
-      const rowTopY = y;
-      const leftBottom = drawLabeledGridCell(
-        page,
-        MARGIN,
-        rowTopY,
-        cellWidth,
-        maxCellImageHeight,
-        FULL_REPORT_IMAGE_FIELDS[0]!.label,
-        fullReportImages[0]!,
-        fontRegular,
+    if (!isFullReport) {
+      const overlayMaxHeight = Math.max(
+        280,
+        y - MARGIN - 40 - SINGLE_VIEW_SCORES_RESERVED_HEIGHT,
       );
-      const rightBottom = drawLabeledGridCell(
-        page,
-        MARGIN + cellWidth + gridGap,
-        rowTopY,
-        cellWidth,
-        maxCellImageHeight,
-        FULL_REPORT_IMAGE_FIELDS[1]!.label,
-        fullReportImages[1]!,
-        fontRegular,
-      );
-
-      const secondRowTopY = Math.min(leftBottom, rightBottom) - rowGap;
-      const frontBottom = drawLabeledGridCell(
-        page,
-        MARGIN,
-        secondRowTopY,
-        cellWidth,
-        maxCellImageHeight,
-        FULL_REPORT_IMAGE_FIELDS[2]!.label,
-        fullReportImages[2]!,
-        fontRegular,
-      );
-      const hindBottom = drawLabeledGridCell(
-        page,
-        MARGIN + cellWidth + gridGap,
-        secondRowTopY,
-        cellWidth,
-        maxCellImageHeight,
-        FULL_REPORT_IMAGE_FIELDS[3]!.label,
-        fullReportImages[3]!,
-        fontRegular,
-      );
-
-      y = Math.min(frontBottom, hindBottom) - 28;
-    } else {
       const imageScale = Math.min(
         CONTENT_WIDTH / overlayImage!.width,
-        maxImageHeight / overlayImage!.height,
+        overlayMaxHeight / overlayImage!.height,
       );
       const imageWidth = overlayImage!.width * imageScale;
       const imageHeight = overlayImage!.height * imageScale;
 
-      // page-break-inside: avoid — overlay image container
       avoidBreakInside(imageHeight + 28);
 
       page.drawImage(overlayImage!, {
@@ -580,8 +543,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // page-break-before: always — Written Report section
     forceNewPage();
+
+    if (isFullReport) {
+      const photoLabels = FULL_REPORT_IMAGE_FIELDS.map(({ label }) => label);
+      const photoRowHeight =
+        FULL_REPORT_PHOTO_MAX_HEIGHT + 9 + 5 + 24;
+      avoidBreakInside(photoRowHeight);
+
+      y = drawHorizontalPhotoRow(
+        page,
+        y,
+        fullReportImages,
+        photoLabels,
+        fontRegular,
+        FULL_REPORT_PHOTO_MAX_HEIGHT,
+      );
+    }
 
     page.drawText("Written Report", {
       x: MARGIN,
