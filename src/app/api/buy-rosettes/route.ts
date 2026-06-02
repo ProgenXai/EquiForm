@@ -50,7 +50,7 @@ export async function POST(request: Request) {
             unit_amount: pack.price,
             product_data: {
               name: `EquiForm ${pack.name}`,
-              description: `${pack.rosettes} Rosettes`,
+              description: `${pack.rosettes} report credits`,
             },
           },
           quantity: 1,

@@ -102,7 +102,7 @@ export default function ExamplesPage() {
             href="/buy-rosettes"
             className="rounded-lg border border-accent bg-transparent px-6 py-3 text-center text-sm font-semibold text-accent transition hover:bg-accent/10"
           >
-            Buy Report Tokens
+            Buy Report Credits
           </Link>
         </div>
       </main>

@@ -106,13 +106,13 @@ export default function BuyRosettesPage() {
 
       <main className="mx-auto max-w-5xl px-4 py-10">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-white">Buy Report Tokens</h1>
+          <h1 className="text-2xl font-semibold text-white">Buy Report Credits</h1>
           <p className="mt-2 text-sm text-zinc-400">
             Purchase packs of reports for your horse conformation analyses
           </p>
           {userId !== null && balance !== null ? (
             <p className="mt-4 inline-block rounded-lg border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent">
-              Your balance: {balance} Report Token{balance === 1 ? "" : "s"}
+              Your balance: {balance} report credit{balance === 1 ? "" : "s"}
             </p>
           ) : null}
         </div>
@@ -142,7 +142,7 @@ export default function BuyRosettesPage() {
 
                 <h2 className="text-lg font-semibold text-white">{pack.name}</h2>
                 <p className="mt-2 text-3xl font-bold text-accent">{pack.rosettes}</p>
-                <p className="text-xs text-zinc-500">Report Tokens</p>
+                <p className="text-xs text-zinc-500">report credits</p>
 
                 <div className="mt-4 flex-1 space-y-1">
                   <p className="text-xl font-semibold text-zinc-100">{pack.priceDisplay}</p>

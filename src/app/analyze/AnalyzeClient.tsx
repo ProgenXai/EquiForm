@@ -644,7 +644,7 @@ export default function AnalyzeClient() {
               className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
               onClick={() => setMenuOpen(false)}
             >
-              Buy Report Tokens <RosetteIcon size={18} />
+              Buy Report Credits <RosetteIcon size={18} />
             </Link>
             <button
               type="button"
@@ -782,11 +782,11 @@ export default function AnalyzeClient() {
                   </p>
                 ) : rosetteBalance !== null && rosetteBalance > 0 ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
-                    <RosetteIcon size={18} /> {rosetteBalance} Report Tokens remaining
+                    <RosetteIcon size={18} /> {rosetteBalance} report credits remaining
                   </p>
                 ) : isLoggedIn ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
-                    You need Report Tokens to analyze
+                    You need report credits to analyze
                   </p>
                 ) : null}
               </>
@@ -819,7 +819,7 @@ export default function AnalyzeClient() {
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
-                Buy Report Tokens <RosetteIcon size={18} />
+                Buy Report Credits <RosetteIcon size={18} />
               </Link>
             ) : null}
           </div>
