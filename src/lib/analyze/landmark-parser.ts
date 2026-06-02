@@ -2,12 +2,51 @@ import {
   computeToplineY,
   type ConformationLandmarks,
 } from "@/lib/conformation/landmarks";
+import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 
 import type {
   ClaudeAnalyzeResponse,
   ConformationReport,
   DetectedLandmarkPoint,
 } from "@/lib/analyze/types";
+
+export type FrontConformationLandmarks = {
+  poll: DetectedLandmarkPoint;
+  left_ear: DetectedLandmarkPoint;
+  right_ear: DetectedLandmarkPoint;
+  left_eye: DetectedLandmarkPoint;
+  right_eye: DetectedLandmarkPoint;
+  muzzle: DetectedLandmarkPoint;
+  left_shoulder: DetectedLandmarkPoint;
+  right_shoulder: DetectedLandmarkPoint;
+  left_knee: DetectedLandmarkPoint;
+  right_knee: DetectedLandmarkPoint;
+  left_front_fetlock: DetectedLandmarkPoint;
+  right_front_fetlock: DetectedLandmarkPoint;
+  left_front_hoof: DetectedLandmarkPoint;
+  right_front_hoof: DetectedLandmarkPoint;
+};
+
+export type HindConformationLandmarks = {
+  tail: DetectedLandmarkPoint;
+  left_point_of_hip: DetectedLandmarkPoint;
+  right_point_of_hip: DetectedLandmarkPoint;
+  left_buttock: DetectedLandmarkPoint;
+  right_buttock: DetectedLandmarkPoint;
+  left_gaskin: DetectedLandmarkPoint;
+  right_gaskin: DetectedLandmarkPoint;
+  left_hock: DetectedLandmarkPoint;
+  right_hock: DetectedLandmarkPoint;
+  left_hind_fetlock: DetectedLandmarkPoint;
+  right_hind_fetlock: DetectedLandmarkPoint;
+  left_hind_hoof: DetectedLandmarkPoint;
+  right_hind_hoof: DetectedLandmarkPoint;
+};
+
+export type ParsedConformationLandmarks =
+  | ConformationLandmarks
+  | FrontConformationLandmarks
+  | HindConformationLandmarks;
 
 /** Canonical ids matching the trained Roboflow model (front_knee, hind_hock). */
 const REQUIRED_LANDMARKS = [
@@ -112,9 +151,58 @@ export function parseClaudeAnalyzeResponse(text: string): ClaudeAnalyzeResponse 
   return { landmarks, report: normalizeReport(parsed.report) };
 }
 
+export function toFrontConformationLandmarks(
+  detected: Record<string, DetectedLandmarkPoint>,
+): FrontConformationLandmarks {
+  return {
+    poll: getPoint(detected, "poll"),
+    left_ear: getPoint(detected, "left_ear"),
+    right_ear: getPoint(detected, "right_ear"),
+    left_eye: getPoint(detected, "left_eye"),
+    right_eye: getPoint(detected, "right_eye"),
+    muzzle: getPoint(detected, "muzzle"),
+    left_shoulder: getPoint(detected, "left_shoulder"),
+    right_shoulder: getPoint(detected, "right_shoulder"),
+    left_knee: getPoint(detected, "left_knee"),
+    right_knee: getPoint(detected, "right_knee"),
+    left_front_fetlock: getPoint(detected, "left_front_fetlock"),
+    right_front_fetlock: getPoint(detected, "right_front_fetlock"),
+    left_front_hoof: getPoint(detected, "left_front_hoof"),
+    right_front_hoof: getPoint(detected, "right_front_hoof"),
+  };
+}
+
+export function toHindConformationLandmarks(
+  detected: Record<string, DetectedLandmarkPoint>,
+): HindConformationLandmarks {
+  return {
+    tail: getPoint(detected, "tail"),
+    left_point_of_hip: getPoint(detected, "left_point_of_hip"),
+    right_point_of_hip: getPoint(detected, "right_point_of_hip"),
+    left_buttock: getPoint(detected, "left_buttock"),
+    right_buttock: getPoint(detected, "right_buttock"),
+    left_gaskin: getPoint(detected, "left_gaskin"),
+    right_gaskin: getPoint(detected, "right_gaskin"),
+    left_hock: getPoint(detected, "left_hock"),
+    right_hock: getPoint(detected, "right_hock"),
+    left_hind_fetlock: getPoint(detected, "left_hind_fetlock"),
+    right_hind_fetlock: getPoint(detected, "right_hind_fetlock"),
+    left_hind_hoof: getPoint(detected, "left_hind_hoof"),
+    right_hind_hoof: getPoint(detected, "right_hind_hoof"),
+  };
+}
+
 export function toConformationLandmarks(
   detected: Record<string, DetectedLandmarkPoint>,
-): ConformationLandmarks {
+  viewMode: CalibrationViewMode = "side",
+): ParsedConformationLandmarks {
+  if (viewMode === "front") {
+    return toFrontConformationLandmarks(detected);
+  }
+  if (viewMode === "hind") {
+    return toHindConformationLandmarks(detected);
+  }
+
   const tail = getPoint(detected, "tail");
   const poll = getPoint(detected, "poll");
   const shoulder = getPoint(detected, "shoulder");
