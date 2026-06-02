@@ -434,9 +434,6 @@ export default function AnalyzeClient() {
     setFullReportBalance(data.full_report_balance ?? 0);
   }
 
-  const activeBalance =
-    analysisMode === "full" ? fullReportBalance : singleViewBalance;
-
   useEffect(() => {
     if (!menuOpen) return;
 
@@ -1288,22 +1285,19 @@ export default function AnalyzeClient() {
                   <p className="mb-2 text-center text-xs text-zinc-400">
                     Sign in to analyze your horse
                   </p>
-                ) : activeBalance !== null && activeBalance > 0 ? (
+                ) : singleViewBalance !== null && singleViewBalance > 0 ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
                     <FileCheck
                       size={18}
                       className="inline-block shrink-0 align-middle text-accent"
                       aria-hidden
                     />{" "}
-                    {activeBalance}{" "}
-                    {analysisMode === "full" ? "full report" : "single view"}{" "}
-                    credit{activeBalance === 1 ? "" : "s"} remaining
+                    {singleViewBalance} single view credit
+                    {singleViewBalance === 1 ? "" : "s"} remaining
                   </p>
                 ) : isLoggedIn ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
-                    You need{" "}
-                    {analysisMode === "full" ? "full report" : "single view"}{" "}
-                    credits to analyze
+                    You need single view credits to analyze
                   </p>
                 ) : null}
               </>
@@ -1331,7 +1325,7 @@ export default function AnalyzeClient() {
               </Link>
             ) : null}
 
-            {!authLoading && !isAdmin && isLoggedIn && (activeBalance === 0 || activeBalance === null) ? (
+            {!authLoading && !isAdmin && isLoggedIn && (singleViewBalance === 0 || singleViewBalance === null) ? (
               <Link
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
