@@ -941,7 +941,7 @@ export default function AnalyzeClient() {
             className="object-contain"
           />
         </div>
-        <p className="mt-2 text-sm text-zinc-400">
+        <p className="mt-2 text-lg font-semibold text-white">
           {APP_SUBTITLE}
         </p>
       </header>
