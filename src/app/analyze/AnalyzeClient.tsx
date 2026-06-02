@@ -303,22 +303,34 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
 ];
 
 async function toPdfFetchableUrl(url: string): Promise<string> {
+  if (url.startsWith("data:")) {
+    return url;
+  }
+
   if (!url.startsWith("blob:")) {
     return url;
   }
 
   const response = await fetch(url);
-  const blob = await response.blob();
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+  if (!response.ok) {
+    throw new Error("Failed to read photo for PDF export");
   }
 
-  const base64 = btoa(binary);
-  const mime = blob.type || "image/jpeg";
-  return `data:${mime};base64,${base64}`;
+  const blob = await response.blob();
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to convert photo to data URL"));
+      }
+    };
+    reader.onerror = () =>
+      reject(new Error("Failed to convert photo to data URL"));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function buildFullReportPdfReport(
@@ -377,6 +389,30 @@ function buildFullReportPdfReport(
   };
 }
 
+function getBetterSideReport(
+  fullReportResult: FullReportApiResponse,
+): ConformationReport {
+  return fullReportResult.betterSide === "left"
+    ? fullReportResult.leftReport
+    : fullReportResult.rightReport;
+}
+
+function getFullReportViewReport(
+  fullReportResult: FullReportApiResponse,
+  view: FullReportView,
+): ConformationReport {
+  switch (view) {
+    case "left":
+      return fullReportResult.leftReport;
+    case "right":
+      return fullReportResult.rightReport;
+    case "front":
+      return fullReportResult.frontReport;
+    case "hind":
+      return fullReportResult.hindReport;
+  }
+}
+
 export default function AnalyzeClient() {
   const router = useRouter();
   const supabase = createClient();
@@ -399,7 +435,6 @@ export default function AnalyzeClient() {
   const [result, setResult] = useState<AnalyzeApiResponse | null>(null);
   const [fullReportResult, setFullReportResult] =
     useState<FullReportApiResponse | null>(null);
-  const [fullReportTab, setFullReportTab] = useState<FullReportView>("left");
   const [email, setEmail] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -463,7 +498,6 @@ export default function AnalyzeClient() {
     if (analysisMode !== "full") {
       void clearFullReportPhotos();
       setFullReportResult(null);
-      setFullReportTab("left");
     }
   }, [analysisMode]);
 
@@ -542,7 +576,6 @@ export default function AnalyzeClient() {
     setPreviewUrl(null);
     setSelectedFile(null);
     setFullReportResult(null);
-    setFullReportTab("left");
     setHorseName("");
     setLoading(false);
     setPdfLoading(false);
@@ -552,22 +585,6 @@ export default function AnalyzeClient() {
       sessionStorage.removeItem(PENDING_RESULT_KEY);
     } catch {
       // Ignore storage errors
-    }
-  }
-
-  function getFullReportForView(
-    reportResult: FullReportApiResponse,
-    view: FullReportView,
-  ): ConformationReport {
-    switch (view) {
-      case "left":
-        return reportResult.leftReport;
-      case "right":
-        return reportResult.rightReport;
-      case "front":
-        return reportResult.frontReport;
-      case "hind":
-        return reportResult.hindReport;
     }
   }
 
@@ -1048,7 +1065,6 @@ export default function AnalyzeClient() {
       }
 
       setFullReportResult(apiResult);
-      setFullReportTab(apiResult.betterSide);
 
       if (session?.access_token) {
         const balanceResponse = await fetch("/api/get-balance", {
@@ -1578,229 +1594,174 @@ export default function AnalyzeClient() {
               ) : null}
 
               {fullReportResult ? (
-                <section className="mt-8 space-y-8">
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-                    <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
-                      <div>
-                        <h2 className="text-lg font-semibold text-white">
-                          Full Report
-                        </h2>
-                        {fullReportResult.horseName ? (
-                          <p className="mt-1 text-sm text-zinc-400">
-                            {fullReportResult.horseName}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                          Combined score
-                        </p>
-                        <p className="text-4xl font-bold text-accent">
-                          {fullReportResult.combinedScore}
-                          <span className="text-lg font-normal text-zinc-500">
-                            /100
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="mt-4 text-xs text-zinc-500">
-                      Weighted: best side 40%, other side 20%, front 20%, hind
-                      20%
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-                    <h2 className="text-lg font-semibold text-white">
-                      Overlay —{" "}
-                      {fullReportResult.betterSide === "left"
+                <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                  {(() => {
+                    const betterSideReport =
+                      getBetterSideReport(fullReportResult);
+                    const betterSideLabel =
+                      fullReportResult.betterSide === "left"
                         ? "Left Side"
-                        : "Right Side"}{" "}
-                      <span className="text-sm font-normal text-zinc-400">
-                        (highest scoring side view)
-                      </span>
-                    </h2>
-                    <div className="relative mt-4 w-full">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={fullReportResult.overlayImage}
-                        alt="Conformation overlay on best side view"
-                        className="w-full rounded-lg border border-zinc-800"
-                      />
-                      {LANDMARKS.map((landmark) => {
-                        const point =
-                          fullReportResult.landmarks[fullReportResult.betterSide][
-                            landmark.id
-                          ];
-                        if (!point) return null;
-                        return (
-                          <span
-                            key={landmark.id}
-                            style={{
-                              position: "absolute",
-                              left: `${point.x * 100}%`,
-                              top: `${point.y * 100}%`,
-                              transform: "translate(12px, -50%)",
-                              fontSize: "11px",
-                              color: "white",
-                              textShadow: "0 0 3px black",
-                              whiteSpace: "nowrap",
-                              pointerEvents: "none",
-                            }}
-                          >
-                            {landmark.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
+                        : "Right Side";
 
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-                    <h2 className="text-lg font-semibold text-white">
-                      View reports
-                    </h2>
-
-                    <div
-                      className="mt-4 flex flex-wrap rounded-lg border border-zinc-700 bg-zinc-950 p-1"
-                      role="tablist"
-                      aria-label="Full report views"
-                    >
-                      {FULL_REPORT_SLOTS.map((slot) => {
-                        const viewReport = getFullReportForView(
-                          fullReportResult,
-                          slot.view,
-                        );
-                        const isActive = fullReportTab === slot.view;
-                        const isBestSide =
-                          (slot.view === "left" || slot.view === "right") &&
-                          fullReportResult.betterSide === slot.view;
-
-                        return (
-                          <button
-                            key={slot.view}
-                            type="button"
-                            role="tab"
-                            aria-selected={isActive}
-                            onClick={() => setFullReportTab(slot.view)}
-                            className={`flex-1 min-w-[7rem] rounded-md px-3 py-2 text-sm font-medium transition ${
-                              isActive
-                                ? "bg-accent text-black shadow-sm"
-                                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-                            }`}
-                          >
-                            <span className="block">{slot.label}</span>
-                            <span
-                              className={`mt-0.5 block text-xs ${
-                                isActive ? "text-black/70" : "text-zinc-500"
-                              }`}
-                            >
-                              {viewReport.overall_score}/100
-                              {isBestSide ? " · best side" : ""}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {(() => {
-                      const activeReport = getFullReportForView(
-                        fullReportResult,
-                        fullReportTab,
-                      );
-                      const activeLabel =
-                        FULL_REPORT_SLOTS.find((slot) => slot.view === fullReportTab)
-                          ?.label ?? fullReportTab;
-                      const isBetterSideTab =
-                        (fullReportTab === "left" || fullReportTab === "right") &&
-                        fullReportTab === fullReportResult.betterSide;
-                      const tabPhotoSrc = isBetterSideTab
-                        ? fullReportResult.overlayImage
-                        : fullReportPhotos[fullReportTab]?.previewUrl;
-
-                      return (
-                        <div className="mt-6" role="tabpanel">
-                          <div className="flex items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
-                            <h3 className="text-base font-semibold text-white">
-                              {activeLabel}
-                            </h3>
-                            <p className="text-2xl font-bold text-accent">
-                              {activeReport.overall_score}
-                              <span className="text-sm font-normal text-zinc-500">
-                                /100
-                              </span>
-                            </p>
+                    return (
+                      <>
+                        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
+                          <div>
+                            <h2 className="text-lg font-semibold text-white">
+                              Full Report
+                            </h2>
+                            {fullReportResult.horseName ? (
+                              <p className="mt-1 text-sm text-zinc-400">
+                                {fullReportResult.horseName}
+                              </p>
+                            ) : null}
                           </div>
-
-                          <p className="mt-4 text-sm leading-relaxed text-zinc-300">
-                            {activeReport.summary}
+                          <p className="text-2xl font-bold text-accent">
+                            {fullReportResult.combinedScore}
+                            <span className="text-sm font-normal text-zinc-500">
+                              /100
+                            </span>
                           </p>
-
-                          {tabPhotoSrc ? (
-                            <div className="relative mx-auto mt-6 flex max-h-[300px] w-full justify-center">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={tabPhotoSrc}
-                                alt={
-                                  isBetterSideTab
-                                    ? `${activeLabel} conformation overlay`
-                                    : `${activeLabel} uploaded photo`
-                                }
-                                className="max-h-[300px] w-full rounded-lg border border-zinc-800 object-contain"
-                              />
-                            </div>
-                          ) : null}
-
-                          <ul className="mt-6 space-y-4">
-                            {REPORT_SECTIONS_BY_VIEW[fullReportTab].map(
-                              ({ key, label }) => {
-                                const section = activeReport[key];
-                                return (
-                                  <li
-                                    key={key}
-                                    className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4"
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <h4 className="text-sm font-medium text-zinc-200">
-                                        {label}
-                                      </h4>
-                                      <span className="text-sm font-semibold text-accent">
-                                        {section.score}/100
-                                      </span>
-                                    </div>
-                                    <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-                                      {section.notes}
-                                    </p>
-                                  </li>
-                                );
-                              },
-                            )}
-                          </ul>
                         </div>
-                      );
-                    })()}
 
-                    <div className="mt-6 flex flex-col items-center">
-                      <button
-                        type="button"
-                        onClick={() => void handleDownloadFullReportPdf()}
-                        disabled={pdfLoading}
-                        className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
-                      </button>
-                      <p className="mt-1 text-xs text-amber-400">
-                        ⚠️ Download now — PDF is only available on this screen
-                      </p>
-                    </div>
+                        <p className="mt-4 text-xs text-zinc-500">
+                          Weighted: best side 40%, other side 20%, front 20%,
+                          hind 20%
+                        </p>
 
-                    <button
-                      type="button"
-                      onClick={handleAnalyzeAnotherHorse}
-                      className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
-                    >
-                      Analyze Another Horse
-                    </button>
-                  </div>
+                        <div className="mt-6 grid grid-cols-2 gap-3">
+                          {FULL_REPORT_SLOTS.map((slot) => {
+                            const photo = fullReportPhotos[slot.view];
+
+                            return (
+                              <div
+                                key={slot.view}
+                                className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-2"
+                              >
+                                {photo?.previewUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={photo.previewUrl}
+                                    alt={`${slot.label} photo`}
+                                    className="max-h-24 w-full rounded border border-zinc-800 object-contain"
+                                  />
+                                ) : (
+                                  <div className="flex max-h-24 min-h-16 items-center justify-center rounded border border-zinc-800 bg-zinc-900/80">
+                                    <p className="text-xs text-zinc-600">
+                                      No photo
+                                    </p>
+                                  </div>
+                                )}
+                                <p className="mt-2 text-center text-xs font-medium text-zinc-400">
+                                  {slot.label}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-8">
+                          <h3 className="text-sm font-semibold text-white">
+                            Overlay — {betterSideLabel}{" "}
+                            <span className="font-normal text-zinc-400">
+                              (highest scoring side view)
+                            </span>
+                          </h3>
+                          <div className="mt-4 flex justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={fullReportResult.overlayImage}
+                              alt="Conformation overlay on best side view"
+                              className="max-h-[250px] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
+                            />
+                          </div>
+                        </div>
+
+                        <p className="mt-8 text-sm leading-relaxed text-zinc-300">
+                          {betterSideReport.summary}
+                        </p>
+
+                        <div className="mt-8 space-y-6">
+                          {FULL_REPORT_SLOTS.map((slot) => {
+                            const viewReport = getFullReportViewReport(
+                              fullReportResult,
+                              slot.view,
+                            );
+                            const isBestSide =
+                              (slot.view === "left" || slot.view === "right") &&
+                              fullReportResult.betterSide === slot.view;
+
+                            return (
+                              <div
+                                key={slot.view}
+                                className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4"
+                              >
+                                <div className="border-b border-zinc-800 pb-3">
+                                  <h3 className="text-base font-semibold text-white">
+                                    {slot.label} — {viewReport.overall_score}/100
+                                    {isBestSide ? (
+                                      <span className="ml-2 text-xs font-normal text-accent">
+                                        · best side
+                                      </span>
+                                    ) : null}
+                                  </h3>
+                                </div>
+
+                                <ul className="mt-4 space-y-4">
+                                  {REPORT_SECTIONS_BY_VIEW[slot.view].map(
+                                    ({ key, label }) => {
+                                      const section = viewReport[key];
+
+                                      return (
+                                        <li key={key}>
+                                          <div className="flex items-center justify-between gap-2">
+                                            <h4 className="text-sm font-medium text-zinc-200">
+                                              {label}
+                                            </h4>
+                                            <span className="text-sm font-semibold text-accent">
+                                              {section.score}/100
+                                            </span>
+                                          </div>
+                                          <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                                            {section.notes}
+                                          </p>
+                                        </li>
+                                      );
+                                    },
+                                  )}
+                                </ul>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-6 flex flex-col items-center">
+                          <button
+                            type="button"
+                            onClick={() => void handleDownloadFullReportPdf()}
+                            disabled={pdfLoading}
+                            className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {pdfLoading
+                              ? "Generating PDF…"
+                              : "Download PDF Report"}
+                          </button>
+                          <p className="mt-1 text-xs text-amber-400">
+                            ⚠️ Download now — PDF is only available on this
+                            screen
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleAnalyzeAnotherHorse}
+                          className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                        >
+                          Analyze Another Horse
+                        </button>
+                      </>
+                    );
+                  })()}
                 </section>
               ) : null}
             </>
