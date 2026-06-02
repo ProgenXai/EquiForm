@@ -111,6 +111,37 @@ function hasFullReportImages(body: PdfRequestBody): boolean {
   return FULL_REPORT_IMAGE_FIELDS.every(({ key }) => body[key]?.trim());
 }
 
+function summarizePdfImageUrl(url: string | undefined): string {
+  if (!url?.trim()) return "(missing)";
+
+  const trimmed = url.trim();
+  if (trimmed.startsWith("data:")) {
+    const commaIndex = trimmed.indexOf(",");
+    const header =
+      commaIndex >= 0 ? trimmed.slice(0, commaIndex) : trimmed.slice(0, 40);
+    return `${header} (${trimmed.length} chars)`;
+  }
+
+  if (trimmed.length > 120) {
+    return `${trimmed.slice(0, 120)}… (${trimmed.length} chars)`;
+  }
+
+  return trimmed;
+}
+
+function logPdfRequest(body: PdfRequestBody, isFullReport: boolean) {
+  console.log("[analyze/pdf] request received:", {
+    isFullReport,
+    horse_name: body.horse_name ?? null,
+    overlayUrl: summarizePdfImageUrl(body.overlayUrl),
+    leftImage: summarizePdfImageUrl(body.leftImage),
+    rightImage: summarizePdfImageUrl(body.rightImage),
+    frontImage: summarizePdfImageUrl(body.frontImage),
+    hindImage: summarizePdfImageUrl(body.hindImage),
+    overall_score: body.report?.overall_score ?? null,
+  });
+}
+
 function drawLabeledGridCell(
   page: PDFPage,
   x: number,
@@ -231,6 +262,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  logPdfRequest(body, isFullReport);
 
   try {
     const pdfDoc = await PDFDocument.create();
@@ -527,7 +560,28 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("[analyze/pdf] failed:", error);
+    console.error("[analyze/pdf] PDF generation failed:", {
+      isFullReport,
+      horse_name: body.horse_name ?? null,
+      overlayUrl: summarizePdfImageUrl(body.overlayUrl),
+      leftImage: summarizePdfImageUrl(body.leftImage),
+      rightImage: summarizePdfImageUrl(body.rightImage),
+      frontImage: summarizePdfImageUrl(body.frontImage),
+      hindImage: summarizePdfImageUrl(body.hindImage),
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : error,
+    });
+
+    if (error instanceof Error && error.stack) {
+      console.error("[analyze/pdf] stack trace:", error.stack);
+    }
+
     const message =
       error instanceof Error ? error.message : "PDF generation failed";
     return NextResponse.json({ error: message }, { status: 500 });
