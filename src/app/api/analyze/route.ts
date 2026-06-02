@@ -8,7 +8,11 @@ import {
   toConformationLandmarks,
 } from "@/lib/analyze/landmark-parser";
 import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
-import { CONFORMATION_REPORT_PROMPT } from "@/lib/analyze/prompt";
+import {
+  CONFORMATION_REPORT_PROMPT,
+  FRONT_CONFORMATION_REPORT_PROMPT,
+  HIND_CONFORMATION_REPORT_PROMPT,
+} from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
@@ -80,7 +84,9 @@ function getRoboflowModelIdEnvVarName(viewMode: CalibrationViewMode): string {
 function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
   switch (viewMode) {
     case "front":
+      return FRONT_CONFORMATION_REPORT_PROMPT;
     case "hind":
+      return HIND_CONFORMATION_REPORT_PROMPT;
     case "side":
       return CONFORMATION_REPORT_PROMPT;
   }
