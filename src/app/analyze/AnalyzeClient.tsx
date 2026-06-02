@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { FileCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -10,7 +11,6 @@ import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
 
-import RosetteIcon from "@/components/RosetteIcon";
 import { createClient } from "@/lib/supabase/client";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -644,7 +644,12 @@ export default function AnalyzeClient() {
               className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
               onClick={() => setMenuOpen(false)}
             >
-              Buy Report Credits <RosetteIcon size={18} />
+              Buy Report Credits{" "}
+              <FileCheck
+                size={18}
+                className="inline-block shrink-0 align-middle text-accent"
+                aria-hidden
+              />
             </Link>
             <button
               type="button"
@@ -782,7 +787,12 @@ export default function AnalyzeClient() {
                   </p>
                 ) : rosetteBalance !== null && rosetteBalance > 0 ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
-                    <RosetteIcon size={18} /> {rosetteBalance} report credits remaining
+                    <FileCheck
+                      size={18}
+                      className="inline-block shrink-0 align-middle text-accent"
+                      aria-hidden
+                    />{" "}
+                    {rosetteBalance} report credits remaining
                   </p>
                 ) : isLoggedIn ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
@@ -819,7 +829,12 @@ export default function AnalyzeClient() {
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
-                Buy Report Credits <RosetteIcon size={18} />
+                Buy Report Credits{" "}
+                <FileCheck
+                  size={18}
+                  className="inline-block shrink-0 align-middle text-white"
+                  aria-hidden
+                />
               </Link>
             ) : null}
           </div>
