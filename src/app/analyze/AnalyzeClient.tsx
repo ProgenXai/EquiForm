@@ -211,7 +211,7 @@ const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
 ];
 
 const APP_SUBTITLE =
-  "The most advanced AI equine conformation analysis available — four views, one complete report, in 3D";
+  "The most advanced AI equine conformation analysis available";
 
 const SIDE_VIEW_TIPS = [
   "Use a clear side profile photo",

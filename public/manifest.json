@@ -1,7 +1,7 @@
 {
   "name": "EquiForm",
   "short_name": "EquiForm",
-  "description": "The most advanced AI equine conformation analysis available — four views, one complete report, in 3D",
+  "description": "The most advanced AI equine conformation analysis available",
   "start_url": "https://equiform.app",
   "id": "https://equiform.app",
   "display": "standalone",

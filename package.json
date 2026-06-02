@@ -1,7 +1,7 @@
 {
   "name": "equiform",
   "version": "0.1.0",
-  "description": "EquiForm — The most advanced AI equine conformation analysis available — four views, one complete report, in 3D",
+  "description": "EquiForm — The most advanced AI equine conformation analysis available",
   "private": true,
   "scripts": {
     "dev": "next dev",

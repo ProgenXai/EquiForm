@@ -71,7 +71,7 @@ export default function AuthPage() {
           />
         </div>
         <p className="mt-2 text-sm text-zinc-400">
-          The most advanced AI equine conformation analysis available — four views, one complete report, in 3D
+          The most advanced AI equine conformation analysis available
         </p>
       </header>
 
