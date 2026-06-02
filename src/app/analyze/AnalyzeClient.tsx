@@ -262,11 +262,24 @@ const VIEW_MODE_UPLOAD_HINT: Record<CalibrationViewMode, string> = {
 
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
+type AnalysisMode = "quick" | "full";
+
+const ANALYSIS_MODE_OPTIONS: {
+  value: AnalysisMode;
+  label: string;
+  subtext: string;
+  cost: string;
+}[] = [
+  { value: "quick", label: "QUICK ANALYSIS", subtext: "Single Photo", cost: "5 credits" },
+  { value: "full", label: "FULL REPORT", subtext: "4 Views + 3D", cost: "30 credits" },
+];
+
 export default function AnalyzeClient() {
   const router = useRouter();
   const supabase = createClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("quick");
   const [viewMode, setViewMode] = useState<CalibrationViewMode>("left");
   const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
@@ -695,6 +708,50 @@ export default function AnalyzeClient() {
 
       <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <div
+            className="mb-6 grid grid-cols-2 gap-3"
+            role="group"
+            aria-label="Analysis mode"
+          >
+            {ANALYSIS_MODE_OPTIONS.map((option) => {
+              const isSelected = analysisMode === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setAnalysisMode(option.value)}
+                  aria-pressed={isSelected}
+                  className={`flex flex-col items-center rounded-xl border px-4 py-6 text-center transition ${
+                    isSelected
+                      ? "border-accent bg-accent text-black shadow-sm"
+                      : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
+                  }`}
+                >
+                  <span className="text-sm font-bold tracking-wide sm:text-base">
+                    {option.label}
+                  </span>
+                  <span
+                    className={`mt-1 text-xs sm:text-sm ${
+                      isSelected ? "text-black/70" : "text-zinc-400"
+                    }`}
+                  >
+                    {option.subtext}
+                  </span>
+                  <span
+                    className={`mt-3 text-sm font-semibold ${
+                      isSelected ? "text-black" : "text-accent"
+                    }`}
+                  >
+                    {option.cost}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {analysisMode === "quick" ? (
+            <>
           <div className="mb-6">
             <p className="mb-2 text-xs font-medium text-zinc-400">Photo view</p>
             <div
@@ -873,6 +930,17 @@ export default function AnalyzeClient() {
               ) : null}
             </div>
           ) : null}
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950 px-6 py-16 text-center">
+              <p className="text-lg font-semibold text-zinc-200">
+                4-photo upload coming soon
+              </p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Full reports with left side, right side, front, hind, and 3D visualization
+              </p>
+            </div>
+          )}
         </section>
 
         {result && !emailSubmitted ? (
