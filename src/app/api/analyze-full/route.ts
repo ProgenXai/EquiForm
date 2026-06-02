@@ -70,15 +70,26 @@ const INVALID_IMAGE_ERROR =
   "One or more photos didn't meet the criteria. Please review the photo guidelines and resubmit.";
 
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
+const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
 
 export const maxDuration = 300;
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "50mb",
-    },
-  },
+type FullReportRequestBody = {
+  leftUrl?: string;
+  rightUrl?: string;
+  frontUrl?: string;
+  hindUrl?: string;
+  horseName?: string;
+};
+
+const FULL_REPORT_URL_FIELDS: Record<
+  FullReportViewKey,
+  keyof FullReportRequestBody
+> = {
+  left: "leftUrl",
+  right: "rightUrl",
+  front: "frontUrl",
+  hind: "hindUrl",
 };
 
 type PreparedViewImage = {
@@ -112,8 +123,10 @@ function parseValidationResponse(text: string): boolean {
   }
 }
 
-async function prepareViewImage(file: File): Promise<PreparedViewImage> {
-  const inputBuffer = Buffer.from(await file.arrayBuffer());
+async function prepareViewImageFromBuffer(
+  inputBuffer: Buffer,
+  contentType?: string,
+): Promise<PreparedViewImage> {
   const metadata = await sharp(inputBuffer).metadata();
 
   if (!metadata.width || !metadata.height) {
@@ -147,7 +160,10 @@ async function prepareViewImage(file: File): Promise<PreparedViewImage> {
     }
   }
 
-  const mediaType = toAnthropicMediaType(file.type);
+  const normalizedContentType = contentType?.split(";")[0]?.trim() ?? "";
+  const mediaType = normalizedContentType
+    ? toAnthropicMediaType(normalizedContentType)
+    : "image/jpeg";
   const anthropicMediaType: AnthropicImageMediaType =
     anthropicBuffer === inputBuffer ? mediaType : "image/jpeg";
 
@@ -159,6 +175,44 @@ async function prepareViewImage(file: File): Promise<PreparedViewImage> {
     anthropicMediaType,
     anthropicBase64: anthropicBuffer.toString("base64"),
   };
+}
+
+function extractStoragePathFromPublicUrl(url: string): string | null {
+  const marker = `/storage/v1/object/public/${OVERLAY_STORAGE_BUCKET}/`;
+
+  try {
+    const parsed = new URL(url);
+    const markerIndex = parsed.pathname.indexOf(marker);
+    if (markerIndex === -1) return null;
+    return decodeURIComponent(
+      parsed.pathname.slice(markerIndex + marker.length),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function validateTempImageUrl(url: string, userId: string): string | null {
+  const path = extractStoragePathFromPublicUrl(url);
+  if (!path?.startsWith(`${FULL_REPORT_TEMP_PREFIX}/${userId}/`)) {
+    return null;
+  }
+  return path;
+}
+
+async function deleteFullReportTempFiles(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  paths: string[],
+) {
+  if (paths.length === 0) return;
+
+  const { error } = await serviceClient.storage
+    .from(OVERLAY_STORAGE_BUCKET)
+    .remove(paths);
+
+  if (error) {
+    console.error("[analyze-full] temp file cleanup failed:", error);
+  }
 }
 
 function buildAnthropicImageContent(prepared: PreparedViewImage) {
@@ -322,6 +376,7 @@ export async function POST(request: Request) {
   isAdmin = roleData?.is_admin === true;
 
   const serviceClient = createServiceRoleClient();
+  const tempPaths: string[] = [];
 
   if (!isAdmin) {
     const { data: tokenRow, error: balanceError } = await serviceClient
@@ -345,48 +400,73 @@ export async function POST(request: Request) {
   }
 
   try {
-    const formData = await request.formData();
-    const horseNameRaw = formData.get("horseName");
+    const body = (await request.json()) as FullReportRequestBody;
+    const horseNameRaw = body.horseName;
     const horseName =
       typeof horseNameRaw === "string" && horseNameRaw.trim()
         ? horseNameRaw.trim()
         : null;
 
-    const viewFiles: Record<FullReportViewKey, File> = {} as Record<
-      FullReportViewKey,
-      File
-    >;
+    const imageUrls = {} as Record<FullReportViewKey, string>;
+    const validatedPaths: string[] = [];
 
     for (const view of FULL_REPORT_VIEW_KEYS) {
-      const file = formData.get(view);
-      if (!(file instanceof File)) {
+      const urlField = FULL_REPORT_URL_FIELDS[view];
+      const rawUrl = body[urlField];
+      if (typeof rawUrl !== "string" || !rawUrl.trim()) {
         return NextResponse.json(
-          { error: `Missing ${view} view photo` },
+          { error: `Missing ${view} view photo URL` },
           { status: 400 },
         );
       }
 
-      if (!ALLOWED_MIME.has(file.type)) {
+      const trimmedUrl = rawUrl.trim();
+      const storagePath = validateTempImageUrl(trimmedUrl, user.id);
+      if (!storagePath) {
         return NextResponse.json(
-          { error: "Only JPG, PNG, and WEBP images are allowed" },
+          { error: `Invalid ${view} view photo URL` },
           { status: 400 },
         );
       }
 
-      if (file.size > MAX_BYTES) {
-        return NextResponse.json(
-          { error: "Each file must be 10MB or smaller" },
-          { status: 400 },
-        );
-      }
-
-      viewFiles[view] = file;
+      imageUrls[view] = trimmedUrl;
+      validatedPaths.push(storagePath);
     }
+
+    tempPaths.push(...validatedPaths);
 
     const preparedByView = {} as Record<FullReportViewKey, PreparedViewImage>;
-    for (const view of FULL_REPORT_VIEW_KEYS) {
-      preparedByView[view] = await prepareViewImage(viewFiles[view]);
-    }
+
+    await Promise.all(
+      FULL_REPORT_VIEW_KEYS.map(async (view) => {
+        const imageResponse = await fetch(imageUrls[view]);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch ${view} view image`);
+        }
+
+        const inputBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        if (inputBuffer.length === 0) {
+          throw new Error(`${view} view image is empty`);
+        }
+
+        if (inputBuffer.length > MAX_BYTES) {
+          throw new Error(`Each file must be 10MB or smaller`);
+        }
+
+        const contentType =
+          imageResponse.headers.get("content-type") ?? "image/jpeg";
+        const normalizedContentType = contentType.split(";")[0]?.trim() ?? "";
+
+        if (normalizedContentType && !ALLOWED_MIME.has(normalizedContentType)) {
+          throw new Error("Only JPG, PNG, and WEBP images are allowed");
+        }
+
+        preparedByView[view] = await prepareViewImageFromBuffer(
+          inputBuffer,
+          contentType,
+        );
+      }),
+    );
 
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -541,5 +621,7 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Full report analysis failed";
     return NextResponse.json({ error: message }, { status: 500 });
+  } finally {
+    await deleteFullReportTempFiles(serviceClient, tempPaths);
   }
 }

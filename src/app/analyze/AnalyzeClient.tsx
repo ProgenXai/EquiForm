@@ -286,11 +286,14 @@ const ANALYSIS_MODE_OPTIONS: {
 type FullReportView = "left" | "right" | "front" | "hind";
 
 type FullReportSlot = {
-  file: File;
   previewUrl: string;
+  supabaseUrl: string;
+  storagePath: string;
 };
 
 const FULL_REPORT_CREDIT_COST = 30;
+const FULL_REPORT_STORAGE_BUCKET = "horse-photos";
+const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
 
 const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
   { view: "left", label: "Left Side" },
@@ -348,6 +351,18 @@ export default function AnalyzeClient() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
+  async function deleteFullReportStorageFiles(paths: string[]) {
+    if (paths.length === 0) return;
+
+    const { error } = await supabase.storage
+      .from(FULL_REPORT_STORAGE_BUCKET)
+      .remove(paths);
+
+    if (error) {
+      console.error("[analyze] full report temp cleanup failed:", error);
+    }
+  }
+
   function revokeFullReportPreviewUrls(
     photos: Partial<Record<FullReportView, FullReportSlot>>,
   ) {
@@ -358,16 +373,20 @@ export default function AnalyzeClient() {
     }
   }
 
-  function clearFullReportPhotos() {
-    setFullReportPhotos((current) => {
-      revokeFullReportPreviewUrls(current);
-      return {};
-    });
+  async function clearFullReportPhotos() {
+    const photos = fullReportPhotosRef.current;
+    const paths = FULL_REPORT_SLOTS.map(
+      (slot) => photos[slot.view]?.storagePath,
+    ).filter((path): path is string => Boolean(path));
+
+    await deleteFullReportStorageFiles(paths);
+    revokeFullReportPreviewUrls(photos);
+    setFullReportPhotos({});
   }
 
   useEffect(() => {
     if (analysisMode !== "full") {
-      clearFullReportPhotos();
+      void clearFullReportPhotos();
       setFullReportResult(null);
       setFullReportTab("left");
     }
@@ -444,7 +463,7 @@ export default function AnalyzeClient() {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
-    clearFullReportPhotos();
+    void clearFullReportPhotos();
     setPreviewUrl(null);
     setSelectedFile(null);
     setFullReportResult(null);
@@ -540,25 +559,66 @@ export default function AnalyzeClient() {
       return;
     }
 
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+
+    if (!currentSession?.user) {
+      setError("Sign in to upload photos for a full report.");
+      return;
+    }
+
     setFullReportUploadingView(view);
     setError(null);
+
+    const existingSlot = fullReportPhotosRef.current[view];
+    const userId = currentSession.user.id;
 
     try {
       const { file: processedFile, previewUrl } = await compressImageIfNeeded(file);
 
+      if (existingSlot?.storagePath) {
+        await deleteFullReportStorageFiles([existingSlot.storagePath]);
+      }
+
+      const storagePath = `${FULL_REPORT_TEMP_PREFIX}/${userId}/${Date.now()}-${view}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(FULL_REPORT_STORAGE_BUCKET)
+        .upload(storagePath, processedFile, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(FULL_REPORT_STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+
       setFullReportPhotos((current) => {
         const existing = current[view];
-        if (existing?.previewUrl) {
+        if (existing?.previewUrl && existing.previewUrl !== previewUrl) {
           URL.revokeObjectURL(existing.previewUrl);
         }
 
         return {
           ...current,
-          [view]: { file: processedFile, previewUrl },
+          [view]: {
+            previewUrl,
+            supabaseUrl: publicUrlData.publicUrl,
+            storagePath,
+          },
         };
       });
-    } catch {
-      setError(`Failed to process ${slotLabel} photo. Please try another.`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Failed to upload ${slotLabel} photo: ${err.message}`
+          : `Failed to upload ${slotLabel} photo. Please try another.`,
+      );
     } finally {
       setFullReportUploadingView(null);
     }
@@ -762,7 +822,7 @@ export default function AnalyzeClient() {
   const hasAnalyzeAccess =
     isAdmin || (isLoggedIn && rosetteBalance !== null && rosetteBalance > 0);
   const fullReportFilledCount = FULL_REPORT_SLOTS.filter(
-    (slot) => fullReportPhotos[slot.view]?.file,
+    (slot) => fullReportPhotos[slot.view]?.supabaseUrl,
   ).length;
   const fullReportComplete = fullReportFilledCount === FULL_REPORT_SLOTS.length;
   const hasFullReportAccess =
@@ -779,44 +839,32 @@ export default function AnalyzeClient() {
     typeof window === "undefined" ||
     !fullReportComplete ||
     loading ||
+    fullReportResult !== null ||
     fullReportUploadingView !== null ||
     (!authLoading && !hasFullReportAccess);
 
   async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
 
-    const left = fullReportPhotos.left?.file;
-    const right = fullReportPhotos.right?.file;
-    const front = fullReportPhotos.front?.file;
-    const hind = fullReportPhotos.hind?.file;
+    const leftUrl = fullReportPhotos.left?.supabaseUrl;
+    const rightUrl = fullReportPhotos.right?.supabaseUrl;
+    const frontUrl = fullReportPhotos.front?.supabaseUrl;
+    const hindUrl = fullReportPhotos.hind?.supabaseUrl;
 
-    if (!left || !right || !front || !hind) {
+    if (!leftUrl || !rightUrl || !frontUrl || !hindUrl) {
       setError("Upload all four photos before submitting.");
       return;
     }
+
+    const tempPaths = FULL_REPORT_SLOTS.map(
+      (slot) => fullReportPhotos[slot.view]?.storagePath,
+    ).filter((path): path is string => Boolean(path));
 
     setLoading(true);
     setError(null);
     setFullReportResult(null);
 
-    let compressedPhotos: Awaited<ReturnType<typeof compressImageIfNeeded>>[] =
-      [];
-
     try {
-      compressedPhotos = await Promise.all([
-        compressImageIfNeeded(left, { maxSizeMB: 1 }),
-        compressImageIfNeeded(right, { maxSizeMB: 1 }),
-        compressImageIfNeeded(front, { maxSizeMB: 1 }),
-        compressImageIfNeeded(hind, { maxSizeMB: 1 }),
-      ]);
-
-      const formData = new FormData();
-      formData.append("left", compressedPhotos[0].file);
-      formData.append("right", compressedPhotos[1].file);
-      formData.append("front", compressedPhotos[2].file);
-      formData.append("hind", compressedPhotos[3].file);
-      formData.append("horseName", horseName.trim());
-
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -825,8 +873,15 @@ export default function AnalyzeClient() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session?.access_token ?? ""}`,
+          "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify({
+          leftUrl,
+          rightUrl,
+          frontUrl,
+          hindUrl,
+          horseName: horseName.trim(),
+        }),
       });
 
       const contentType = response.headers.get("content-type") ?? "";
@@ -835,30 +890,20 @@ export default function AnalyzeClient() {
       let apiResult: FullReportApiResponse & { error?: string };
 
       try {
-        if (!response.ok || !isJson) {
-          if (!isJson) {
-            await response.text();
-            throw new Error(
-              "Photo files are too large. Please try smaller images.",
-            );
-          }
+        if (!isJson) {
+          await response.text();
+          throw new Error("Full report analysis failed");
         }
 
         apiResult = (await response.json()) as FullReportApiResponse & {
           error?: string;
         };
       } catch (parseError) {
-        if (
-          parseError instanceof Error &&
-          parseError.message ===
-            "Photo files are too large. Please try smaller images."
-        ) {
+        if (parseError instanceof Error && parseError.message) {
           throw parseError;
         }
 
-        throw new Error(
-          "Photo files are too large. Please try smaller images.",
-        );
+        throw new Error("Full report analysis failed");
       }
 
       if (!response.ok) {
@@ -883,8 +928,22 @@ export default function AnalyzeClient() {
         err instanceof Error ? err.message : "Full report analysis failed",
       );
     } finally {
-      for (const { previewUrl } of compressedPhotos) {
-        URL.revokeObjectURL(previewUrl);
+      await deleteFullReportStorageFiles(tempPaths);
+      if (tempPaths.length > 0) {
+        setFullReportPhotos((current) => {
+          const next = { ...current };
+          for (const slot of FULL_REPORT_SLOTS) {
+            const photo = next[slot.view];
+            if (photo && tempPaths.includes(photo.storagePath)) {
+              next[slot.view] = {
+                previewUrl: photo.previewUrl,
+                supabaseUrl: "",
+                storagePath: "",
+              };
+            }
+          }
+          return next;
+        });
       }
       setLoading(false);
     }
@@ -1259,7 +1318,7 @@ export default function AnalyzeClient() {
                         }`}
                       >
                         {isUploading
-                          ? "Processing…"
+                          ? "Uploading…"
                           : uploaded
                             ? "Replace photo"
                             : "Upload photo"}
