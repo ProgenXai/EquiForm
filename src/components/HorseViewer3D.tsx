@@ -364,10 +364,10 @@ export default function HorseViewer3D({
     controls.autoRotate = false;
     controls.autoRotateSpeed = 0.35;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff2e6, 1.15);
+    const keyLight = new THREE.DirectionalLight(0xfff2e6, 2.0);
     keyLight.position.set(2.5, 5, 4);
     scene.add(keyLight);
 
@@ -382,6 +382,14 @@ export default function HorseViewer3D({
     const rimLight = new THREE.DirectionalLight(0xffffff, 0.25);
     rimLight.position.set(0, 3, -4);
     scene.add(rimLight);
+
+    const belowFrontLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    belowFrontLight.position.set(0, -1, 2);
+    scene.add(belowFrontLight);
+
+    const blueRimLight = new THREE.DirectionalLight(0x6699ff, 0.6);
+    blueRimLight.position.set(0, 2, -3);
+    scene.add(blueRimLight);
 
     const resize = () => {
       const width = container.clientWidth;
