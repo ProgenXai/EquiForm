@@ -1250,6 +1250,11 @@ export default function AnalyzeClient() {
                 </button>
               ))}
             </div>
+            {previewUrl ? (
+              <p className="mt-2 text-xs text-amber-400">
+                Make sure you&apos;ve selected the correct view above before analyzing.
+              </p>
+            ) : null}
           </div>
           {!previewUrl ? (
             <>
