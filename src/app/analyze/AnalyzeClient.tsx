@@ -1085,6 +1085,15 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
+      {analysisMode === "quick" && previewUrl ? (
+        <button
+          type="button"
+          onClick={handleRemoveSingleViewPhoto}
+          className="-ml-6 -mt-8 mb-2 block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
+        >
+          ← Back
+        </button>
+      ) : null}
       <div ref={menuRef} className="fixed top-4 right-[18%] z-[100]">
         <button
           type="button"
