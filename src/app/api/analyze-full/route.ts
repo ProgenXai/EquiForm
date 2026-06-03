@@ -99,16 +99,11 @@ function roboflowLandmarkDetectionError(viewLabel: string): string {
 }
 
 function toUserFacingFullReportError(error: unknown): string {
-  if (error instanceof Error) {
-    if (
-      isRoboflowLandmarkFailure(error) ||
-      (error instanceof Error && error.message.includes("Roboflow"))
-    ) {
-      return LANDMARK_DETECTION_USER_ERROR;
-    }
-    return error.message;
+  const message = error instanceof Error ? error.message : String(error);
+  if (isRoboflowLandmarkFailure(error) || message.includes("Roboflow")) {
+    return LANDMARK_DETECTION_USER_ERROR;
   }
-  return "Full report analysis failed";
+  return message;
 }
 
 function isRoboflowLandmarkFailure(error: unknown): error is Error {
