@@ -42,9 +42,9 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<CalibrationViewMode, string> = {
   left: SIDE_PROFILE_VALIDATION_PROMPT,
   right: SIDE_PROFILE_VALIDATION_PROMPT,
   front:
-    "Does this image show a single horse in a clear front view, facing directly toward the camera, standing still and square on level ground, with all four legs visible and no people or objects blocking the horse? Reject if the horse is angled, walking, or partially obscured.",
+    "Does this image show a single horse in a correct front view for conformation analysis? To pass ALL of these must be true: the horse is facing directly toward the camera (not angled), the horse is standing completely still with all four feet flat on the ground, both front legs are fully visible from knee to hoof, the chest and shoulders are square to the camera, and no people, ropes, or objects are blocking the legs or body. Reject if the horse is angled even slightly, walking, trotting, or if a lead rope is pulling the head to one side.",
   hind:
-    "Does this image show a single horse in a clear hind view, facing directly away from the camera, standing still and square on level ground, with both hind legs and hooves visible? Reject if the horse is angled, walking, the tail is fully covering the legs, or people or objects are blocking the view.",
+    "Does this image show a single horse in a correct hind view for conformation analysis? To pass ALL of these must be true: the horse is facing directly away from the camera (not angled), the horse is standing completely still with all four feet flat on the ground, both hind legs are fully visible from hock to hoof, the hindquarters are square to the camera, and the tail is not covering the legs. Reject if the horse is angled, walking, the tail is covering the hind legs, or any person or object is blocking the view of the legs.",
 };
 
 const INVALID_IMAGE_ERROR =
