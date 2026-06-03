@@ -485,12 +485,38 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
+        // Get bone world positions after model is scaled and positioned
+        const bonePositions: Record<string, THREE.Vector3> = {};
+        model.traverse((child) => {
+          if (child instanceof THREE.Bone) {
+            const worldPos = new THREE.Vector3();
+            child.getWorldPosition(worldPos);
+            bonePositions[child.name] = worldPos;
+          }
+        });
+
+        // Map bones to conformation landmarks
+        const shoulderZ =
+          bonePositions["upper_arm_ik_targetL"]?.z ?? mapLandmarkZ(0.20);
+        const girthZ = bonePositions["forefoot_ikL"]?.z ?? mapLandmarkZ(0.40);
+        const hipZ =
+          bonePositions["thigh_ik_targetL"]?.z ?? mapLandmarkZ(0.65);
+        const buttockZ =
+          bonePositions["hind_foot_ikL"]?.z ?? mapLandmarkZ(0.85);
+
+        console.log("Bone Z positions:", {
+          shoulderZ,
+          girthZ,
+          hipZ,
+          buttockZ,
+        });
+
         scene.add(
           makeVerticalLine(
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.shoulder?.x ?? 0.20),
+            shoulderZ,
             0xff3333,
           ),
         );
@@ -499,7 +525,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.girth?.x ?? 0.40),
+            girthZ,
             0xff3333,
           ),
         );
@@ -508,7 +534,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.point_of_hip?.x ?? 0.65),
+            hipZ,
             0xff3333,
           ),
         );
@@ -517,7 +543,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.buttock?.x ?? 0.85),
+            buttockZ,
             0xff3333,
           ),
         );
