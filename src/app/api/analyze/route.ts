@@ -6,6 +6,8 @@ import sharp from "sharp";
 import {
   parseReportResponse,
   toConformationLandmarks,
+  type FrontConformationLandmarks,
+  type HindConformationLandmarks,
 } from "@/lib/analyze/landmark-parser";
 import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import {
@@ -18,7 +20,11 @@ import {
   isSideProfileViewMode,
   type CalibrationViewMode,
 } from "@/lib/calibration/landmarks";
-import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
+import {
+  drawConformationOverlay,
+  drawFrontConformationOverlay,
+  drawHindConformationOverlay,
+} from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendFirstReportEmail } from "@/lib/email/templates";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -322,6 +328,22 @@ export async function POST(request: Request) {
       overlayBuffer = await drawConformationOverlay(
         inputBuffer,
         landmarks as ConformationLandmarks,
+        imageWidth,
+        imageHeight,
+      );
+      overlayContentType = "image/jpeg";
+    } else if (viewMode === "front") {
+      overlayBuffer = await drawFrontConformationOverlay(
+        inputBuffer,
+        landmarks as FrontConformationLandmarks,
+        imageWidth,
+        imageHeight,
+      );
+      overlayContentType = "image/jpeg";
+    } else if (viewMode === "hind") {
+      overlayBuffer = await drawHindConformationOverlay(
+        inputBuffer,
+        landmarks as HindConformationLandmarks,
         imageWidth,
         imageHeight,
       );

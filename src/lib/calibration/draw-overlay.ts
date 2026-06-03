@@ -1,4 +1,8 @@
 import { createCanvas, loadImage, type CanvasRenderingContext2D } from "canvas";
+import type {
+  FrontConformationLandmarks,
+  HindConformationLandmarks,
+} from "@/lib/analyze/landmark-parser";
 import { computeToplineY, type ConformationLandmarks } from "@/lib/conformation/landmarks";
 
 function xPx(frac: number, imageWidth: number): number {
@@ -217,6 +221,205 @@ export async function drawConformationOverlay(
 
   for (let i = 0; i < landmarkDots.length; i++) {
     const p = landmarkDots[i];
+    drawJointDot(ctx, p, jointRadius);
+  }
+
+  return canvas.toBuffer("image/jpeg", { quality: 0.95 });
+}
+
+function landmarkToPoint(
+  point: { x: number; y: number },
+  imageWidth: number,
+  imageHeight: number,
+): Point {
+  return { x: point.x * imageWidth, y: point.y * imageHeight };
+}
+
+function drawFullWidthHorizontal(
+  ctx: CanvasRenderingContext2D,
+  y: number,
+  imageWidth: number,
+  lineWidth: number,
+) {
+  ctx.strokeStyle = "rgba(120, 200, 255, 0.85)";
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(imageWidth, y);
+  ctx.stroke();
+}
+
+function drawFullHeightVertical(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  imageHeight: number,
+  lineWidth: number,
+) {
+  ctx.strokeStyle = "rgba(220, 40, 40, 0.9)";
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(x, 0);
+  ctx.lineTo(x, imageHeight);
+  ctx.stroke();
+}
+
+export async function drawFrontConformationOverlay(
+  imageBuffer: Buffer,
+  landmarks: FrontConformationLandmarks,
+  imageWidth: number,
+  imageHeight: number,
+): Promise<Buffer> {
+  const canvas = createCanvas(imageWidth, imageHeight);
+  const ctx = canvas.getContext("2d");
+
+  const img = await loadImage(imageBuffer);
+  ctx.drawImage(img, 0, 0, imageWidth, imageHeight);
+
+  const lineWidth = Math.max(4, Math.floor(imageWidth / 350));
+  const thinLine = Math.max(2, Math.floor(imageWidth / 500));
+  const jointRadius = Math.max(6, Math.floor(imageWidth / 100));
+  const legLineWidth = Math.max(3, Math.floor(imageWidth / 400));
+
+  const leftShoulder = landmarkToPoint(
+    landmarks.left_shoulder,
+    imageWidth,
+    imageHeight,
+  );
+  const rightShoulder = landmarkToPoint(
+    landmarks.right_shoulder,
+    imageWidth,
+    imageHeight,
+  );
+  const leftKnee = landmarkToPoint(landmarks.left_knee, imageWidth, imageHeight);
+  const rightKnee = landmarkToPoint(landmarks.right_knee, imageWidth, imageHeight);
+
+  const centerX = (leftShoulder.x + rightShoulder.x) / 2;
+  const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+  const kneeMidY = (leftKnee.y + rightKnee.y) / 2;
+
+  drawFullHeightVertical(ctx, centerX, imageHeight, lineWidth);
+  drawFullWidthHorizontal(ctx, shoulderMidY, imageWidth, thinLine);
+  drawFullWidthHorizontal(ctx, kneeMidY, imageWidth, thinLine);
+
+  drawLegStack(
+    ctx,
+    [
+      leftShoulder,
+      leftKnee,
+      landmarkToPoint(landmarks.left_front_fetlock, imageWidth, imageHeight),
+      landmarkToPoint(landmarks.left_front_hoof, imageWidth, imageHeight),
+    ],
+    legLineWidth,
+  );
+  drawLegStack(
+    ctx,
+    [
+      rightShoulder,
+      rightKnee,
+      landmarkToPoint(landmarks.right_front_fetlock, imageWidth, imageHeight),
+      landmarkToPoint(landmarks.right_front_hoof, imageWidth, imageHeight),
+    ],
+    legLineWidth,
+  );
+
+  const landmarkDots = [
+    landmarks.poll,
+    landmarks.left_ear,
+    landmarks.right_ear,
+    landmarks.left_eye,
+    landmarks.right_eye,
+    landmarks.muzzle,
+    landmarks.left_shoulder,
+    landmarks.right_shoulder,
+    landmarks.left_knee,
+    landmarks.right_knee,
+    landmarks.left_front_fetlock,
+    landmarks.right_front_fetlock,
+    landmarks.left_front_hoof,
+    landmarks.right_front_hoof,
+  ].map((point) => landmarkToPoint(point, imageWidth, imageHeight));
+
+  for (const p of landmarkDots) {
+    drawJointDot(ctx, p, jointRadius);
+  }
+
+  return canvas.toBuffer("image/jpeg", { quality: 0.95 });
+}
+
+export async function drawHindConformationOverlay(
+  imageBuffer: Buffer,
+  landmarks: HindConformationLandmarks,
+  imageWidth: number,
+  imageHeight: number,
+): Promise<Buffer> {
+  const canvas = createCanvas(imageWidth, imageHeight);
+  const ctx = canvas.getContext("2d");
+
+  const img = await loadImage(imageBuffer);
+  ctx.drawImage(img, 0, 0, imageWidth, imageHeight);
+
+  const lineWidth = Math.max(4, Math.floor(imageWidth / 350));
+  const thinLine = Math.max(2, Math.floor(imageWidth / 500));
+  const jointRadius = Math.max(6, Math.floor(imageWidth / 100));
+  const legLineWidth = Math.max(3, Math.floor(imageWidth / 400));
+
+  const leftButtock = landmarkToPoint(landmarks.left_buttock, imageWidth, imageHeight);
+  const rightButtock = landmarkToPoint(
+    landmarks.right_buttock,
+    imageWidth,
+    imageHeight,
+  );
+  const leftHock = landmarkToPoint(landmarks.left_hock, imageWidth, imageHeight);
+  const rightHock = landmarkToPoint(landmarks.right_hock, imageWidth, imageHeight);
+  const tail = landmarkToPoint(landmarks.tail, imageWidth, imageHeight);
+
+  const centerX = (leftButtock.x + rightButtock.x) / 2;
+  const hockMidY = (leftHock.y + rightHock.y) / 2;
+
+  drawFullHeightVertical(ctx, centerX, imageHeight, lineWidth);
+  drawFullWidthHorizontal(ctx, tail.y, imageWidth, thinLine);
+  drawFullWidthHorizontal(ctx, hockMidY, imageWidth, thinLine);
+
+  drawLegStack(
+    ctx,
+    [
+      leftButtock,
+      landmarkToPoint(landmarks.left_gaskin, imageWidth, imageHeight),
+      leftHock,
+      landmarkToPoint(landmarks.left_hind_fetlock, imageWidth, imageHeight),
+      landmarkToPoint(landmarks.left_hind_hoof, imageWidth, imageHeight),
+    ],
+    legLineWidth,
+  );
+  drawLegStack(
+    ctx,
+    [
+      rightButtock,
+      landmarkToPoint(landmarks.right_gaskin, imageWidth, imageHeight),
+      rightHock,
+      landmarkToPoint(landmarks.right_hind_fetlock, imageWidth, imageHeight),
+      landmarkToPoint(landmarks.right_hind_hoof, imageWidth, imageHeight),
+    ],
+    legLineWidth,
+  );
+
+  const landmarkDots = [
+    landmarks.tail,
+    landmarks.left_point_of_hip,
+    landmarks.right_point_of_hip,
+    landmarks.left_buttock,
+    landmarks.right_buttock,
+    landmarks.left_gaskin,
+    landmarks.right_gaskin,
+    landmarks.left_hock,
+    landmarks.right_hock,
+    landmarks.left_hind_fetlock,
+    landmarks.right_hind_fetlock,
+    landmarks.left_hind_hoof,
+    landmarks.right_hind_hoof,
+  ].map((point) => landmarkToPoint(point, imageWidth, imageHeight));
+
+  for (const p of landmarkDots) {
     drawJointDot(ctx, p, jointRadius);
   }
 
