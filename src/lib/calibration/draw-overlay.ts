@@ -255,11 +255,21 @@ function drawFullHeightVertical(
   imageHeight: number,
   lineWidth: number,
 ) {
+  drawRedVertical(ctx, x, 0, imageHeight, lineWidth);
+}
+
+function drawRedVertical(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  yTop: number,
+  yBottom: number,
+  lineWidth: number,
+) {
   ctx.strokeStyle = "rgba(220, 40, 40, 0.9)";
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
-  ctx.moveTo(x, 0);
-  ctx.lineTo(x, imageHeight);
+  ctx.moveTo(x, yTop);
+  ctx.lineTo(x, yBottom);
   ctx.stroke();
 }
 
@@ -287,10 +297,12 @@ export async function drawFrontConformationOverlay(
     imageWidth,
     imageHeight,
   );
+  const leftKnee = landmarkToPoint(landmarks.left_knee, imageWidth, imageHeight);
+  const rightKnee = landmarkToPoint(landmarks.right_knee, imageWidth, imageHeight);
 
-  const centerX = (leftShoulder.x + rightShoulder.x) / 2;
-
-  drawFullHeightVertical(ctx, centerX, imageHeight, lineWidth);
+  drawFullHeightVertical(ctx, imageWidth / 2, imageHeight, lineWidth);
+  drawRedVertical(ctx, leftKnee.x, leftShoulder.y, imageHeight, lineWidth);
+  drawRedVertical(ctx, rightKnee.x, rightShoulder.y, imageHeight, lineWidth);
 
   return canvas.toBuffer("image/jpeg", { quality: 0.95 });
 }
@@ -315,10 +327,16 @@ export async function drawHindConformationOverlay(
     imageWidth,
     imageHeight,
   );
+  const leftGaskin = landmarkToPoint(landmarks.left_gaskin, imageWidth, imageHeight);
+  const rightGaskin = landmarkToPoint(landmarks.right_gaskin, imageWidth, imageHeight);
+  const leftHock = landmarkToPoint(landmarks.left_hock, imageWidth, imageHeight);
+  const rightHock = landmarkToPoint(landmarks.right_hock, imageWidth, imageHeight);
 
   const centerX = (leftButtock.x + rightButtock.x) / 2;
 
   drawFullHeightVertical(ctx, centerX, imageHeight, lineWidth);
+  drawRedVertical(ctx, leftHock.x, leftGaskin.y, imageHeight, lineWidth);
+  drawRedVertical(ctx, rightHock.x, rightGaskin.y, imageHeight, lineWidth);
 
   return canvas.toBuffer("image/jpeg", { quality: 0.95 });
 }
