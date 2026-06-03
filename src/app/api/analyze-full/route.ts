@@ -79,6 +79,9 @@ const REPORT_PROMPTS: Record<FullReportViewKey, string> = {
 const INVALID_IMAGE_ERROR =
   "One or more photos didn't meet the criteria. Please review the photo guidelines and resubmit.";
 
+const LANDMARK_DETECTION_USER_ERROR =
+  "We couldn't detect horse landmarks in this photo. Please try a photo with better lighting, contrast, and the horse standing square.";
+
 const FULL_REPORT_VIEW_LABELS: Record<FullReportViewKey, string> = {
   left: "Left Side",
   right: "Right Side",
@@ -97,6 +100,9 @@ function roboflowLandmarkDetectionError(viewLabel: string): string {
 
 function toUserFacingFullReportError(error: unknown): string {
   if (error instanceof Error) {
+    if (isRoboflowLandmarkFailure(error) || error.message.includes("Roboflow")) {
+      return LANDMARK_DETECTION_USER_ERROR;
+    }
     return error.message;
   }
   return "Full report analysis failed";
@@ -366,9 +372,7 @@ export async function POST(request: Request) {
 
   if (missingRoboflow.length > 0) {
     return NextResponse.json(
-      {
-        error: `Roboflow is not fully configured. Missing: ${missingRoboflow.join(", ")}`,
-      },
+      { error: LANDMARK_DETECTION_USER_ERROR },
       { status: 500 },
     );
   }

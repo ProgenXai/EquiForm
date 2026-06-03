@@ -56,6 +56,9 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<CalibrationViewMode, string> = {
 const INVALID_IMAGE_ERROR =
   "Your horse photo didn't meet the criteria. Please review the photo guidelines and resubmit.";
 
+const LANDMARK_DETECTION_USER_ERROR =
+  "We couldn't detect horse landmarks in this photo. Please try a photo with better lighting, contrast, and the horse standing square.";
+
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
 
 export const maxDuration = 120;
@@ -99,6 +102,16 @@ function getRoboflowModelIdEnvVarName(viewMode: CalibrationViewMode): string {
   }
 }
 
+function toUserFacingAnalyzeError(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes("Roboflow")) {
+      return LANDMARK_DETECTION_USER_ERROR;
+    }
+    return error.message;
+  }
+  return "Analysis failed";
+}
+
 function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
   switch (viewMode) {
     case "front":
@@ -127,9 +140,7 @@ export async function POST(request: Request) {
 
   if (!process.env.ROBOFLOW_API_KEY?.trim() || !roboflowModelId) {
     return NextResponse.json(
-      {
-        error: `Roboflow API key and ${roboflowModelIdEnvVar} are not configured`,
-      },
+      { error: LANDMARK_DETECTION_USER_ERROR },
       { status: 500 },
     );
   }
@@ -465,8 +476,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[analyze] failed:", error);
-    const message =
-      error instanceof Error ? error.message : "Analysis failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: toUserFacingAnalyzeError(error) },
+      { status: 500 },
+    );
   }
 }
