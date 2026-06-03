@@ -53,66 +53,39 @@ function createPlumbLineSegment(
   return new THREE.LineSegments(geometry, material);
 }
 
-function landmarkToModelX(point: LandmarkPoint): number {
-  return (point.x - 0.5) * 0.75;
-}
+function addConformationLines(group: THREE.Group, finalBox: THREE.Box3) {
+  const width = finalBox.max.x - finalBox.min.x;
+  const depth = finalBox.max.z - finalBox.min.z;
+  const centerX = (finalBox.max.x + finalBox.min.x) / 2;
+  const centerZ = (finalBox.max.z + finalBox.min.z) / 2;
+  const frontZ = finalBox.min.z + depth * 0.25;
+  const hindZ = finalBox.max.z - depth * 0.25;
+  const leftX = centerX - width * 0.2;
+  const rightX = centerX + width * 0.2;
 
-function addConformationLines(
-  group: THREE.Group,
-  landmarks: HorseViewer3DLandmarks,
-) {
-  const frontZ = -0.3;
-  const hindZ = 0.3;
-  const centerX = 0;
+  group.add(
+    createPlumbLineSegment(
+      centerX,
+      finalBox.max.y,
+      centerZ,
+      centerX,
+      0,
+      centerZ,
+    ),
+  );
 
-  group.add(createPlumbLineSegment(centerX, 2, 0, centerX, 0, 0));
-
-  const frontLeftKnee = getLandmark(landmarks.front, "left_knee");
-  const frontRightKnee = getLandmark(landmarks.front, "right_knee");
-  const hindLeftHock = getLandmark(landmarks.hind, "left_hock");
-  const hindRightHock = getLandmark(landmarks.hind, "right_hock");
-
-  if (frontLeftKnee) {
-    const leftKneeX = landmarkToModelX(frontLeftKnee);
-    group.add(
-      createPlumbLineSegment(leftKneeX, 1.2, frontZ, leftKneeX, 0, frontZ),
-    );
-  }
-
-  if (frontRightKnee) {
-    const rightKneeX = landmarkToModelX(frontRightKnee);
-    group.add(
-      createPlumbLineSegment(
-        rightKneeX,
-        1.2,
-        frontZ,
-        rightKneeX,
-        0,
-        frontZ,
-      ),
-    );
-  }
-
-  if (hindLeftHock) {
-    const leftHockX = landmarkToModelX(hindLeftHock);
-    group.add(
-      createPlumbLineSegment(leftHockX, 1.2, hindZ, leftHockX, 0, hindZ),
-    );
-  }
-
-  if (hindRightHock) {
-    const rightHockX = landmarkToModelX(hindRightHock);
-    group.add(
-      createPlumbLineSegment(
-        rightHockX,
-        1.2,
-        hindZ,
-        rightHockX,
-        0,
-        hindZ,
-      ),
-    );
-  }
+  group.add(
+    createPlumbLineSegment(leftX, finalBox.max.y, frontZ, leftX, 0, frontZ),
+  );
+  group.add(
+    createPlumbLineSegment(rightX, finalBox.max.y, frontZ, rightX, 0, frontZ),
+  );
+  group.add(
+    createPlumbLineSegment(leftX, finalBox.max.y, hindZ, leftX, 0, hindZ),
+  );
+  group.add(
+    createPlumbLineSegment(rightX, finalBox.max.y, hindZ, rightX, 0, hindZ),
+  );
 }
 
 function applyBayCoat(root: THREE.Object3D) {
@@ -182,7 +155,7 @@ export default function HorseViewer3D({
     controls.maxPolarAngle = Math.PI * 0.52;
     controls.minPolarAngle = Math.PI * 0.22;
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.65;
+    controls.autoRotateSpeed = 0.35;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.42);
     scene.add(ambientLight);
@@ -242,11 +215,16 @@ export default function HorseViewer3D({
         const scaledBox = new THREE.Box3().setFromObject(model);
         model.position.y -= scaledBox.min.y;
 
+        model.rotation.y = Math.PI / 2;
+
+        const rotatedBox = new THREE.Box3().setFromObject(model);
+        model.position.y -= rotatedBox.min.y;
+
         const finalBox = new THREE.Box3().setFromObject(model);
         const finalSize = new THREE.Vector3();
         finalBox.getSize(finalSize);
 
-        addConformationLines(lineGroup, landmarks);
+        addConformationLines(lineGroup, finalBox);
 
         const groundRadius = Math.max(finalSize.x, finalSize.z) * 0.42;
         const groundGeometry = new THREE.CircleGeometry(groundRadius, 64);
