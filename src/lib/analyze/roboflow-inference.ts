@@ -59,8 +59,8 @@ const FRONT_KP_INDEX_MAP: string[] = [
   "left_eye", // kp_3
   "right_eye", // kp_4
   "muzzle", // kp_5
-  "left_shoulder", // kp_6
-  "right_shoulder", // kp_7
+  "left_point_of_shoulder", // kp_6
+  "right_point_of_shoulder", // kp_7
   "left_knee", // kp_8
   "right_knee", // kp_9
   "left_front_fetlock", // kp_10

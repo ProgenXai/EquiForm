@@ -161,8 +161,8 @@ export function renderFrontViewOverlayLayers(
   const rightHoof = requirePoint(map, "right_front_hoof");
   const poll = requirePoint(map, "poll");
   const muzzle = requirePoint(map, "muzzle");
-  const leftShoulder = requirePoint(map, "left_shoulder");
-  const rightShoulder = requirePoint(map, "right_shoulder");
+  const leftShoulder = requirePoint(map, "left_point_of_shoulder");
+  const rightShoulder = requirePoint(map, "right_point_of_shoulder");
 
   drawFrontLegPlumbLine(ctx, leftKnee.x, poll.y, leftHoof.y, legLineWidth);
   drawFrontLegPlumbLine(ctx, rightKnee.x, poll.y, rightHoof.y, legLineWidth);

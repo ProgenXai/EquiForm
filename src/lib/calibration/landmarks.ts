@@ -22,8 +22,8 @@ export type LandmarkId =
   | "left_eye"
   | "right_eye"
   | "muzzle"
-  | "left_shoulder"
-  | "right_shoulder"
+  | "left_point_of_shoulder"
+  | "right_point_of_shoulder"
   | "left_knee"
   | "right_knee"
   | "left_front_fetlock"
@@ -186,12 +186,12 @@ export const FRONT_LANDMARKS: LandmarkDefinition[] = [
     instruction: "Click the muzzle (center).",
   },
   {
-    id: "left_shoulder",
+    id: "left_point_of_shoulder",
     label: "Left Point of Shoulder",
     instruction: "Click the left point of shoulder.",
   },
   {
-    id: "right_shoulder",
+    id: "right_point_of_shoulder",
     label: "Right Point of Shoulder",
     instruction: "Click the right point of shoulder.",
   },

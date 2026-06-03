@@ -288,12 +288,12 @@ export async function drawFrontConformationOverlay(
   const lineWidth = Math.max(4, Math.floor(imageWidth / 350));
 
   const leftShoulder = landmarkToPoint(
-    landmarks.left_shoulder,
+    landmarks.left_point_of_shoulder,
     imageWidth,
     imageHeight,
   );
   const rightShoulder = landmarkToPoint(
-    landmarks.right_shoulder,
+    landmarks.right_point_of_shoulder,
     imageWidth,
     imageHeight,
   );

@@ -17,8 +17,8 @@ export type FrontConformationLandmarks = {
   left_eye: DetectedLandmarkPoint;
   right_eye: DetectedLandmarkPoint;
   muzzle: DetectedLandmarkPoint;
-  left_shoulder: DetectedLandmarkPoint;
-  right_shoulder: DetectedLandmarkPoint;
+  left_point_of_shoulder: DetectedLandmarkPoint;
+  right_point_of_shoulder: DetectedLandmarkPoint;
   left_knee: DetectedLandmarkPoint;
   right_knee: DetectedLandmarkPoint;
   left_front_fetlock: DetectedLandmarkPoint;
@@ -161,8 +161,8 @@ export function toFrontConformationLandmarks(
     left_eye: getPoint(detected, "left_eye"),
     right_eye: getPoint(detected, "right_eye"),
     muzzle: getPoint(detected, "muzzle"),
-    left_shoulder: getPoint(detected, "left_shoulder"),
-    right_shoulder: getPoint(detected, "right_shoulder"),
+    left_point_of_shoulder: getPoint(detected, "left_point_of_shoulder"),
+    right_point_of_shoulder: getPoint(detected, "right_point_of_shoulder"),
     left_knee: getPoint(detected, "left_knee"),
     right_knee: getPoint(detected, "right_knee"),
     left_front_fetlock: getPoint(detected, "left_front_fetlock"),
