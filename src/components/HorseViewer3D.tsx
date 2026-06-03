@@ -443,11 +443,15 @@ export default function HorseViewer3D({
         coatTexture = applyCoatColor(model, coatColor, markings);
 
         const finalBbox = new THREE.Box3().setFromObject(model);
+        console.log("finalBbox Z:", finalBbox.min.z, "to", finalBbox.max.z);
+        console.log("landmarks.left:", JSON.stringify(landmarks.left));
         const bboxCenter = finalBbox.getCenter(new THREE.Vector3());
         const width = finalBbox.max.x - finalBbox.min.x;
         const depth = finalBbox.max.z - finalBbox.min.z;
-        const mapLandmarkZ = (normX: number) =>
-          finalBbox.min.z + normX * (finalBbox.max.z - finalBbox.min.z);
+        const mapLandmarkZ = (normX: number) => {
+          const clamped = Math.max(0, Math.min(1, normX));
+          return finalBbox.min.z + clamped * (finalBbox.max.z - finalBbox.min.z);
+        };
 
         function makeVerticalLine(
           x: number,
@@ -473,7 +477,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.shoulder?.x ?? 0.15),
+            mapLandmarkZ(landmarks.left?.shoulder?.x ?? 0.20),
             0xff3333,
           ),
         );
@@ -482,7 +486,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.girth?.x ?? 0.42),
+            mapLandmarkZ(landmarks.left?.girth?.x ?? 0.40),
             0xff3333,
           ),
         );
@@ -491,7 +495,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.point_of_hip?.x ?? 0.68),
+            mapLandmarkZ(landmarks.left?.point_of_hip?.x ?? 0.65),
             0xff3333,
           ),
         );
@@ -500,7 +504,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y,
             0,
-            mapLandmarkZ(landmarks.left?.buttock?.x ?? 0.88),
+            mapLandmarkZ(landmarks.left?.buttock?.x ?? 0.85),
             0xff3333,
           ),
         );
