@@ -9,6 +9,23 @@ const FRONT_BAD = ["bad-5.jpg", "bad-6.jpg"] as const;
 const HIND_GOOD = ["good-7.jpg", "good-8.jpg"] as const;
 const HIND_BAD = ["bad-7.jpg", "bad-8.jpg"] as const;
 
+const SIDE_GOOD_CAPTIONS = [
+  "Clean side profile, standing square on level ground, all four feet visible",
+  "Full body visible from head to hoof, good contrast against background",
+  "Horse standing still and square, no obstructions, clear lighting",
+  "Full side view, relaxed natural stance, legs and topline clearly visible",
+] as const;
+
+const FRONT_GOOD_CAPTIONS = [
+  "Facing camera straight on, standing square, all four feet visible on level ground",
+  "AI landmark detection — clean front view produces accurate shoulder and leg alignment analysis",
+] as const;
+
+const HIND_GOOD_CAPTIONS = [
+  "Tail tied up, standing square — hocks and hind legs clearly visible",
+  "Square stance, tail out of the way, unobstructed view of hindquarters and hooves",
+] as const;
+
 const SIDE_BAD_CAPTIONS: Record<(typeof BAD_EXAMPLES)[number], string> = {
   "bad-1.jpg":
     "Dim lighting and barn clutter — horse is hard to see clearly against the background",
@@ -22,15 +39,16 @@ const SIDE_BAD_CAPTIONS: Record<(typeof BAD_EXAMPLES)[number], string> = {
 
 const FRONT_BAD_CAPTIONS: Record<(typeof FRONT_BAD)[number], string> = {
   "bad-5.jpg":
-    "Horse is angled and in motion — lead rope pulling head out of position",
-  "bad-6.jpg": "Feet hidden in tall grass — legs must be fully visible",
+    "Horse is angled — must be standing square and facing directly toward the camera",
+  "bad-6.jpg":
+    "Wrong angle and feet partially obscured — horse must face the camera straight on with all four feet visible",
 };
 
 const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
   "bad-7.jpg":
-    "Tail covering legs and a person in frame — obstructions block the analysis",
+    "Tail covering the hind legs — tie or braid tail to the side so legs are fully visible",
   "bad-8.jpg":
-    "Horse is angled with a water tub blocking the hindquarters",
+    "Horse is angled — must be standing square with hindquarters facing directly toward the camera",
 };
 
 const GUIDELINES = [
@@ -51,10 +69,12 @@ const EXAMPLE_IMAGE_CONTAINER_CLASS =
 
 function ExamplePhotoGrid({
   goodExamples,
+  goodCaptions,
   badExamples,
   badCaptions,
 }: {
   goodExamples: readonly string[];
+  goodCaptions: readonly string[];
   badExamples: readonly string[];
   badCaptions: Record<string, string>;
 }) {
@@ -64,14 +84,19 @@ function ExamplePhotoGrid({
         <h3 className="text-lg font-semibold text-green-400">Good Examples</h3>
         <div className="mt-4 grid grid-cols-2 gap-3">
           {goodExamples.map((filename, index) => (
-            <div key={filename} className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
-              <Image
-                src={`/examples/${filename}`}
-                alt={`Good example ${index + 1}`}
-                width={400}
-                height={300}
-                className={EXAMPLE_IMAGE_CLASS}
-              />
+            <div key={filename}>
+              <div className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
+                <Image
+                  src={`/examples/${filename}`}
+                  alt={`Good example ${index + 1}`}
+                  width={400}
+                  height={300}
+                  className={EXAMPLE_IMAGE_CLASS}
+                />
+              </div>
+              <p className="mt-1 text-xs text-green-500">
+                {goodCaptions[index]}
+              </p>
             </div>
           ))}
         </div>
@@ -105,11 +130,13 @@ function ExamplePhotoGrid({
 function ViewSection({
   title,
   goodExamples,
+  goodCaptions,
   badExamples,
   badCaptions,
 }: {
   title: string;
   goodExamples: readonly string[];
+  goodCaptions: readonly string[];
   badExamples: readonly string[];
   badCaptions: Record<string, string>;
 }) {
@@ -118,6 +145,7 @@ function ViewSection({
       <h2 className="mb-6 text-xl font-semibold text-zinc-300">{title}</h2>
       <ExamplePhotoGrid
         goodExamples={goodExamples}
+        goodCaptions={goodCaptions}
         badExamples={badExamples}
         badCaptions={badCaptions}
       />
@@ -156,6 +184,7 @@ export default function ExamplesPage() {
         <ViewSection
           title="Side Profile"
           goodExamples={GOOD_EXAMPLES}
+          goodCaptions={SIDE_GOOD_CAPTIONS}
           badExamples={BAD_EXAMPLES}
           badCaptions={SIDE_BAD_CAPTIONS}
         />
@@ -163,6 +192,7 @@ export default function ExamplesPage() {
         <ViewSection
           title="Front View"
           goodExamples={FRONT_GOOD}
+          goodCaptions={FRONT_GOOD_CAPTIONS}
           badExamples={FRONT_BAD}
           badCaptions={FRONT_BAD_CAPTIONS}
         />
@@ -170,6 +200,7 @@ export default function ExamplesPage() {
         <ViewSection
           title="Hind View"
           goodExamples={HIND_GOOD}
+          goodCaptions={HIND_GOOD_CAPTIONS}
           badExamples={HIND_BAD}
           badCaptions={HIND_BAD_CAPTIONS}
         />
