@@ -20,7 +20,7 @@ type HorseViewer3DProps = {
 
 const HORSE_MODEL_PATH = "/models/horse.glb";
 const BAY_COAT_COLOR = 0x8b4513;
-const LINE_COLOR = 0xdc2828;
+const LINE_COLOR = 0xff3333;
 const GROUND_TEAL = 0x00d4b4;
 
 function getLandmark(
@@ -34,84 +34,84 @@ function getLandmark(
   return point;
 }
 
-function createVerticalLine(
-  x: number,
-  z: number,
-  yTop: number,
-  yBottom: number,
-): THREE.Line {
+function createPlumbLineSegment(
+  x1: number,
+  y1: number,
+  z1: number,
+  x2: number,
+  y2: number,
+  z2: number,
+): THREE.LineSegments {
   const geometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(x, yTop, z),
-    new THREE.Vector3(x, yBottom, z),
+    new THREE.Vector3(x1, y1, z1),
+    new THREE.Vector3(x2, y2, z2),
   ]);
   const material = new THREE.LineBasicMaterial({
     color: LINE_COLOR,
-    transparent: true,
-    opacity: 0.92,
+    linewidth: 2,
   });
-  return new THREE.Line(geometry, material);
+  return new THREE.LineSegments(geometry, material);
+}
+
+function landmarkToModelX(point: LandmarkPoint): number {
+  return (point.x - 0.5) * 0.75;
 }
 
 function addConformationLines(
   group: THREE.Group,
   landmarks: HorseViewer3DLandmarks,
-  bbox: THREE.Box3,
 ) {
-  const size = new THREE.Vector3();
-  bbox.getSize(size);
-  const groundY = bbox.min.y + size.y * 0.04;
-  const frontZ = bbox.min.z + size.z * 0.9;
-  const hindZ = bbox.min.z + size.z * 0.1;
-  const centerX = (bbox.min.x + bbox.max.x) / 2;
+  const frontZ = -0.3;
+  const hindZ = 0.3;
+  const centerX = 0;
 
-  const leftPoll = getLandmark(landmarks.left, "poll");
-  const leftTail = getLandmark(landmarks.left, "tail");
-  if (leftPoll) {
-    const spineZ = leftTail
-      ? bbox.min.z + leftTail.x * size.z
-      : bbox.min.z + leftPoll.x * size.z;
-    const topY = bbox.max.y - leftPoll.y * size.y;
-    group.add(createVerticalLine(centerX, spineZ, topY, groundY));
-  }
+  group.add(createPlumbLineSegment(centerX, 2, 0, centerX, 0, 0));
 
   const frontLeftKnee = getLandmark(landmarks.front, "left_knee");
   const frontRightKnee = getLandmark(landmarks.front, "right_knee");
-  const frontLeftShoulder = getLandmark(
-    landmarks.front,
-    "left_point_of_shoulder",
-  );
-  const frontRightShoulder = getLandmark(
-    landmarks.front,
-    "right_point_of_shoulder",
-  );
-
-  if (frontLeftKnee && frontLeftShoulder) {
-    const x = bbox.min.x + frontLeftKnee.x * size.x;
-    const topY = bbox.max.y - frontLeftShoulder.y * size.y;
-    group.add(createVerticalLine(x, frontZ, topY, groundY));
-  }
-
-  if (frontRightKnee && frontRightShoulder) {
-    const x = bbox.min.x + frontRightKnee.x * size.x;
-    const topY = bbox.max.y - frontRightShoulder.y * size.y;
-    group.add(createVerticalLine(x, frontZ, topY, groundY));
-  }
-
   const hindLeftHock = getLandmark(landmarks.hind, "left_hock");
   const hindRightHock = getLandmark(landmarks.hind, "right_hock");
-  const hindLeftGaskin = getLandmark(landmarks.hind, "left_gaskin");
-  const hindRightGaskin = getLandmark(landmarks.hind, "right_gaskin");
 
-  if (hindLeftHock && hindLeftGaskin) {
-    const x = bbox.min.x + hindLeftHock.x * size.x;
-    const topY = bbox.max.y - hindLeftGaskin.y * size.y;
-    group.add(createVerticalLine(x, hindZ, topY, groundY));
+  if (frontLeftKnee) {
+    const leftKneeX = landmarkToModelX(frontLeftKnee);
+    group.add(
+      createPlumbLineSegment(leftKneeX, 1.2, frontZ, leftKneeX, 0, frontZ),
+    );
   }
 
-  if (hindRightHock && hindRightGaskin) {
-    const x = bbox.min.x + hindRightHock.x * size.x;
-    const topY = bbox.max.y - hindRightGaskin.y * size.y;
-    group.add(createVerticalLine(x, hindZ, topY, groundY));
+  if (frontRightKnee) {
+    const rightKneeX = landmarkToModelX(frontRightKnee);
+    group.add(
+      createPlumbLineSegment(
+        rightKneeX,
+        1.2,
+        frontZ,
+        rightKneeX,
+        0,
+        frontZ,
+      ),
+    );
+  }
+
+  if (hindLeftHock) {
+    const leftHockX = landmarkToModelX(hindLeftHock);
+    group.add(
+      createPlumbLineSegment(leftHockX, 1.2, hindZ, leftHockX, 0, hindZ),
+    );
+  }
+
+  if (hindRightHock) {
+    const rightHockX = landmarkToModelX(hindRightHock);
+    group.add(
+      createPlumbLineSegment(
+        rightHockX,
+        1.2,
+        hindZ,
+        rightHockX,
+        0,
+        hindZ,
+      ),
+    );
   }
 }
 
@@ -203,7 +203,7 @@ export default function HorseViewer3D({
     scene.add(horseGroup);
 
     const lineGroup = new THREE.Group();
-    horseGroup.add(lineGroup);
+    scene.add(lineGroup);
 
     const resize = () => {
       const width = container.clientWidth;
@@ -236,7 +236,7 @@ export default function HorseViewer3D({
         bbox.getSize(size);
         model.position.sub(center);
 
-        const scale = 3 / size.y;
+        const scale = 1.8 / size.y;
         model.scale.setScalar(scale);
 
         const scaledBox = new THREE.Box3().setFromObject(model);
@@ -246,7 +246,7 @@ export default function HorseViewer3D({
         const finalSize = new THREE.Vector3();
         finalBox.getSize(finalSize);
 
-        addConformationLines(lineGroup, landmarks, finalBox);
+        addConformationLines(lineGroup, landmarks);
 
         const groundRadius = Math.max(finalSize.x, finalSize.z) * 0.42;
         const groundGeometry = new THREE.CircleGeometry(groundRadius, 64);
@@ -260,9 +260,9 @@ export default function HorseViewer3D({
         ground.position.y = finalBox.min.y + 0.01;
         horseGroup.add(ground);
 
-        camera.position.set(0, 1.5, 4);
-        camera.lookAt(0, 1, 0);
-        controls.target.set(0, 1, 0);
+        camera.position.set(0, 0.9, 3.5);
+        camera.lookAt(0, 0.6, 0);
+        controls.target.set(0, 0.6, 0);
         controls.update();
 
         setLoading(false);
@@ -313,7 +313,7 @@ export default function HorseViewer3D({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [landmarks]);
+  }, []);
 
   return (
     <div
