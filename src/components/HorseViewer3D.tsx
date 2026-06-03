@@ -68,26 +68,26 @@ function createPlumbLineSegment(
   return new THREE.LineSegments(geometry, material);
 }
 
-function addConformationLines(group: THREE.Group, finalBox: THREE.Box3) {
-  group.add(createPlumbLineSegment(0, 1.6, 0, 0, 0, 0));
+function addConformationLines(group: THREE.Group, finalBbox: THREE.Box3) {
+  group.add(createPlumbLineSegment(0, 1.8, 0, 0, 0, 0));
   group.add(
     createPlumbLineSegment(
       0,
-      1.0,
-      finalBox.min.z + 0.1,
+      1.2,
+      finalBbox.min.z + 0.15,
       0,
       0,
-      finalBox.min.z + 0.1,
+      finalBbox.min.z + 0.15,
     ),
   );
   group.add(
     createPlumbLineSegment(
       0,
-      1.0,
-      finalBox.max.z - 0.1,
+      1.2,
+      finalBbox.max.z - 0.15,
       0,
       0,
-      finalBox.max.z - 0.1,
+      finalBbox.max.z - 0.15,
     ),
   );
 }
@@ -396,44 +396,20 @@ export default function HorseViewer3D({
         bbox.getSize(size);
         model.position.sub(center);
 
-        const scale = 1.8 / size.y;
+        const targetHeight = 1.8;
+        const scale = targetHeight / size.y;
         model.scale.setScalar(scale);
 
-        const scaledBox = new THREE.Box3().setFromObject(model);
-        model.position.y -= scaledBox.min.y;
+        const scaledBbox = new THREE.Box3().setFromObject(model);
+        model.position.y -= scaledBbox.min.y;
 
         model.rotation.y = Math.PI / 2;
 
-        const rotatedBox = new THREE.Box3().setFromObject(model);
-        model.position.y -= rotatedBox.min.y;
-
-        const finalBox = new THREE.Box3().setFromObject(model);
+        const finalBbox = new THREE.Box3().setFromObject(model);
         const finalSize = new THREE.Vector3();
-        finalBox.getSize(finalSize);
+        finalBbox.getSize(finalSize);
 
-        console.log("[HorseViewer3D] model position:", {
-          x: model.position.x,
-          y: model.position.y,
-          z: model.position.z,
-        });
-        console.log("[HorseViewer3D] final bounding box:", {
-          min: {
-            x: finalBox.min.x,
-            y: finalBox.min.y,
-            z: finalBox.min.z,
-          },
-          max: {
-            x: finalBox.max.x,
-            y: finalBox.max.y,
-            z: finalBox.max.z,
-          },
-        });
-
-        model.position.x = 0;
-
-        const centeredBox = new THREE.Box3().setFromObject(model);
-
-        addConformationLines(lineGroup, centeredBox);
+        addConformationLines(lineGroup, finalBbox);
 
         const groundRadius = Math.max(finalSize.x, finalSize.z) * 0.42;
         const groundGeometry = new THREE.CircleGeometry(groundRadius, 64);
@@ -444,18 +420,16 @@ export default function HorseViewer3D({
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = centeredBox.min.y + 0.01;
+        ground.position.y = finalBbox.min.y + 0.01;
         horseGroup.add(ground);
 
-        const box = new THREE.Box3().setFromObject(model);
-        const horseCenter = new THREE.Vector3(
-          (box.min.x + box.max.x) / 2,
-          (box.min.y + box.max.y) / 2,
-          (box.min.z + box.max.z) / 2,
-        );
-        controls.target.copy(horseCenter);
-        camera.position.copy(horseCenter.clone().add(new THREE.Vector3(0, 0, 3)));
+        camera.position.set(0, 0.9, 3.5);
+        camera.lookAt(0, 0.9, 0);
+        camera.up.set(0, 1, 0);
+        controls.target.set(0, 0.9, 0);
         controls.update();
+        controls.autoRotate = false;
+        controls.enableDamping = true;
 
         setLoading(false);
       },
