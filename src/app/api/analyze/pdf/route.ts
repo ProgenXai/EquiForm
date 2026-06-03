@@ -29,6 +29,8 @@ export const config = {
 
 type PdfRequestBody = {
   overlayUrl?: string;
+  frontOverlayUrl?: string;
+  hindOverlayUrl?: string;
   better_side?: "left" | "right";
   leftImage?: string;
   rightImage?: string;
@@ -153,6 +155,8 @@ function logPdfRequest(body: PdfRequestBody, isFullReport: boolean) {
     isFullReport,
     horse_name: body.horse_name ?? null,
     overlayUrl: summarizePdfImageUrl(body.overlayUrl),
+    frontOverlayUrl: summarizePdfImageUrl(body.frontOverlayUrl),
+    hindOverlayUrl: summarizePdfImageUrl(body.hindOverlayUrl),
     leftImage: summarizePdfImageUrl(body.leftImage),
     rightImage: summarizePdfImageUrl(body.rightImage),
     frontImage: summarizePdfImageUrl(body.frontImage),
@@ -393,9 +397,23 @@ export async function POST(request: Request) {
     let fullReportOverlayImage: PDFImage | null = null;
 
     if (isFullReport) {
+      const frontRowUrl =
+        body.frontOverlayUrl?.trim() || body.frontImage!.trim();
+      const hindRowUrl =
+        body.hindOverlayUrl?.trim() || body.hindImage!.trim();
+
       const fetchResults = await Promise.all([
-        ...FULL_REPORT_IMAGE_FIELDS.map(({ key, label }) =>
-          fetchEmbeddedImage(pdfDoc, body[key]!.trim(), label),
+        fetchEmbeddedImage(pdfDoc, body.leftImage!.trim(), "Left Side"),
+        fetchEmbeddedImage(pdfDoc, body.rightImage!.trim(), "Right Side"),
+        fetchEmbeddedImage(
+          pdfDoc,
+          frontRowUrl,
+          body.frontOverlayUrl?.trim() ? "Front View overlay" : "Front View",
+        ),
+        fetchEmbeddedImage(
+          pdfDoc,
+          hindRowUrl,
+          body.hindOverlayUrl?.trim() ? "Hind View overlay" : "Hind View",
         ),
         body.overlayUrl?.trim()
           ? fetchEmbeddedImage(pdfDoc, body.overlayUrl.trim(), "overlay")
@@ -665,6 +683,8 @@ export async function POST(request: Request) {
       isFullReport,
       horse_name: body.horse_name ?? null,
       overlayUrl: summarizePdfImageUrl(body.overlayUrl),
+      frontOverlayUrl: summarizePdfImageUrl(body.frontOverlayUrl),
+      hindOverlayUrl: summarizePdfImageUrl(body.hindOverlayUrl),
       leftImage: summarizePdfImageUrl(body.leftImage),
       rightImage: summarizePdfImageUrl(body.rightImage),
       frontImage: summarizePdfImageUrl(body.frontImage),

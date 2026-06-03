@@ -33,6 +33,8 @@ export type AnalyzeApiResponse = {
 export type FullReportApiResponse = {
   overlayImage: string;
   overlayUrl?: string;
+  frontOverlayUrl?: string;
+  hindOverlayUrl?: string;
   leftReport: ConformationReport;
   rightReport: ConformationReport;
   frontReport: ConformationReport;

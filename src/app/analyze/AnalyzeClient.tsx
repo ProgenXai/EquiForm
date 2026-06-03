@@ -880,6 +880,8 @@ export default function AnalyzeClient() {
         body: JSON.stringify({
           overlayUrl:
             fullReportResult.overlayUrl ?? fullReportResult.overlayImage,
+          frontOverlayUrl: fullReportResult.frontOverlayUrl,
+          hindOverlayUrl: fullReportResult.hindOverlayUrl,
           better_side: fullReportResult.betterSide,
           leftImage,
           rightImage,
@@ -1046,7 +1048,11 @@ export default function AnalyzeClient() {
         throw new Error(apiResult.error ?? "Full report analysis failed");
       }
 
-      setFullReportResult(apiResult);
+      setFullReportResult({
+        ...apiResult,
+        frontOverlayUrl: apiResult.frontOverlayUrl,
+        hindOverlayUrl: apiResult.hindOverlayUrl,
+      });
 
       if (session?.access_token) {
         const balanceResponse = await fetch("/api/get-balance", {
@@ -1651,18 +1657,51 @@ export default function AnalyzeClient() {
 
                         <div className="mt-8">
                           <h3 className="text-sm font-semibold text-white">
-                            Overlay — {betterSideLabel}{" "}
-                            <span className="font-normal text-zinc-400">
-                              (highest scoring side view)
-                            </span>
+                            Conformation Overlays
                           </h3>
-                          <div className="mt-4 flex justify-center">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={fullReportResult.overlayImage}
-                              alt="Conformation overlay on best side view"
-                              className="max-h-[250px] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
-                            />
+                          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                              <p className="mb-2 text-xs font-medium text-zinc-400">
+                                Best Side View
+                              </p>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={
+                                  fullReportResult.overlayUrl ??
+                                  fullReportResult.overlayImage
+                                }
+                                alt="Conformation overlay on best side view"
+                                className="max-h-[250px] w-full rounded-lg border border-zinc-800 object-contain"
+                              />
+                            </div>
+
+                            {fullReportResult.frontOverlayUrl ? (
+                              <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                                <p className="mb-2 text-xs font-medium text-zinc-400">
+                                  Front View
+                                </p>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={fullReportResult.frontOverlayUrl}
+                                  alt="Conformation overlay on front view"
+                                  className="max-h-[250px] w-full rounded-lg border border-zinc-800 object-contain"
+                                />
+                              </div>
+                            ) : null}
+
+                            {fullReportResult.hindOverlayUrl ? (
+                              <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                                <p className="mb-2 text-xs font-medium text-zinc-400">
+                                  Hind View
+                                </p>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={fullReportResult.hindOverlayUrl}
+                                  alt="Conformation overlay on hind view"
+                                  className="max-h-[250px] w-full rounded-lg border border-zinc-800 object-contain"
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
