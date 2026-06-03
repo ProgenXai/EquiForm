@@ -52,6 +52,39 @@ function mappingsFromDefinitions(
 const FRONT_LANDMARK_ORDER = mappingsFromDefinitions(FRONT_LANDMARKS);
 const HIND_LANDMARK_ORDER = mappingsFromDefinitions(HIND_LANDMARKS);
 
+const FRONT_KP_INDEX_MAP: string[] = [
+  "poll", // kp_0
+  "left_ear", // kp_1
+  "right_ear", // kp_2
+  "left_eye", // kp_3
+  "right_eye", // kp_4
+  "muzzle", // kp_5
+  "left_shoulder", // kp_6
+  "right_shoulder", // kp_7
+  "left_knee", // kp_8
+  "right_knee", // kp_9
+  "left_front_fetlock", // kp_10
+  "right_front_fetlock", // kp_11
+  "left_front_hoof", // kp_12
+  "right_front_hoof", // kp_13
+];
+
+const HIND_KP_INDEX_MAP: string[] = [
+  "tail", // kp_0
+  "left_point_of_hip", // kp_1
+  "right_point_of_hip", // kp_2
+  "left_buttock", // kp_3
+  "right_buttock", // kp_4
+  "left_gaskin", // kp_5
+  "right_gaskin", // kp_6
+  "left_hock", // kp_7
+  "right_hock", // kp_8
+  "left_hind_fetlock", // kp_9
+  "right_hind_fetlock", // kp_10
+  "left_hind_hoof", // kp_11
+  "right_hind_hoof", // kp_12
+];
+
 function getLandmarkOrderForView(
   viewMode: CalibrationViewMode,
 ): LandmarkMappingEntry[] {
@@ -190,6 +223,103 @@ function findKeypoint(
   );
 }
 
+function parseKeypointIndex(className: string): number | null {
+  const kpMatch = className.match(/^kp_(\d+)$/);
+  if (kpMatch) {
+    return Number.parseInt(kpMatch[1]!, 10);
+  }
+
+  if (/^\d+$/.test(className)) {
+    return Number.parseInt(className, 10);
+  }
+
+  return null;
+}
+
+function usesIndexBasedKeypoints(keypoints: RoboflowKeypoint[]): boolean {
+  if (keypoints.length === 0) {
+    return false;
+  }
+
+  let indexNamedCount = 0;
+
+  for (const kp of keypoints) {
+    const className = keypointClassName(kp);
+    if (className && parseKeypointIndex(className) !== null) {
+      indexNamedCount++;
+    }
+  }
+
+  return indexNamedCount > 0;
+}
+
+function getIndexMapForView(viewMode: CalibrationViewMode): string[] | null {
+  switch (viewMode) {
+    case "front":
+      return FRONT_KP_INDEX_MAP;
+    case "hind":
+      return HIND_KP_INDEX_MAP;
+    default:
+      return null;
+  }
+}
+
+function indexKeypointsByOrder(
+  keypoints: RoboflowKeypoint[],
+): Record<number, RoboflowKeypoint> {
+  const keypointByIndex: Record<number, RoboflowKeypoint> = {};
+
+  for (let i = 0; i < keypoints.length; i++) {
+    const kp = keypoints[i]!;
+    const className = keypointClassName(kp);
+    const parsedIndex = className ? parseKeypointIndex(className) : null;
+    keypointByIndex[parsedIndex ?? i] = kp;
+  }
+
+  return keypointByIndex;
+}
+
+function landmarkFromKeypoint(
+  kp: RoboflowKeypoint | undefined,
+  width: number,
+  height: number,
+): DetectedLandmarkPoint {
+  if (
+    !kp ||
+    typeof kp.x !== "number" ||
+    typeof kp.y !== "number" ||
+    (kp.confidence !== undefined && kp.confidence <= 0)
+  ) {
+    return { x: 0, y: 0 };
+  }
+
+  return {
+    x: clamp01(kp.x / width),
+    y: clamp01(kp.y / height),
+  };
+}
+
+function parseIndexBasedLandmarks(
+  keypoints: RoboflowKeypoint[],
+  indexMap: string[],
+  width: number,
+  height: number,
+): Record<string, DetectedLandmarkPoint> {
+  const keypointByIndex = indexKeypointsByOrder(keypoints);
+  const landmarks: Record<string, DetectedLandmarkPoint> = {};
+
+  for (let i = 0; i < indexMap.length; i++) {
+    const landmarkId = indexMap[i]!;
+    landmarks[landmarkId] = landmarkFromKeypoint(
+      keypointByIndex[i],
+      width,
+      height,
+    );
+  }
+
+  return landmarks;
+}
+
 /** Parse Roboflow serverless keypoint detection JSON into normalized landmark map. */
 export function parseRoboflowKeypointResponse(
   data: unknown,
@@ -211,8 +341,6 @@ export function parseRoboflowKeypointResponse(
     throw new Error("Roboflow horse prediction has no keypoints");
   }
 
-  const keypointByName = indexKeypoints(keypoints);
-
   const roboflowWidth = payload.image?.width;
   const roboflowHeight = payload.image?.height;
 
@@ -225,26 +353,19 @@ export function parseRoboflowKeypointResponse(
     throw new Error("Invalid image dimensions for Roboflow keypoint normalization");
   }
 
+  const indexMap = getIndexMapForView(viewMode);
+  if (indexMap && usesIndexBasedKeypoints(keypoints)) {
+    return parseIndexBasedLandmarks(keypoints, indexMap, width, height);
+  }
+
   const landmarks: Record<string, DetectedLandmarkPoint> = {};
   const landmarkOrder = getLandmarkOrderForView(viewMode);
+  const keypointByName = indexKeypoints(keypoints);
 
   for (const entry of landmarkOrder) {
     const kp = findKeypoint(keypointByName, entry);
 
-    if (
-      !kp ||
-      typeof kp.x !== "number" ||
-      typeof kp.y !== "number" ||
-      (kp.confidence !== undefined && kp.confidence <= 0)
-    ) {
-      landmarks[entry.outputId] = { x: 0, y: 0 };
-      continue;
-    }
-
-    landmarks[entry.outputId] = {
-      x: clamp01(kp.x / width),
-      y: clamp01(kp.y / height),
-    };
+    landmarks[entry.outputId] = landmarkFromKeypoint(kp, width, height);
   }
 
   return landmarks;
