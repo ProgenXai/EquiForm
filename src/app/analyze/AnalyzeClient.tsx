@@ -1467,7 +1467,7 @@ export default function AnalyzeClient() {
               <div className="mt-6">
                 {!authLoading ? (
                   <>
-                    {isAdmin ? null : !isLoggedIn ? (
+                    {!isLoggedIn ? (
                       <p className="mb-2 text-center text-xs text-zinc-400">
                         Sign in to analyze your horse
                       </p>
