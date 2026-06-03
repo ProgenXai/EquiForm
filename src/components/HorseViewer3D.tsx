@@ -496,8 +496,8 @@ export default function HorseViewer3D({
         });
 
         // Map bones to conformation landmarks
-        const shoulderX = bonePositions["neck"]?.x;
-        const girthX = bonePositions["tweak_spine006"]?.x;
+        const shoulderX = bonePositions["DEF-skull"]?.x;
+        const girthX = bonePositions["neck"]?.x;
         const hipX = bonePositions["thigh_ik_targetL"]?.x;
         const buttockX = bonePositions["hind_foot_ikL"]?.x;
 
