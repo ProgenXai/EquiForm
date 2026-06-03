@@ -491,37 +491,19 @@ export default function HorseViewer3D({
         );
         scene.add(
           makeVerticalLine(
-            finalBbox.min.x + width * 0.22,
-            finalBbox.max.y * 0.6,
+            bboxCenter.x,
+            finalBbox.max.y * 0.55,
             0,
-            finalBbox.min.z + depth * 0.15,
+            finalBbox.min.z + depth * 0.12,
             0xffffff,
           ),
         );
         scene.add(
           makeVerticalLine(
-            finalBbox.min.x + width * 0.22,
-            finalBbox.max.y * 0.6,
+            bboxCenter.x,
+            finalBbox.max.y * 0.55,
             0,
-            finalBbox.min.z + depth * 0.15,
-            0xffffff,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            finalBbox.max.x - width * 0.18,
-            finalBbox.max.y * 0.6,
-            0,
-            finalBbox.max.z - depth * 0.15,
-            0xffffff,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            finalBbox.max.x - width * 0.18,
-            finalBbox.max.y * 0.6,
-            0,
-            finalBbox.max.z - depth * 0.15,
+            finalBbox.max.z - depth * 0.12,
             0xffffff,
           ),
         );
