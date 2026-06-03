@@ -68,26 +68,43 @@ function createPlumbLineSegment(
   return new THREE.LineSegments(geometry, material);
 }
 
-function addConformationLines(group: THREE.Group, finalBbox: THREE.Box3) {
-  group.add(createPlumbLineSegment(0, 1.8, 0, 0, 0, 0));
-  group.add(
+function addConformationLines(
+  wrapper: THREE.Object3D,
+  lineBbox: THREE.Box3,
+  scaledBbox: THREE.Box3,
+) {
+  const depth = scaledBbox.max.z - scaledBbox.min.z;
+  const frontZ = scaledBbox.min.z + depth * 0.2;
+  const hindZ = scaledBbox.max.z - depth * 0.2;
+
+  wrapper.add(
     createPlumbLineSegment(
       0,
-      1.2,
-      finalBbox.min.z + 0.15,
+      lineBbox.max.y,
       0,
       0,
-      finalBbox.min.z + 0.15,
+      lineBbox.min.y,
+      0,
     ),
   );
-  group.add(
+  wrapper.add(
     createPlumbLineSegment(
       0,
-      1.2,
-      finalBbox.max.z - 0.15,
+      scaledBbox.max.y,
+      frontZ,
       0,
       0,
-      finalBbox.max.z - 0.15,
+      frontZ,
+    ),
+  );
+  wrapper.add(
+    createPlumbLineSegment(
+      0,
+      scaledBbox.max.y,
+      hindZ,
+      0,
+      0,
+      hindZ,
     ),
   );
 }
@@ -330,6 +347,9 @@ export default function HorseViewer3D({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     container.appendChild(renderer.domElement);
+    renderer.domElement.style.display = "block";
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
@@ -342,12 +362,16 @@ export default function HorseViewer3D({
     controls.autoRotate = false;
     controls.autoRotateSpeed = 0.35;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.42);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
     const keyLight = new THREE.DirectionalLight(0xfff2e6, 1.15);
     keyLight.position.set(2.5, 5, 4);
     scene.add(keyLight);
+
+    const rightLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    rightLight.position.set(4, 2, 0);
+    scene.add(rightLight);
 
     const fillLight = new THREE.DirectionalLight(0xcfe8ff, 0.35);
     fillLight.position.set(-3, 2.5, -2);
@@ -357,12 +381,6 @@ export default function HorseViewer3D({
     rimLight.position.set(0, 3, -4);
     scene.add(rimLight);
 
-    const horseGroup = new THREE.Group();
-    scene.add(horseGroup);
-
-    const lineGroup = new THREE.Group();
-    scene.add(lineGroup);
-
     const resize = () => {
       const width = container.clientWidth;
       const height = container.clientHeight;
@@ -371,6 +389,8 @@ export default function HorseViewer3D({
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      renderer.domElement.style.width = `${width}px`;
+      renderer.domElement.style.height = `${height}px`;
     };
 
     resize();
@@ -380,69 +400,160 @@ export default function HorseViewer3D({
     let coatTexture: THREE.CanvasTexture | null = null;
 
     const loader = new GLTFLoader();
-    loader.load(
-      HORSE_MODEL_PATH,
-      (gltf) => {
+
+    void (async () => {
+      try {
+        const gltf = await loader.loadAsync(HORSE_MODEL_PATH);
         if (disposed) return;
 
         const model = gltf.scene;
-        coatTexture = applyCoatColor(model, coatColor, markings);
-        horseGroup.add(model);
+        scene.add(model);
 
         const bbox = new THREE.Box3().setFromObject(model);
-        const center = new THREE.Vector3();
-        const size = new THREE.Vector3();
-        bbox.getCenter(center);
-        bbox.getSize(size);
-        model.position.sub(center);
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
 
-        const targetHeight = 1.8;
-        const scale = targetHeight / size.y;
-        model.scale.setScalar(scale);
+        model.position.x = -center.x;
+        model.position.y = -center.y;
+        model.position.z = -center.z;
+
+        const s = 2.4 / size.y;
+        model.scale.setScalar(s);
 
         const scaledBbox = new THREE.Box3().setFromObject(model);
         model.position.y -= scaledBbox.min.y;
 
         model.rotation.y = Math.PI / 2;
 
-        const groundedBbox = new THREE.Box3().setFromObject(model);
-        model.position.y -= groundedBbox.min.y;
+        coatTexture = applyCoatColor(model, coatColor, markings);
 
         const finalBbox = new THREE.Box3().setFromObject(model);
-        const finalSize = new THREE.Vector3();
-        finalBbox.getSize(finalSize);
+        const bboxCenter = finalBbox.getCenter(new THREE.Vector3());
+        const width = finalBbox.max.x - finalBbox.min.x;
+        const depth = finalBbox.max.z - finalBbox.min.z;
+        const mapLandmarkZ = (normX: number) =>
+          finalBbox.min.z + normX * (finalBbox.max.z - finalBbox.min.z);
 
-        addConformationLines(lineGroup, finalBbox);
+        function makeVerticalLine(
+          x: number,
+          yTop: number,
+          yBottom: number,
+          z: number,
+          color: number,
+        ) {
+          const points = [
+            new THREE.Vector3(x, yTop, z),
+            new THREE.Vector3(x, yBottom, z),
+          ];
+          const geo = new THREE.BufferGeometry().setFromPoints(points);
+          const mat = new THREE.LineBasicMaterial({
+            color,
+            linewidth: 2,
+          });
+          return new THREE.Line(geo, mat);
+        }
 
-        const groundRadius = Math.max(finalSize.x, finalSize.z) * 0.42;
-        const groundGeometry = new THREE.CircleGeometry(groundRadius, 64);
-        const groundMaterial = new THREE.MeshBasicMaterial({
-          color: GROUND_TEAL,
-          transparent: true,
+        scene.add(
+          makeVerticalLine(
+            bboxCenter.x,
+            finalBbox.max.y,
+            0,
+            mapLandmarkZ(landmarks.left?.shoulder?.x ?? 0.15),
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            bboxCenter.x,
+            finalBbox.max.y,
+            0,
+            mapLandmarkZ(landmarks.left?.girth?.x ?? 0.42),
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            bboxCenter.x,
+            finalBbox.max.y,
+            0,
+            mapLandmarkZ(landmarks.left?.point_of_hip?.x ?? 0.68),
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            bboxCenter.x,
+            finalBbox.max.y,
+            0,
+            mapLandmarkZ(landmarks.left?.buttock?.x ?? 0.88),
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            finalBbox.min.x + width * 0.22,
+            finalBbox.max.y * 0.6,
+            0,
+            finalBbox.min.z + depth * 0.15,
+            0xffffff,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            finalBbox.min.x + width * 0.22,
+            finalBbox.max.y * 0.6,
+            0,
+            finalBbox.min.z + depth * 0.15,
+            0xffffff,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            finalBbox.max.x - width * 0.18,
+            finalBbox.max.y * 0.6,
+            0,
+            finalBbox.max.z - depth * 0.15,
+            0xffffff,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            finalBbox.max.x - width * 0.18,
+            finalBbox.max.y * 0.6,
+            0,
+            finalBbox.max.z - depth * 0.15,
+            0xffffff,
+          ),
+        );
+
+        const discGeo = new THREE.CircleGeometry(0.9, 64);
+        discGeo.rotateX(-Math.PI / 2);
+        const discMat = new THREE.MeshStandardMaterial({
+          color: 0x00d4b4,
           opacity: 0.22,
+          transparent: true,
         });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.set(0, 0, 0);
-        horseGroup.add(ground);
+        const disc = new THREE.Mesh(discGeo, discMat);
+        disc.position.set(bboxCenter.x, 0.01, bboxCenter.z);
+        scene.add(disc);
 
-        camera.position.set(0, 1.2, 4);
-        camera.lookAt(0, 0.8, 0);
-        camera.up.set(0, 1, 0);
-        controls.target.set(0, 0.8, 0);
+        camera.position.set(
+          bboxCenter.x + 6.0,
+          bboxCenter.y,
+          bboxCenter.z,
+        );
+        camera.lookAt(bboxCenter.x, bboxCenter.y, bboxCenter.z);
+        controls.target.set(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.update();
-        controls.autoRotate = false;
-        controls.enableDamping = true;
 
+        resize();
         setLoading(false);
-      },
-      undefined,
-      () => {
+      } catch {
         if (disposed) return;
         setLoadError("Unable to load 3D horse model.");
         setLoading(false);
-      },
-    );
+      }
+    })();
 
     const animate = () => {
       animationFrameId = window.requestAnimationFrame(animate);
