@@ -51,10 +51,10 @@ const SIDE_PROFILE_VALIDATION_PROMPT =
   "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.";
 
 const FRONT_VIEW_VALIDATION_PROMPT =
-  "Does this image show a single horse that is generally facing toward the camera in a front view? Accept if the horse is reasonably close to a front-facing view even if slightly angled — the chest and head should be visible from the front. Reject only if the horse is clearly in side profile, hind view, or too far off-angle to assess front conformation.";
+  "Does this image show a single horse in a correct front view for conformation analysis? To pass ALL of these must be true: the horse is facing directly toward the camera (not angled), the horse is standing completely still with all four feet flat on the ground, both front legs are fully visible from knee to hoof, the chest and shoulders are square to the camera, and no people, ropes, or objects are blocking the legs or body. Reject if the horse is angled even slightly, walking, trotting, or if a lead rope is pulling the head to one side.";
 
 const HIND_VIEW_VALIDATION_PROMPT =
-  "Does this image show a single horse that is generally facing away from the camera in a hind view? Accept if the horse is reasonably close to a hind-facing view even if slightly angled — the hindquarters and tail should be visible from behind. Reject only if the horse is clearly in side profile, front view, or too far off-angle to assess hind conformation.";
+  "Does this image show a single horse in a correct hind view for conformation analysis? To pass ALL of these must be true: the horse is facing directly away from the camera (not angled), the horse is standing completely still with all four feet flat on the ground, both hind legs are fully visible from hock to hoof, the hindquarters are square to the camera, and the tail is not covering the legs. Reject if the horse is angled, walking, the tail is covering the hind legs, or any person or object is blocking the view of the legs.";
 
 const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
   left: SIDE_PROFILE_VALIDATION_PROMPT,
