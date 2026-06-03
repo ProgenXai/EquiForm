@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 type LandmarkPoint = { x: number; y: number };
 
@@ -20,7 +21,8 @@ type HorseViewer3DProps = {
   className?: string;
 };
 
-const HORSE_MODEL_PATH = "/models/horse.glb";
+const HORSE_MODEL_PATH =
+  "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-compressed.glb";
 const COAT_COLOR_MAP: Record<string, number> = {
   black: 0x0a0a0a,
   bay: 0x6b3a2a,
@@ -400,6 +402,11 @@ export default function HorseViewer3D({
     let coatTexture: THREE.CanvasTexture | null = null;
 
     const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath(
+      "https://www.gstatic.com/draco/versioned/decoders/1.5.6/",
+    );
+    loader.setDRACOLoader(dracoLoader);
 
     void (async () => {
       try {
@@ -571,6 +578,7 @@ export default function HorseViewer3D({
       });
 
       coatTexture?.dispose();
+      dracoLoader.dispose();
 
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
