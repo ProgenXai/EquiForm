@@ -43,6 +43,12 @@ const GUIDELINES = [
   "For hind view photos, tie or braid the tail to the side so the hind legs are fully visible.",
 ];
 
+const EXAMPLE_IMAGE_CLASS =
+  "max-h-64 w-full object-contain sm:max-h-72";
+
+const EXAMPLE_IMAGE_CONTAINER_CLASS =
+  "overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950";
+
 function ExamplePhotoGrid({
   goodExamples,
   badExamples,
@@ -58,16 +64,13 @@ function ExamplePhotoGrid({
         <h3 className="text-lg font-semibold text-green-400">Good Examples</h3>
         <div className="mt-4 grid grid-cols-2 gap-3">
           {goodExamples.map((filename, index) => (
-            <div
-              key={filename}
-              className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950"
-            >
+            <div key={filename} className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
               <Image
                 src={`/examples/${filename}`}
                 alt={`Good example ${index + 1}`}
                 width={400}
                 height={300}
-                className="h-36 w-full object-cover sm:h-44"
+                className={EXAMPLE_IMAGE_CLASS}
               />
             </div>
           ))}
@@ -79,13 +82,13 @@ function ExamplePhotoGrid({
         <div className="mt-4 grid grid-cols-2 gap-3">
           {badExamples.map((filename, index) => (
             <div key={filename}>
-              <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+              <div className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
                 <Image
                   src={`/examples/${filename}`}
                   alt={`Bad example ${index + 1}`}
                   width={400}
                   height={300}
-                  className="h-36 w-full object-cover sm:h-44"
+                  className={EXAMPLE_IMAGE_CLASS}
                 />
               </div>
               <p className="mt-2 text-xs leading-relaxed text-red-400">
