@@ -42,9 +42,9 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<CalibrationViewMode, string> = {
   left: SIDE_PROFILE_VALIDATION_PROMPT,
   right: SIDE_PROFILE_VALIDATION_PROMPT,
   front:
-    "Does this image show a single horse facing directly toward the camera in a front view?",
+    "Does this image show a single horse in a clear front view, facing directly toward the camera, standing still and square on level ground, with all four legs visible and no people or objects blocking the horse? Reject if the horse is angled, walking, or partially obscured.",
   hind:
-    "Does this image show a single horse facing directly away from the camera in a hind view?",
+    "Does this image show a single horse in a clear hind view, facing directly away from the camera, standing still and square on level ground, with both hind legs and hooves visible? Reject if the horse is angled, walking, the tail is fully covering the legs, or people or objects are blocking the view.",
 };
 
 const INVALID_IMAGE_ERROR =
