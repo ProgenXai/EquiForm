@@ -450,7 +450,7 @@ export default function HorseViewer3D({
         const depth = finalBbox.max.z - finalBbox.min.z;
         const mapLandmarkZ = (normX: number) => {
           const clamped = Math.max(0, Math.min(1, normX));
-          return finalBbox.min.z + clamped * (finalBbox.max.z - finalBbox.min.z);
+          return finalBbox.max.z - clamped * (finalBbox.max.z - finalBbox.min.z);
         };
 
         function makeVerticalLine(
