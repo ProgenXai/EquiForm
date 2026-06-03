@@ -300,7 +300,9 @@ export async function drawFrontConformationOverlay(
   const leftKnee = landmarkToPoint(landmarks.left_knee, imageWidth, imageHeight);
   const rightKnee = landmarkToPoint(landmarks.right_knee, imageWidth, imageHeight);
 
-  drawFullHeightVertical(ctx, imageWidth / 2, imageHeight, lineWidth);
+  const centerX = ((landmarks.poll.x + landmarks.muzzle.x) / 2) * imageWidth;
+
+  drawFullHeightVertical(ctx, centerX, imageHeight, lineWidth);
   drawRedVertical(ctx, leftKnee.x, leftShoulder.y, imageHeight, lineWidth);
   drawRedVertical(ctx, rightKnee.x, rightShoulder.y, imageHeight, lineWidth);
 
