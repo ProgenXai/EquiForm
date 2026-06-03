@@ -594,6 +594,12 @@ export default function AnalyzeClient() {
     resetResult();
   }
 
+  async function handleRemoveFullReportPhotos() {
+    await clearFullReportPhotos();
+    setError(null);
+    setFullReportResult(null);
+  }
+
   async function handleFile(file: File) {
     resetResult();
 
@@ -972,6 +978,9 @@ export default function AnalyzeClient() {
   const fullReportFilledCount = FULL_REPORT_SLOTS.filter(
     (slot) => fullReportPhotos[slot.view]?.supabaseUrl,
   ).length;
+  const hasFullReportPhotoPreview = FULL_REPORT_SLOTS.some(
+    (slot) => fullReportPhotos[slot.view]?.previewUrl,
+  );
   const fullReportComplete = fullReportFilledCount === FULL_REPORT_SLOTS.length;
   const hasFullReportAccess =
     isAdmin ||
@@ -1089,6 +1098,15 @@ export default function AnalyzeClient() {
         <button
           type="button"
           onClick={handleRemoveSingleViewPhoto}
+          className="-ml-6 -mt-8 mb-2 block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
+        >
+          ← Back
+        </button>
+      ) : null}
+      {analysisMode === "full" && hasFullReportPhotoPreview ? (
+        <button
+          type="button"
+          onClick={() => void handleRemoveFullReportPhotos()}
           className="-ml-6 -mt-8 mb-2 block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
         >
           ← Back
