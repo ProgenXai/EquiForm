@@ -38,7 +38,7 @@ const ALLOWED_MIME = new Set([
 ]);
 
 const IMAGE_VALIDATION_SYSTEM_PROMPT =
-  'You are an image validator for a horse conformation analysis app. Respond with only valid JSON: {"valid": true} or {"valid": false}';
+  'You are a lenient image validator for a horse conformation analysis app. Your job is to accept photos that could reasonably work for analysis. When in doubt, return valid: true. Only return valid: false for clearly wrong photos. Respond with only valid JSON: {"valid": true} or {"valid": false}';
 
 const SIDE_PROFILE_VALIDATION_PROMPT =
   "Does this image show a single horse in a clear side profile view (left or right facing), standing still, with the horse filling most of the frame? The horse should be visible from head to tail with all four legs visible. If this is a photo of a sale catalog or printed page, the book or page must be laying completely flat and the photo must be taken straight down from directly above — not at an angle. Reject if the page appears warped, angled, or shot from the side.";
