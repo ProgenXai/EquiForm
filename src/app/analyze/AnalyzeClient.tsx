@@ -1281,7 +1281,16 @@ export default function AnalyzeClient() {
           <div className="mt-6">
             {!authLoading ? (
               <>
-                {!isLoggedIn ? (
+                {isAdmin ? (
+                  <p className="mb-2 text-center text-xs text-accent">
+                    <FileCheck
+                      size={18}
+                      className="inline-block shrink-0 align-middle text-accent"
+                      aria-hidden
+                    />{" "}
+                    Unlimited credits (admin)
+                  </p>
+                ) : !isLoggedIn ? (
                   <p className="mb-2 text-center text-xs text-zinc-400">
                     Sign in to analyze your horse
                   </p>
@@ -1467,7 +1476,16 @@ export default function AnalyzeClient() {
               <div className="mt-6">
                 {!authLoading ? (
                   <>
-                    {!isLoggedIn ? (
+                    {isAdmin ? (
+                      <p className="mb-2 text-center text-xs text-accent">
+                        <FileCheck
+                          size={18}
+                          className="inline-block shrink-0 align-middle text-accent"
+                          aria-hidden
+                        />{" "}
+                        Unlimited credits (admin)
+                      </p>
+                    ) : !isLoggedIn ? (
                       <p className="mb-2 text-center text-xs text-zinc-400">
                         Sign in to analyze your horse
                       </p>
