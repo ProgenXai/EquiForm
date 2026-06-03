@@ -444,8 +444,21 @@ export default function HorseViewer3D({
 
         const finalBbox = new THREE.Box3().setFromObject(model);
         console.log("finalBbox Z:", finalBbox.min.z, "to", finalBbox.max.z);
-        console.log("landmarks.left:", JSON.stringify(landmarks.left));
+        console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
+        console.log("finalBbox Y:", finalBbox.min.y, "to", finalBbox.max.y);
         const bboxCenter = finalBbox.getCenter(new THREE.Vector3());
+        console.log("finalBbox center:", bboxCenter.x, bboxCenter.y, bboxCenter.z);
+        console.log("model rotation Y:", model.rotation.y);
+        console.log("landmarks.left:", JSON.stringify(landmarks.left));
+        console.log("=== MODEL BONES AND MESHES ===");
+        model.traverse((child) => {
+          if (child instanceof THREE.Bone) {
+            console.log("BONE:", child.name, "worldPos:", child.getWorldPosition(new THREE.Vector3()));
+          }
+          if (child instanceof THREE.Mesh) {
+            console.log("MESH:", child.name);
+          }
+        });
         const width = finalBbox.max.x - finalBbox.min.x;
         const depth = finalBbox.max.z - finalBbox.min.z;
         const mapLandmarkZ = (normX: number) => {
