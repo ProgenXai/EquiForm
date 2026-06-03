@@ -15,11 +15,26 @@ export type HorseViewer3DLandmarks = {
 
 type HorseViewer3DProps = {
   landmarks: HorseViewer3DLandmarks;
+  coatColor?: string;
+  markings?: string[];
   className?: string;
 };
 
 const HORSE_MODEL_PATH = "/models/horse.glb";
-const BAY_COAT_COLOR = 0x8b4513;
+const COAT_COLOR_MAP: Record<string, number> = {
+  black: 0x0a0a0a,
+  bay: 0x6b3a2a,
+  dark_bay: 0x3d1f15,
+  chestnut: 0x8b4513,
+  sorrel: 0xc0622a,
+  gray: 0xa0a0a0,
+  dun: 0xc4a35a,
+  buckskin: 0xc8a96e,
+  palomino: 0xe8c878,
+  roan: 0x8b5a5a,
+  cremello: 0xf5e6c8,
+  pinto: 0x8b4513,
+};
 const LINE_COLOR = 0xff3333;
 const GROUND_TEAL = 0x00d4b4;
 
@@ -88,13 +103,20 @@ function addConformationLines(group: THREE.Group, finalBox: THREE.Box3) {
   );
 }
 
-function applyBayCoat(root: THREE.Object3D) {
+function resolveCoatColor(coatColor?: string): number {
+  if (!coatColor) return COAT_COLOR_MAP.bay;
+  return COAT_COLOR_MAP[coatColor] ?? COAT_COLOR_MAP.bay;
+}
+
+function applyCoatColor(root: THREE.Object3D, coatColor?: string) {
+  const color = resolveCoatColor(coatColor);
+
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
 
     const previousMaterial = child.material;
     child.material = new THREE.MeshStandardMaterial({
-      color: BAY_COAT_COLOR,
+      color,
       metalness: 0.28,
       roughness: 0.48,
     });
@@ -109,6 +131,8 @@ function applyBayCoat(root: THREE.Object3D) {
 
 export default function HorseViewer3D({
   landmarks,
+  coatColor,
+  markings,
   className = "",
 }: HorseViewer3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -154,7 +178,7 @@ export default function HorseViewer3D({
     controls.maxDistance = 8;
     controls.maxPolarAngle = Math.PI * 0.52;
     controls.minPolarAngle = Math.PI * 0.22;
-    controls.autoRotate = true;
+    controls.autoRotate = false;
     controls.autoRotateSpeed = 0.35;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.42);
@@ -199,7 +223,7 @@ export default function HorseViewer3D({
         if (disposed) return;
 
         const model = gltf.scene;
-        applyBayCoat(model);
+        applyCoatColor(model, coatColor);
         horseGroup.add(model);
 
         const bbox = new THREE.Box3().setFromObject(model);

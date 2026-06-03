@@ -69,6 +69,24 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
   hind: HIND_VIEW_VALIDATION_PROMPT,
 };
 
+const COAT_COLOR_DETECTION_PROMPT =
+  'Look at this horse photo and identify: 1) The base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Any white markings visible (blaze, stripe, star, snip, left_sock, right_sock, left_stocking, right_stocking, none). Return ONLY valid JSON: { "coat": "bay", "markings": ["blaze", "left_sock"] }';
+
+const VALID_COAT_COLORS = new Set([
+  "black",
+  "bay",
+  "dark_bay",
+  "chestnut",
+  "sorrel",
+  "gray",
+  "dun",
+  "buckskin",
+  "palomino",
+  "roan",
+  "cremello",
+  "pinto",
+]);
+
 const REPORT_PROMPTS: Record<FullReportViewKey, string> = {
   left: CONFORMATION_REPORT_PROMPT,
   right: CONFORMATION_REPORT_PROMPT,
@@ -316,6 +334,60 @@ async function generateViewReport(
   return parseReportResponse(reportText);
 }
 
+function parseCoatDetectionResponse(text: string): {
+  coatColor: string;
+  markings: string[];
+} {
+  const defaultResult = { coatColor: "bay", markings: [] as string[] };
+
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch?.[0] ?? text) as {
+      coat?: string;
+      markings?: unknown;
+    };
+
+    const coat =
+      typeof parsed.coat === "string" && VALID_COAT_COLORS.has(parsed.coat)
+        ? parsed.coat
+        : defaultResult.coatColor;
+    const markings = Array.isArray(parsed.markings)
+      ? parsed.markings.filter((marking): marking is string => typeof marking === "string")
+      : defaultResult.markings;
+
+    return { coatColor: coat, markings };
+  } catch {
+    return defaultResult;
+  }
+}
+
+async function detectCoatColor(
+  anthropic: Anthropic,
+  prepared: PreparedViewImage,
+): Promise<{ coatColor: string; markings: string[] }> {
+  const coatMessage = await anthropic.messages.create({
+    model: "claude-opus-4-5-20251101",
+    max_tokens: 256,
+    messages: [
+      {
+        role: "user",
+        content: [
+          buildAnthropicImageContent(prepared),
+          { type: "text", text: COAT_COLOR_DETECTION_PROMPT },
+        ],
+      },
+    ],
+  });
+
+  const coatText = coatMessage.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n")
+    .trim();
+
+  return parseCoatDetectionResponse(coatText);
+}
+
 function calculateCombinedScore(
   leftReport: ConformationReport,
   rightReport: ConformationReport,
@@ -558,6 +630,11 @@ export async function POST(request: Request) {
     const betterSide: "left" | "right" =
       leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
 
+    const { coatColor, markings } = await detectCoatColor(
+      anthropic,
+      preparedByView[betterSide],
+    );
+
     const combinedScore = calculateCombinedScore(
       leftReport,
       rightReport,
@@ -718,6 +795,8 @@ export async function POST(request: Request) {
         hind: detectedLandmarksByView.hind,
       },
       horseName,
+      coatColor,
+      markings,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);

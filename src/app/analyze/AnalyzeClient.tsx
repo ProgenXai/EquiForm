@@ -1766,6 +1766,8 @@ export default function AnalyzeClient() {
                         <HorseViewer3D
                           className="mt-8"
                           landmarks={fullReportResult.landmarks}
+                          coatColor={fullReportResult.coatColor}
+                          markings={fullReportResult.markings}
                         />
 
                         <p className="mt-8 text-sm leading-relaxed text-zinc-300">

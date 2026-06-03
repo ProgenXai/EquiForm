@@ -48,4 +48,6 @@ export type FullReportApiResponse = {
     hind: Record<string, DetectedLandmarkPoint>;
   };
   horseName: string | null;
+  coatColor?: string;
+  markings?: string[];
 };
