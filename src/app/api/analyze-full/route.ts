@@ -6,6 +6,8 @@ import sharp from "sharp";
 import {
   parseReportResponse,
   toConformationLandmarks,
+  type FrontConformationLandmarks,
+  type HindConformationLandmarks,
 } from "@/lib/analyze/landmark-parser";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
 import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
@@ -19,7 +21,11 @@ import type {
   DetectedLandmarkPoint,
 } from "@/lib/analyze/types";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
-import { drawConformationOverlay } from "@/lib/calibration/draw-overlay";
+import {
+  drawConformationOverlay,
+  drawFrontConformationOverlay,
+  drawHindConformationOverlay,
+} from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -591,6 +597,66 @@ export async function POST(request: Request) {
       console.error("[analyze-full] overlay upload failed:", overlayUploadError);
     }
 
+    const frontPrepared = preparedByView.front;
+    const frontOverlayBuffer = await drawFrontConformationOverlay(
+      frontPrepared.inputBuffer,
+      conformationLandmarksByView.front as FrontConformationLandmarks,
+      frontPrepared.imageWidth,
+      frontPrepared.imageHeight,
+    );
+    const frontOverlayBase64 = frontOverlayBuffer.toString("base64");
+    let frontOverlayUrl = `data:image/jpeg;base64,${frontOverlayBase64}`;
+
+    const frontOverlayStoragePath = `overlays/${user.id}/${Date.now()}-front.jpg`;
+    const { error: frontOverlayUploadError } = await serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .upload(frontOverlayStoragePath, frontOverlayBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    if (!frontOverlayUploadError) {
+      const { data: frontOverlayPublicUrl } = serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .getPublicUrl(frontOverlayStoragePath);
+      frontOverlayUrl = frontOverlayPublicUrl.publicUrl;
+    } else {
+      console.error(
+        "[analyze-full] front overlay upload failed:",
+        frontOverlayUploadError,
+      );
+    }
+
+    const hindPrepared = preparedByView.hind;
+    const hindOverlayBuffer = await drawHindConformationOverlay(
+      hindPrepared.inputBuffer,
+      conformationLandmarksByView.hind as HindConformationLandmarks,
+      hindPrepared.imageWidth,
+      hindPrepared.imageHeight,
+    );
+    const hindOverlayBase64 = hindOverlayBuffer.toString("base64");
+    let hindOverlayUrl = `data:image/jpeg;base64,${hindOverlayBase64}`;
+
+    const hindOverlayStoragePath = `overlays/${user.id}/${Date.now()}-hind.jpg`;
+    const { error: hindOverlayUploadError } = await serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .upload(hindOverlayStoragePath, hindOverlayBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    if (!hindOverlayUploadError) {
+      const { data: hindOverlayPublicUrl } = serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .getPublicUrl(hindOverlayStoragePath);
+      hindOverlayUrl = hindOverlayPublicUrl.publicUrl;
+    } else {
+      console.error(
+        "[analyze-full] hind overlay upload failed:",
+        hindOverlayUploadError,
+      );
+    }
+
     if (!isAdmin) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
@@ -635,6 +701,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       overlayUrl,
       overlayImage,
+      frontOverlayUrl,
+      hindOverlayUrl,
       leftReport,
       rightReport,
       frontReport,
