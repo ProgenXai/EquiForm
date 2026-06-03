@@ -236,18 +236,19 @@ export default function HorseViewer3D({
         bbox.getSize(size);
         model.position.sub(center);
 
-        const centeredBox = new THREE.Box3().setFromObject(model);
-        const centeredSize = new THREE.Vector3();
-        centeredBox.getSize(centeredSize);
-        const maxDim = Math.max(
-          centeredSize.x,
-          centeredSize.y,
-          centeredSize.z,
-        );
+        const scale = 3 / size.y;
+        model.scale.setScalar(scale);
 
-        addConformationLines(lineGroup, landmarks, centeredBox);
+        const scaledBox = new THREE.Box3().setFromObject(model);
+        model.position.y -= scaledBox.min.y;
 
-        const groundRadius = Math.max(centeredSize.x, centeredSize.z) * 0.42;
+        const finalBox = new THREE.Box3().setFromObject(model);
+        const finalSize = new THREE.Vector3();
+        finalBox.getSize(finalSize);
+
+        addConformationLines(lineGroup, landmarks, finalBox);
+
+        const groundRadius = Math.max(finalSize.x, finalSize.z) * 0.42;
         const groundGeometry = new THREE.CircleGeometry(groundRadius, 64);
         const groundMaterial = new THREE.MeshBasicMaterial({
           color: GROUND_TEAL,
@@ -256,15 +257,12 @@ export default function HorseViewer3D({
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = centeredBox.min.y + 0.01;
+        ground.position.y = finalBox.min.y + 0.01;
         horseGroup.add(ground);
 
-        camera.position.set(
-          maxDim * 0.35,
-          maxDim * 0.55,
-          maxDim * 1.85,
-        );
-        controls.target.set(0, centeredSize.y * 0.42, 0);
+        camera.position.set(0, 1.5, 4);
+        camera.lookAt(0, 1, 0);
+        controls.target.set(0, 1, 0);
         controls.update();
 
         setLoading(false);
