@@ -69,37 +69,26 @@ function createPlumbLineSegment(
 }
 
 function addConformationLines(group: THREE.Group, finalBox: THREE.Box3) {
-  const width = finalBox.max.x - finalBox.min.x;
-  const depth = finalBox.max.z - finalBox.min.z;
-  const centerX = (finalBox.max.x + finalBox.min.x) / 2;
-  const centerZ = (finalBox.max.z + finalBox.min.z) / 2;
-  const frontZ = finalBox.min.z + depth * 0.25;
-  const hindZ = finalBox.max.z - depth * 0.25;
-  const leftX = centerX - width * 0.2;
-  const rightX = centerX + width * 0.2;
-
+  group.add(createPlumbLineSegment(0, 1.6, 0, 0, 0, 0));
   group.add(
     createPlumbLineSegment(
-      centerX,
-      finalBox.max.y,
-      centerZ,
-      centerX,
       0,
-      centerZ,
+      1.0,
+      finalBox.min.z + 0.1,
+      0,
+      0,
+      finalBox.min.z + 0.1,
     ),
   );
-
   group.add(
-    createPlumbLineSegment(leftX, finalBox.max.y, frontZ, leftX, 0, frontZ),
-  );
-  group.add(
-    createPlumbLineSegment(rightX, finalBox.max.y, frontZ, rightX, 0, frontZ),
-  );
-  group.add(
-    createPlumbLineSegment(leftX, finalBox.max.y, hindZ, leftX, 0, hindZ),
-  );
-  group.add(
-    createPlumbLineSegment(rightX, finalBox.max.y, hindZ, rightX, 0, hindZ),
+    createPlumbLineSegment(
+      0,
+      1.0,
+      finalBox.max.z - 0.1,
+      0,
+      0,
+      finalBox.max.z - 0.1,
+    ),
   );
 }
 
@@ -108,8 +97,177 @@ function resolveCoatColor(coatColor?: string): number {
   return COAT_COLOR_MAP[coatColor] ?? COAT_COLOR_MAP.bay;
 }
 
-function applyCoatColor(root: THREE.Object3D, coatColor?: string) {
-  const color = resolveCoatColor(coatColor);
+function coatColorToCss(hex: number): string {
+  const r = (hex >> 16) & 255;
+  const g = (hex >> 8) & 255;
+  const b = hex & 255;
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+const COAT_TEXTURE_SIZE = 1024;
+const MARKING_WHITE = "#ffffff";
+
+const MARKING_ATLAS = {
+  head: {
+    centerX: 820,
+    width: 150,
+    pollY: 95,
+    muzzleY: 385,
+    foreheadY: 175,
+  },
+  frontLegs: {
+    leftX: 245,
+    rightX: 325,
+    width: 55,
+    hoofY: 910,
+    kneeY: 560,
+  },
+} as const;
+
+function paintMarking(
+  ctx: CanvasRenderingContext2D,
+  marking: string,
+): void {
+  const { head, frontLegs } = MARKING_ATLAS;
+  ctx.fillStyle = MARKING_WHITE;
+
+  switch (marking) {
+    case "blaze": {
+      const blazeWidth = head.width * 0.3;
+      ctx.fillRect(
+        head.centerX - blazeWidth / 2,
+        head.pollY,
+        blazeWidth,
+        head.muzzleY - head.pollY,
+      );
+      break;
+    }
+    case "stripe": {
+      const stripeWidth = head.width * 0.15;
+      ctx.fillRect(
+        head.centerX - stripeWidth / 2,
+        head.pollY,
+        stripeWidth,
+        head.muzzleY - head.pollY,
+      );
+      break;
+    }
+    case "star": {
+      ctx.beginPath();
+      ctx.ellipse(
+        head.centerX,
+        head.foreheadY,
+        head.width * 0.12,
+        head.width * 0.08,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      break;
+    }
+    case "snip": {
+      ctx.beginPath();
+      ctx.ellipse(
+        head.centerX + head.width * 0.28,
+        head.muzzleY - 25,
+        head.width * 0.1,
+        head.width * 0.07,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      break;
+    }
+    case "left_sock": {
+      const lowerLeg = frontLegs.hoofY - frontLegs.kneeY;
+      const sockTop = frontLegs.kneeY + lowerLeg * 0.25;
+      ctx.fillRect(
+        frontLegs.leftX - frontLegs.width / 2,
+        sockTop,
+        frontLegs.width,
+        frontLegs.hoofY - sockTop,
+      );
+      break;
+    }
+    case "right_sock": {
+      const lowerLeg = frontLegs.hoofY - frontLegs.kneeY;
+      const sockTop = frontLegs.kneeY + lowerLeg * 0.25;
+      ctx.fillRect(
+        frontLegs.rightX - frontLegs.width / 2,
+        sockTop,
+        frontLegs.width,
+        frontLegs.hoofY - sockTop,
+      );
+      break;
+    }
+    case "left_stocking": {
+      ctx.fillRect(
+        frontLegs.leftX - frontLegs.width / 2,
+        frontLegs.kneeY,
+        frontLegs.width,
+        frontLegs.hoofY - frontLegs.kneeY,
+      );
+      break;
+    }
+    case "right_stocking": {
+      ctx.fillRect(
+        frontLegs.rightX - frontLegs.width / 2,
+        frontLegs.kneeY,
+        frontLegs.width,
+        frontLegs.hoofY - frontLegs.kneeY,
+      );
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+function createCoatTexture(
+  coatColor?: string,
+  markings?: string[],
+): THREE.CanvasTexture | null {
+  const activeMarkings =
+    markings?.filter((marking) => marking !== "none" && marking.trim() !== "") ??
+    [];
+
+  if (activeMarkings.length === 0) {
+    return null;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = COAT_TEXTURE_SIZE;
+  canvas.height = COAT_TEXTURE_SIZE;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+
+  ctx.fillStyle = coatColorToCss(resolveCoatColor(coatColor));
+  ctx.fillRect(0, 0, COAT_TEXTURE_SIZE, COAT_TEXTURE_SIZE);
+
+  for (const marking of activeMarkings) {
+    paintMarking(ctx, marking);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function applyCoatColor(
+  root: THREE.Object3D,
+  coatColor?: string,
+  markings?: string[],
+): THREE.CanvasTexture | null {
+  const coatTexture = createCoatTexture(coatColor, markings);
+  const color = coatTexture ? 0xffffff : resolveCoatColor(coatColor);
 
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
@@ -117,6 +275,7 @@ function applyCoatColor(root: THREE.Object3D, coatColor?: string) {
     const previousMaterial = child.material;
     child.material = new THREE.MeshStandardMaterial({
       color,
+      map: coatTexture ?? undefined,
       metalness: 0.28,
       roughness: 0.48,
     });
@@ -127,6 +286,8 @@ function applyCoatColor(root: THREE.Object3D, coatColor?: string) {
       previousMaterial.dispose();
     }
   });
+
+  return coatTexture;
 }
 
 export default function HorseViewer3D({
@@ -216,6 +377,8 @@ export default function HorseViewer3D({
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(container);
 
+    let coatTexture: THREE.CanvasTexture | null = null;
+
     const loader = new GLTFLoader();
     loader.load(
       HORSE_MODEL_PATH,
@@ -223,7 +386,7 @@ export default function HorseViewer3D({
         if (disposed) return;
 
         const model = gltf.scene;
-        applyCoatColor(model, coatColor);
+        coatTexture = applyCoatColor(model, coatColor, markings);
         horseGroup.add(model);
 
         const bbox = new THREE.Box3().setFromObject(model);
@@ -248,7 +411,29 @@ export default function HorseViewer3D({
         const finalSize = new THREE.Vector3();
         finalBox.getSize(finalSize);
 
-        addConformationLines(lineGroup, finalBox);
+        console.log("[HorseViewer3D] model position:", {
+          x: model.position.x,
+          y: model.position.y,
+          z: model.position.z,
+        });
+        console.log("[HorseViewer3D] final bounding box:", {
+          min: {
+            x: finalBox.min.x,
+            y: finalBox.min.y,
+            z: finalBox.min.z,
+          },
+          max: {
+            x: finalBox.max.x,
+            y: finalBox.max.y,
+            z: finalBox.max.z,
+          },
+        });
+
+        model.position.x = 0;
+
+        const centeredBox = new THREE.Box3().setFromObject(model);
+
+        addConformationLines(lineGroup, centeredBox);
 
         const groundRadius = Math.max(finalSize.x, finalSize.z) * 0.42;
         const groundGeometry = new THREE.CircleGeometry(groundRadius, 64);
@@ -259,12 +444,17 @@ export default function HorseViewer3D({
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = finalBox.min.y + 0.01;
+        ground.position.y = centeredBox.min.y + 0.01;
         horseGroup.add(ground);
 
-        camera.position.set(0, 0.9, 3.5);
-        camera.lookAt(0, 0.6, 0);
-        controls.target.set(0, 0.6, 0);
+        const box = new THREE.Box3().setFromObject(model);
+        const horseCenter = new THREE.Vector3(
+          (box.min.x + box.max.x) / 2,
+          (box.min.y + box.max.y) / 2,
+          (box.min.z + box.max.z) / 2,
+        );
+        controls.target.copy(horseCenter);
+        camera.position.copy(horseCenter.clone().add(new THREE.Vector3(0, 0, 3)));
         controls.update();
 
         setLoading(false);
@@ -309,6 +499,8 @@ export default function HorseViewer3D({
           material.dispose();
         }
       });
+
+      coatTexture?.dispose();
 
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
