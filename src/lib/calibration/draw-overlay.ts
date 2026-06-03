@@ -323,18 +323,12 @@ export async function drawHindConformationOverlay(
 
   const lineWidth = Math.max(4, Math.floor(imageWidth / 350));
 
-  const leftButtock = landmarkToPoint(landmarks.left_buttock, imageWidth, imageHeight);
-  const rightButtock = landmarkToPoint(
-    landmarks.right_buttock,
-    imageWidth,
-    imageHeight,
-  );
   const leftGaskin = landmarkToPoint(landmarks.left_gaskin, imageWidth, imageHeight);
   const rightGaskin = landmarkToPoint(landmarks.right_gaskin, imageWidth, imageHeight);
   const leftHock = landmarkToPoint(landmarks.left_hock, imageWidth, imageHeight);
   const rightHock = landmarkToPoint(landmarks.right_hock, imageWidth, imageHeight);
 
-  const centerX = (leftButtock.x + rightButtock.x) / 2;
+  const centerX = landmarks.tail.x * imageWidth;
 
   drawFullHeightVertical(ctx, centerX, imageHeight, lineWidth);
   drawRedVertical(ctx, leftHock.x, leftGaskin.y, imageHeight, lineWidth);
