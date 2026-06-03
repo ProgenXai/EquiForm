@@ -461,10 +461,6 @@ export default function HorseViewer3D({
         });
         const width = finalBbox.max.x - finalBbox.min.x;
         const depth = finalBbox.max.z - finalBbox.min.z;
-        const mapLandmarkZ = (normX: number) => {
-          const clamped = Math.max(0, Math.min(1, normX));
-          return finalBbox.max.z - clamped * (finalBbox.max.z - finalBbox.min.z);
-        };
 
         function makeVerticalLine(
           x: number,
@@ -485,38 +481,12 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
-        // Get bone world positions after model is scaled and positioned
-        const bonePositions: Record<string, THREE.Vector3> = {};
-        model.traverse((child) => {
-          if (child instanceof THREE.Bone) {
-            const worldPos = new THREE.Vector3();
-            child.getWorldPosition(worldPos);
-            bonePositions[child.name] = worldPos;
-          }
-        });
+        const shoulderZ = finalBbox.min.z + depth * 0.78;
+        const girthZ = finalBbox.min.z + depth * 0.58;
+        const hipZ = finalBbox.min.z + depth * 0.28;
+        const buttockZ = finalBbox.min.z + depth * 0.08;
 
-        // Map bones to conformation landmarks
-        const shoulderX = bonePositions["DEF-skull"]?.x;
-        const girthX = bonePositions["neck"]?.x;
-        const hipX = bonePositions["thigh_ik_targetL"]?.x;
-        const buttockX = bonePositions["hind_foot_ikL"]?.x;
-
-        console.log("Bone X positions:", { shoulderX, girthX, hipX, buttockX });
-
-        // Map bone X positions to scene Z positions
-        const boneXToZ = (boneX: number | undefined, fallbackNorm: number) => {
-          if (boneX === undefined) return mapLandmarkZ(fallbackNorm);
-          const norm =
-            (boneX - finalBbox.min.x) / (finalBbox.max.x - finalBbox.min.x);
-          return mapLandmarkZ(1 - norm);
-        };
-
-        const shoulderZ = boneXToZ(shoulderX, 0.20);
-        const girthZ = boneXToZ(girthX, 0.40);
-        const hipZ = boneXToZ(hipX, 0.65);
-        const buttockZ = boneXToZ(buttockX, 0.85);
-
-        console.log("Mapped Z positions:", {
+        console.log("Fixed Z positions:", {
           shoulderZ,
           girthZ,
           hipZ,
