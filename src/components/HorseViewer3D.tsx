@@ -438,13 +438,13 @@ export default function HorseViewer3D({
         const scaledBbox = new THREE.Box3().setFromObject(model);
         model.position.y -= scaledBbox.min.y;
 
-        model.rotation.y = Math.PI / 2;
+        model.rotation.y = Math.PI;
 
         coatTexture = applyCoatColor(model, coatColor, markings);
 
         const finalBbox = new THREE.Box3().setFromObject(model);
         console.log("finalBbox Z:", finalBbox.min.z, "to", finalBbox.max.z);
-        console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
+        console.log("finalBbox X range:", finalBbox.min.x, "to", finalBbox.max.x);
         console.log("finalBbox Y:", finalBbox.min.y, "to", finalBbox.max.y);
         const bboxCenter = finalBbox.getCenter(new THREE.Vector3());
         console.log("finalBbox center:", bboxCenter.x, bboxCenter.y, bboxCenter.z);
