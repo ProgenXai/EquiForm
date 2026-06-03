@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { FileCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +17,11 @@ import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
+
+const HorseViewer3D = dynamic(
+  () => import("@/components/HorseViewer3D"),
+  { ssr: false },
+);
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -1756,6 +1762,11 @@ export default function AnalyzeClient() {
                             ) : null}
                           </div>
                         </div>
+
+                        <HorseViewer3D
+                          className="mt-8"
+                          landmarks={fullReportResult.landmarks}
+                        />
 
                         <p className="mt-8 text-sm leading-relaxed text-zinc-300">
                           {betterSideReport.summary}
