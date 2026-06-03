@@ -584,6 +584,16 @@ export default function AnalyzeClient() {
     setError(null);
   }
 
+  function handleRemoveSingleViewPhoto() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    setError(null);
+    resetResult();
+  }
+
   async function handleFile(file: File) {
     resetResult();
 
@@ -1256,12 +1266,22 @@ export default function AnalyzeClient() {
           {previewUrl ? (
             <div className="mt-6">
               <p className="mb-2 text-xs font-medium text-zinc-400">Preview</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewUrl}
-                alt="Uploaded horse"
-                className="mx-auto max-h-96 w-full rounded-lg border border-zinc-800 object-contain"
-              />
+              <div className="relative mx-auto w-full">
+                <button
+                  type="button"
+                  onClick={handleRemoveSingleViewPhoto}
+                  aria-label="Remove photo"
+                  className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 text-base leading-none text-white transition hover:bg-zinc-700"
+                >
+                  ×
+                </button>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Uploaded horse"
+                  className="max-h-96 w-full rounded-lg border border-zinc-800 object-contain"
+                />
+              </div>
             </div>
           ) : null}
 
