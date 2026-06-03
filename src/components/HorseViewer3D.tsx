@@ -496,15 +496,27 @@ export default function HorseViewer3D({
         });
 
         // Map bones to conformation landmarks
-        const shoulderZ =
-          bonePositions["upper_arm_ik_targetL"]?.z ?? mapLandmarkZ(0.20);
-        const girthZ = bonePositions["forefoot_ikL"]?.z ?? mapLandmarkZ(0.40);
-        const hipZ =
-          bonePositions["thigh_ik_targetL"]?.z ?? mapLandmarkZ(0.65);
-        const buttockZ =
-          bonePositions["hind_foot_ikL"]?.z ?? mapLandmarkZ(0.85);
+        const shoulderX = bonePositions["upper_arm_ik_targetL"]?.x;
+        const girthX = bonePositions["MCH-WGT-chest"]?.x;
+        const hipX = bonePositions["thigh_ik_targetL"]?.x;
+        const buttockX = bonePositions["hind_foot_ikL"]?.x;
 
-        console.log("Bone Z positions:", {
+        console.log("Bone X positions:", { shoulderX, girthX, hipX, buttockX });
+
+        // Map bone X positions to scene Z positions
+        const boneXToZ = (boneX: number | undefined, fallbackNorm: number) => {
+          if (boneX === undefined) return mapLandmarkZ(fallbackNorm);
+          const norm =
+            (boneX - finalBbox.min.x) / (finalBbox.max.x - finalBbox.min.x);
+          return mapLandmarkZ(1 - norm);
+        };
+
+        const shoulderZ = boneXToZ(shoulderX, 0.20);
+        const girthZ = boneXToZ(girthX, 0.40);
+        const hipZ = boneXToZ(hipX, 0.65);
+        const buttockZ = boneXToZ(buttockX, 0.85);
+
+        console.log("Mapped Z positions:", {
           shoulderZ,
           girthZ,
           hipZ,
