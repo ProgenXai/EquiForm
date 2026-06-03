@@ -405,6 +405,9 @@ export default function HorseViewer3D({
 
         model.rotation.y = Math.PI / 2;
 
+        const groundedBbox = new THREE.Box3().setFromObject(model);
+        model.position.y -= groundedBbox.min.y;
+
         const finalBbox = new THREE.Box3().setFromObject(model);
         const finalSize = new THREE.Vector3();
         finalBbox.getSize(finalSize);
@@ -420,13 +423,13 @@ export default function HorseViewer3D({
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = finalBbox.min.y + 0.01;
+        ground.position.set(0, 0, 0);
         horseGroup.add(ground);
 
-        camera.position.set(0, 0.9, 3.5);
-        camera.lookAt(0, 0.9, 0);
+        camera.position.set(0, 1.2, 4);
+        camera.lookAt(0, 0.8, 0);
         camera.up.set(0, 1, 0);
-        controls.target.set(0, 0.9, 0);
+        controls.target.set(0, 0.8, 0);
         controls.update();
         controls.autoRotate = false;
         controls.enableDamping = true;
