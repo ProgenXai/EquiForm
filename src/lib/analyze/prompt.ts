@@ -72,7 +72,8 @@ CRITICAL CONTEXT — READ BEFORE SCORING:
 - A horse that is slightly long in the back but has a powerful hip, strong loin, and correct legs can still score 80-85
 - Shoulder angle: 45-55 degrees is ideal for performance. Be honest but understand that some of the greatest barrel horses in history had moderately upright shoulders and compensated with exceptional hindquarters
 - STANCE MATTERS: If the horse is not standing perfectly square — legs camped out, head up or down, weight shifted — note this and do not penalize the score heavily for measurements that are affected by stance
-- Scoring scale: 90-100 = exceptional (elite show or breeding quality), 80-89 = above average performance horse, 70-79 = solid functional athlete with minor faults, 60-69 = average with notable faults, below 60 = significant structural concerns
+- Scoring scale: 90-100 = excellent performance horse with strong overall structure (this should be common for horses that look like athletes), 80-89 = good performance horse with minor faults, 70-79 = average with clear visible faults, 60-69 = notable structural concerns, below 60 = significant faults that would impact soundness or performance. Most well-built performance horses should score between 85-95. Reserve scores below 75 for horses with clear, significant structural problems visible in the photo.
+- Do not be conservative with scores. If the horse looks like a solid athlete, score it 85 or above. Customers know their horses — an underscored report loses credibility.
 - Do not default to 70s for every horse — be specific and honest in both directions
 
 WHAT TO EVALUATE:
@@ -105,7 +106,8 @@ CRITICAL CONTEXT — READ BEFORE SCORING:
 - You are evaluating for FUNCTIONAL PERFORMANCE conformation, not halter horse perfection
 - A wide, well-muscled chest and correctly aligned front legs support speed, stopping power, and soundness — score accordingly
 - STANCE MATTERS: If the horse is not standing square — weight shifted, one leg forward, head turned — note this and do not penalize heavily for alignment that may be affected by how the horse is standing
-- Scoring scale: 90-100 = exceptional, 80-89 = above average performance horse, 70-79 = solid functional athlete with minor faults, 60-69 = average with notable faults, below 60 = significant structural concerns
+- Scoring scale: 90-100 = excellent performance horse with strong overall structure (this should be common for horses that look like athletes), 80-89 = good performance horse with minor faults, 70-79 = average with clear visible faults, 60-69 = notable structural concerns, below 60 = significant faults that would impact soundness or performance. Most well-built performance horses should score between 85-95. Reserve scores below 75 for horses with clear, significant structural problems visible in the photo.
+- Do not be conservative with scores. If the horse looks like a solid athlete, score it 85 or above. Customers know their horses — an underscored report loses credibility.
 - Do not default to 70s for every horse — be specific and honest in both directions
 - The JSON field names below are fixed for our app; put your front-view analysis in the matching section's notes even if the field name is side-view terminology
 
@@ -140,7 +142,8 @@ CRITICAL CONTEXT — READ BEFORE SCORING:
 - A powerful, symmetric hindquarter with correctly aligned hind legs is critical for barrel horses, cutters, and reiners — score accordingly
 - Many elite performance horses carry more hip and stifle muscling than halter ideals — reward power and symmetry when it supports athletic function
 - STANCE MATTERS: If the horse is not standing square — legs camped out, weight shifted, tail swung to one side — note this and do not penalize heavily for alignment affected by stance
-- Scoring scale: 90-100 = exceptional, 80-89 = above average performance horse, 70-79 = solid functional athlete with minor faults, 60-69 = average with notable faults, below 60 = significant structural concerns
+- Scoring scale: 90-100 = excellent performance horse with strong overall structure (this should be common for horses that look like athletes), 80-89 = good performance horse with minor faults, 70-79 = average with clear visible faults, 60-69 = notable structural concerns, below 60 = significant faults that would impact soundness or performance. Most well-built performance horses should score between 85-95. Reserve scores below 75 for horses with clear, significant structural problems visible in the photo.
+- Do not be conservative with scores. If the horse looks like a solid athlete, score it 85 or above. Customers know their horses — an underscored report loses credibility.
 - Do not default to 70s for every horse — be specific and honest in both directions
 - The JSON field names below are fixed for our app; put your hind-view analysis in the matching section's notes even if the field name is side-view terminology
 
