@@ -492,78 +492,78 @@ export default function HorseViewer3D({
         );
         console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
 
-        const landmarkToX = (normX: number) => {
+        const landmarkToZ = (normX: number) => {
           if (facingRight) {
-            return finalBbox.min.x + normX * width;
+            return finalBbox.max.z - normX * depth;
           } else {
-            return finalBbox.max.x - normX * width;
+            return finalBbox.min.z + normX * depth;
           }
         };
 
-        const shoulderX = landmarkToX(landmarks.left?.shoulder?.x ?? 0.25);
-        const girthX = landmarkToX(landmarks.left?.girth?.x ?? 0.42);
-        const hipX = landmarkToX(landmarks.left?.point_of_hip?.x ?? 0.65);
-        const buttockX = landmarkToX(landmarks.left?.buttock?.x ?? 0.82);
-        const frontLegX =
+        const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.25);
+        const girthZ = landmarkToZ(landmarks.left?.girth?.x ?? 0.42);
+        const hipZ = landmarkToZ(landmarks.left?.point_of_hip?.x ?? 0.65);
+        const buttockZ = landmarkToZ(landmarks.left?.buttock?.x ?? 0.82);
+        const frontLegZ =
           landmarks.left?.front_knee?.x !== undefined
-            ? landmarkToX(landmarks.left.front_knee.x)
-            : finalBbox.min.x + width * 0.25;
-        const hindLegX =
+            ? landmarkToZ(landmarks.left.front_knee.x)
+            : finalBbox.max.z - depth * 0.25;
+        const hindLegZ =
           landmarks.left?.hind_hock?.x !== undefined
-            ? landmarkToX(landmarks.left.hind_hock.x)
-            : finalBbox.min.x + width * 0.75;
+            ? landmarkToZ(landmarks.left.hind_hock.x)
+            : finalBbox.min.z + depth * 0.25;
 
         scene.add(
           makeVerticalLine(
-            shoulderX,
+            bboxCenter.x,
             finalBbox.max.y,
             0,
-            bboxCenter.z,
+            shoulderZ,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            girthX,
+            bboxCenter.x,
             finalBbox.max.y,
             0,
-            bboxCenter.z,
+            girthZ,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            hipX,
+            bboxCenter.x,
             finalBbox.max.y,
             0,
-            bboxCenter.z,
+            hipZ,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            buttockX,
+            bboxCenter.x,
             finalBbox.max.y,
             0,
-            bboxCenter.z,
+            buttockZ,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            frontLegX,
+            bboxCenter.x,
             finalBbox.max.y * 0.55,
             0,
-            bboxCenter.z,
+            frontLegZ,
             0xffffff,
           ),
         );
         scene.add(
           makeVerticalLine(
-            hindLegX,
+            bboxCenter.x,
             finalBbox.max.y * 0.55,
             0,
-            bboxCenter.z,
+            hindLegZ,
             0xffffff,
           ),
         );
@@ -580,9 +580,9 @@ export default function HorseViewer3D({
         scene.add(disc);
 
         camera.position.set(
-          bboxCenter.x,
+          finalBbox.max.x + 5.0,
           bboxCenter.y,
-          finalBbox.max.z + 5.0,
+          bboxCenter.z,
         );
         camera.lookAt(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.target.set(bboxCenter.x, bboxCenter.y, bboxCenter.z);
