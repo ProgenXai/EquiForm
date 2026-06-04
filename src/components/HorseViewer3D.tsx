@@ -483,6 +483,14 @@ export default function HorseViewer3D({
 
         // Detect facing direction: if poll x < 0.5, horse faces right in photo (nose on left)
         const facingRight = (landmarks.left?.poll?.x ?? 0.5) < 0.5;
+        console.log("facingRight:", facingRight, "poll.x:", landmarks.left?.poll?.x);
+        console.log(
+          "shoulder.x:",
+          landmarks.left?.shoulder?.x,
+          "buttock.x:",
+          landmarks.left?.buttock?.x,
+        );
+        console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
 
         const landmarkToX = (normX: number) => {
           if (facingRight) {
@@ -571,11 +579,7 @@ export default function HorseViewer3D({
         disc.position.set(bboxCenter.x, 0.01, bboxCenter.z);
         scene.add(disc);
 
-        camera.position.set(
-          bboxCenter.x,
-          bboxCenter.y,
-          bboxCenter.z + 6.0,
-        );
+        camera.position.set(finalBbox.min.x - 5.0, bboxCenter.y, bboxCenter.z);
         camera.lookAt(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.target.set(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.update();
