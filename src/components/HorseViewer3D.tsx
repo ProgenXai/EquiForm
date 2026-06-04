@@ -492,82 +492,82 @@ export default function HorseViewer3D({
         );
         console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
 
-        const bodyFrontZ = -2.31;
-        const bodyRearZ = -1.61;
-        const bodyDepth = Math.abs(bodyFrontZ - bodyRearZ);
+        const bodyFrontX = 1.69;
+        const bodyRearX = -1.12;
+        const bodyDepth = Math.abs(bodyFrontX - bodyRearX);
 
-        const landmarkToZ = (normX: number) => {
+        const landmarkToX = (normX: number) => {
           if (facingRight) {
-            return bodyFrontZ - normX * bodyDepth;
+            return bodyFrontX - normX * bodyDepth;
           } else {
-            return bodyRearZ + normX * bodyDepth;
+            return bodyRearX + normX * bodyDepth;
           }
         };
 
-        const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.25);
-        const girthZ = landmarkToZ(landmarks.left?.girth?.x ?? 0.42);
-        const hipZ = landmarkToZ(landmarks.left?.point_of_hip?.x ?? 0.65);
-        const buttockZ = landmarkToZ(landmarks.left?.buttock?.x ?? 0.82);
-        const frontLegZ =
+        const shoulderX = landmarkToX(landmarks.left?.shoulder?.x ?? 0.25);
+        const girthX = landmarkToX(landmarks.left?.girth?.x ?? 0.42);
+        const hipX = landmarkToX(landmarks.left?.point_of_hip?.x ?? 0.65);
+        const buttockX = landmarkToX(landmarks.left?.buttock?.x ?? 0.82);
+        const frontLegX =
           landmarks.left?.front_knee?.x !== undefined
-            ? landmarkToZ(landmarks.left.front_knee.x)
-            : finalBbox.max.z - depth * 0.25;
-        const hindLegZ =
+            ? landmarkToX(landmarks.left.front_knee.x)
+            : bodyFrontX - bodyDepth * 0.25;
+        const hindLegX =
           landmarks.left?.hind_hock?.x !== undefined
-            ? landmarkToZ(landmarks.left.hind_hock.x)
-            : finalBbox.min.z + depth * 0.25;
+            ? landmarkToX(landmarks.left.hind_hock.x)
+            : bodyRearX + bodyDepth * 0.25;
 
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            shoulderX,
             finalBbox.max.y,
             0,
-            shoulderZ,
+            bboxCenter.z,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            girthX,
             finalBbox.max.y,
             0,
-            girthZ,
+            bboxCenter.z,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            hipX,
             finalBbox.max.y,
             0,
-            hipZ,
+            bboxCenter.z,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            buttockX,
             finalBbox.max.y,
             0,
-            buttockZ,
+            bboxCenter.z,
             0xff3333,
           ),
         );
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            frontLegX,
             finalBbox.max.y * 0.55,
             0,
-            frontLegZ,
+            bboxCenter.z,
             0xffffff,
           ),
         );
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            hindLegX,
             finalBbox.max.y * 0.55,
             0,
-            hindLegZ,
+            bboxCenter.z,
             0xffffff,
           ),
         );
