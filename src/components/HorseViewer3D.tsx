@@ -51,6 +51,32 @@ function getLandmark(
   return point;
 }
 
+function imageXToWorldX(
+  normX: number,
+  landmarkXMin: number,
+  landmarkXMax: number,
+  bboxXMin: number,
+  bboxXMax: number,
+  facingRight: boolean,
+): number {
+  const t = (normX - landmarkXMin) / (landmarkXMax - landmarkXMin);
+  return facingRight
+    ? bboxXMax - t * (bboxXMax - bboxXMin)
+    : bboxXMin + t * (bboxXMax - bboxXMin);
+}
+
+function imageYToWorldY(
+  normY: number,
+  landmarkYMin: number,
+  landmarkYMax: number,
+  bboxYMin: number,
+  bboxYMax: number,
+): number {
+  // image Y increases downward, world Y increases upward — invert
+  const t = (normY - landmarkYMin) / (landmarkYMax - landmarkYMin);
+  return bboxYMax - t * (bboxYMax - bboxYMin);
+}
+
 function createPlumbLineSegment(
   x1: number,
   y1: number,
@@ -309,6 +335,31 @@ function applyCoatColor(
   return coatTexture;
 }
 
+function formatDebugNumber(
+  value: number | boolean | undefined,
+  digits: number,
+): string {
+  return typeof value === "number" ? value.toFixed(digits) : "—";
+}
+
+function applyMorphWeights(
+  root: THREE.Object3D,
+  weights: Record<string, number>,
+): void {
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh) || !child.morphTargetDictionary) return;
+
+    const influences = child.morphTargetInfluences;
+    if (!influences) return;
+
+    for (const [name, weight] of Object.entries(weights)) {
+      const index = child.morphTargetDictionary[name];
+      if (index === undefined) continue;
+      influences[index] = Math.max(0, Math.min(1, weight));
+    }
+  });
+}
+
 export default function HorseViewer3D({
   landmarks,
   coatColor,
@@ -320,6 +371,75 @@ export default function HorseViewer3D({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(true);
   const [hintOpacity, setHintOpacity] = useState(1);
+  const [debugInfo, setDebugInfo] = useState<Record<
+    string,
+    number | boolean
+  > | null>(null);
+
+  function computeMorphWeights(
+    sideLandmarks: Record<string, { x: number; y: number }>,
+    imageWidth: number,
+    imageHeight: number,
+  ): Record<string, number> {
+    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+    const mapRange = (value: number, min: number, max: number) =>
+      clamp01((value - min) / (max - min));
+    const aspect = imageWidth / imageHeight;
+
+    const get = (key: string) => sideLandmarks[key];
+
+    // BACK LENGTH: distance shoulder.x to buttock.x (typical range 0.35–0.65; center 0.50)
+    const backRatio = Math.abs(
+      (get("buttock")?.x ?? 0.85) - (get("shoulder")?.x ?? 0.36),
+    );
+    const backLong = mapRange(backRatio, 0.35, 0.65);
+
+    // CROUP: height of croup relative to withers/buttock topline
+    const croupY = get("croup")?.y ?? get("loin")?.y ?? 0.35;
+    const withersY = get("withers")?.y ?? 0.18;
+    const buttockY = get("buttock")?.y ?? 0.42;
+    const croupDrop = (buttockY - croupY) * aspect;
+    const croupHigh = mapRange(croupDrop, 0.04, 0.22);
+
+    // SHOULDER: layback from withers to shoulder (more horizontal = laid back)
+    const shoulderX = get("shoulder")?.x ?? 0.36;
+    const shoulderY = get("shoulder")?.y ?? 0.45;
+    const withersX = get("withers")?.x ?? 0.32;
+    const shoulderReach =
+      Math.abs(shoulderX - withersX) * aspect;
+    const shoulderDrop = Math.max(shoulderY - withersY, 0.001);
+    const shoulderLayback = shoulderReach / shoulderDrop;
+    const shoulderLaidBack = mapRange(shoulderLayback, 0.6, 2.4);
+
+    // NECK: poll to withers length
+    const pollX = get("poll")?.x ?? 0.15;
+    const pollY = get("poll")?.y ?? 0.08;
+    const neckDx = (withersX - pollX) * aspect;
+    const neckDy = withersY - pollY;
+    const neckLength = Math.hypot(neckDx, neckDy);
+    const neckLong = mapRange(neckLength, 0.1, 0.32);
+
+    // LEGS: knee/hock extension below shoulder and loin
+    const frontKnee = get("front_knee") ?? get("knee");
+    const hindHock = get("hind_hock") ?? get("hock");
+    const loinY = get("loin")?.y ?? 0.5;
+    const frontLegSpan = ((frontKnee?.y ?? 0.68) - shoulderY) * aspect;
+    const hindLegSpan = ((hindHock?.y ?? 0.65) - loinY) * aspect;
+    const legsLong = mapRange((frontLegSpan + hindLegSpan) / 2, 0.12, 0.38);
+
+    return {
+      back_long: backLong,
+      back_short: 1 - backLong,
+      croup_high: croupHigh,
+      croup_low: 1 - croupHigh,
+      shoulder_upright: 1 - shoulderLaidBack,
+      shoulder_laid_back: shoulderLaidBack,
+      neck_long: neckLong,
+      neck_short: 1 - neckLong,
+      legs_long: legsLong,
+      legs_short: 1 - legsLong,
+    };
+  }
 
   useEffect(() => {
     const fadeTimer = window.setTimeout(() => setHintOpacity(0), 2500);
@@ -440,6 +560,14 @@ export default function HorseViewer3D({
 
         model.rotation.y = Math.PI / 2;
 
+        const morphWeights = computeMorphWeights(
+          landmarks.left ?? {},
+          4,
+          3,
+        );
+        applyMorphWeights(model, morphWeights);
+        console.log("Morph weights:", morphWeights);
+
         coatTexture = applyCoatColor(model, coatColor, markings);
 
         const finalBbox = new THREE.Box3().setFromObject(model);
@@ -481,41 +609,71 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
-        // Detect facing direction: if poll x < 0.5, horse faces right in photo (nose on left)
-        const facingRight = (landmarks.left?.poll?.x ?? 0.5) < 0.5;
-        console.log("facingRight:", facingRight, "poll.x:", landmarks.left?.poll?.x);
+        const lm = landmarks.left ?? {};
+        const allLmX = [
+          lm.poll?.x,
+          lm.shoulder?.x,
+          lm.girth?.x,
+          lm.point_of_hip?.x ?? lm.loin?.x,
+          lm.buttock?.x,
+        ].filter((v): v is number => v != null);
+        const landmarkXMin = Math.min(...allLmX);
+        const landmarkXMax = Math.max(...allLmX);
+        const facingRight = (lm.poll?.x ?? 0.21) < 0.5;
+        const bboxXMin = finalBbox.min.x;
+        const bboxXMax = finalBbox.max.x;
+
+        console.log("facingRight:", facingRight, "poll.x:", lm.poll?.x);
         console.log(
           "shoulder.x:",
-          landmarks.left?.shoulder?.x,
+          lm.shoulder?.x,
           "buttock.x:",
-          landmarks.left?.buttock?.x,
+          lm.buttock?.x,
         );
-        console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
+        console.log("finalBbox X:", bboxXMin, "to", bboxXMax);
 
-        const bodyFrontX = 1.69;
-        const bodyRearX = -1.12;
-        const bodyDepth = Math.abs(bodyFrontX - bodyRearX);
+        const shoulderX = imageXToWorldX(
+          lm.shoulder?.x ?? 0.36,
+          landmarkXMin,
+          landmarkXMax,
+          bboxXMin,
+          bboxXMax,
+          facingRight,
+        );
+        const girthX = imageXToWorldX(
+          lm.girth?.x ?? 0.5,
+          landmarkXMin,
+          landmarkXMax,
+          bboxXMin,
+          bboxXMax,
+          facingRight,
+        );
+        const hipX = imageXToWorldX(
+          lm.point_of_hip?.x ?? lm.loin?.x ?? 0.67,
+          landmarkXMin,
+          landmarkXMax,
+          bboxXMin,
+          bboxXMax,
+          facingRight,
+        );
+        const buttockX = imageXToWorldX(
+          lm.buttock?.x ?? 0.85,
+          landmarkXMin,
+          landmarkXMax,
+          bboxXMin,
+          bboxXMax,
+          facingRight,
+        );
 
-        const landmarkToX = (normX: number) => {
-          if (facingRight) {
-            return bodyFrontX - normX * bodyDepth;
-          } else {
-            return bodyRearX + normX * bodyDepth;
-          }
-        };
-
-        const shoulderX = landmarkToX(landmarks.left?.shoulder?.x ?? 0.25);
-        const girthX = landmarkToX(landmarks.left?.girth?.x ?? 0.42);
-        const hipX = landmarkToX(landmarks.left?.point_of_hip?.x ?? 0.65);
-        const buttockX = landmarkToX(landmarks.left?.buttock?.x ?? 0.82);
-        const frontLegX =
-          landmarks.left?.front_knee?.x !== undefined
-            ? landmarkToX(landmarks.left.front_knee.x)
-            : bodyFrontX - bodyDepth * 0.25;
-        const hindLegX =
-          landmarks.left?.hind_hock?.x !== undefined
-            ? landmarkToX(landmarks.left.hind_hock.x)
-            : bodyRearX + bodyDepth * 0.25;
+        console.log("Red line X:", {
+          line1X: shoulderX,
+          line2X: girthX,
+          line3X: hipX,
+          line4X: buttockX,
+          landmarkXMin,
+          landmarkXMax,
+          facingRight,
+        });
 
         scene.add(
           makeVerticalLine(
@@ -553,24 +711,101 @@ export default function HorseViewer3D({
             0xff3333,
           ),
         );
-        scene.add(
-          makeVerticalLine(
-            frontLegX,
-            finalBbox.max.y * 0.55,
-            0,
-            bboxCenter.z,
-            0xffffff,
-          ),
+
+        const frontKneeNormX =
+          lm.front_knee?.x ?? lm.knee?.x ?? lm.shoulder?.x ?? 0.36;
+        const frontPlumbX = imageXToWorldX(
+          frontKneeNormX,
+          landmarkXMin,
+          landmarkXMax,
+          bboxXMin,
+          bboxXMax,
+          facingRight,
         );
-        scene.add(
-          makeVerticalLine(
-            hindLegX,
-            finalBbox.max.y * 0.55,
-            0,
-            bboxCenter.z,
-            0xffffff,
-          ),
+
+        const hindPlumbX = imageXToWorldX(
+          lm.buttock?.x ?? 0.85,
+          landmarkXMin,
+          landmarkXMax,
+          bboxXMin,
+          bboxXMax,
+          facingRight,
         );
+
+        const allLmY = [
+          lm.poll?.y,
+          lm.withers?.y,
+          lm.shoulder?.y,
+          lm.croup?.y,
+          lm.buttock?.y,
+          lm.front_knee?.y,
+          lm.hock?.y,
+          lm.hind_hock?.y,
+        ].filter((v): v is number => v != null);
+        const plumbLandmarkYMin =
+          allLmY.length > 0 ? Math.min(...allLmY) : finalBbox.min.y;
+        const plumbLandmarkYMax =
+          allLmY.length > 0 ? Math.max(...allLmY) : finalBbox.max.y;
+        const bboxYMin = finalBbox.min.y;
+        const bboxYMax = finalBbox.max.y;
+
+        const frontSphereY = imageYToWorldY(
+          lm.front_knee?.y ?? lm.knee?.y ?? lm.shoulder?.y ?? 0.55,
+          plumbLandmarkYMin,
+          plumbLandmarkYMax,
+          bboxYMin,
+          bboxYMax,
+        );
+        const hindSphereY = imageYToWorldY(
+          lm.buttock?.y ?? 0.35,
+          plumbLandmarkYMin,
+          plumbLandmarkYMax,
+          bboxYMin,
+          bboxYMax,
+        );
+
+        const frontPlumbGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(frontPlumbX, finalBbox.min.y, bboxCenter.z),
+          new THREE.Vector3(frontPlumbX, finalBbox.max.y, bboxCenter.z),
+        ]);
+        const plumbMat = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.85,
+        });
+        const frontPlumbLine = new THREE.Line(frontPlumbGeo, plumbMat);
+        scene.add(frontPlumbLine);
+
+        const hindPlumbGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(hindPlumbX, finalBbox.min.y, bboxCenter.z),
+          new THREE.Vector3(hindPlumbX, finalBbox.max.y, bboxCenter.z),
+        ]);
+        const hindPlumbLine = new THREE.Line(hindPlumbGeo, plumbMat.clone());
+        scene.add(hindPlumbLine);
+
+        const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        const frontSphere = new THREE.Mesh(sphereGeo, sphereMat);
+        frontSphere.position.set(frontPlumbX, frontSphereY, bboxCenter.z);
+        scene.add(frontSphere);
+
+        const hindSphere = new THREE.Mesh(sphereGeo.clone(), sphereMat.clone());
+        hindSphere.position.set(hindPlumbX, hindSphereY, bboxCenter.z);
+        scene.add(hindSphere);
+
+        if (!disposed) {
+          setDebugInfo({
+            ...morphWeights,
+            line1X: shoulderX,
+            line2X: girthX,
+            line3X: hipX,
+            line4X: buttockX,
+            frontPlumbX,
+            hindPlumbX,
+            facingRight,
+          });
+        }
 
         const discGeo = new THREE.CircleGeometry(0.9, 64);
         discGeo.rotateX(-Math.PI / 2);
@@ -610,6 +845,7 @@ export default function HorseViewer3D({
 
     return () => {
       disposed = true;
+      setDebugInfo(null);
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       controls.dispose();
@@ -649,6 +885,49 @@ export default function HorseViewer3D({
       className={`relative w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 bg-[radial-gradient(ellipse_at_center,_#1a1a1f_0%,_#09090b_55%,_#030303_100%)] h-[400px] md:h-[500px] ${className}`}
     >
       <div ref={containerRef} className="absolute inset-0" />
+
+      {process.env.NODE_ENV === "development" && debugInfo ? (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 8,
+            left: 8,
+            background: "rgba(0,0,0,0.75)",
+            color: "#00ff88",
+            fontFamily: "monospace",
+            fontSize: "11px",
+            padding: "8px 10px",
+            borderRadius: 6,
+            lineHeight: 1.6,
+            pointerEvents: "none",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ color: "#ffcc00", marginBottom: 4 }}>EQUIFORM DEBUG</div>
+          <div>back_long:          {formatDebugNumber(debugInfo.back_long, 2)}</div>
+          <div>croup_high:         {formatDebugNumber(debugInfo.croup_high, 2)}</div>
+          <div>
+            shoulder_laid_back: {formatDebugNumber(debugInfo.shoulder_laid_back, 2)}
+          </div>
+          <div>neck_long:          {formatDebugNumber(debugInfo.neck_long, 2)}</div>
+          <div>legs_long:          {formatDebugNumber(debugInfo.legs_long, 2)}</div>
+          <div style={{ marginTop: 4, color: "#88ccff" }}>
+            L1x: {formatDebugNumber(debugInfo.line1X, 3)} &nbsp; L2x:{" "}
+            {formatDebugNumber(debugInfo.line2X, 3)}
+          </div>
+          <div style={{ color: "#88ccff" }}>
+            L3x: {formatDebugNumber(debugInfo.line3X, 3)} &nbsp; L4x:{" "}
+            {formatDebugNumber(debugInfo.line4X, 3)}
+          </div>
+          <div style={{ color: "#ff88ff", marginTop: 4 }}>
+            frontPlumb: {formatDebugNumber(debugInfo.frontPlumbX, 3)} &nbsp;
+            hindPlumb: {formatDebugNumber(debugInfo.hindPlumbX, 3)}
+          </div>
+          <div style={{ color: "#ff88ff" }}>
+            facingRight: {debugInfo.facingRight ? "YES" : "NO"}
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
