@@ -611,7 +611,6 @@ export default function HorseViewer3D({
 
         const lm = landmarks.left ?? {};
         const allLmX = [
-          lm.poll?.x,
           lm.shoulder?.x,
           lm.girth?.x,
           lm.point_of_hip?.x ?? lm.loin?.x,
@@ -641,7 +640,7 @@ export default function HorseViewer3D({
           facingRight,
         );
         const girthX = imageXToWorldX(
-          lm.girth?.x ?? 0.5,
+          lm.girth?.x ?? 0.42,
           landmarkXMin,
           landmarkXMax,
           bboxXMin,
@@ -649,7 +648,7 @@ export default function HorseViewer3D({
           facingRight,
         );
         const hipX = imageXToWorldX(
-          lm.point_of_hip?.x ?? lm.loin?.x ?? 0.67,
+          lm.point_of_hip?.x ?? lm.loin?.x ?? 0.65,
           landmarkXMin,
           landmarkXMax,
           bboxXMin,
@@ -665,6 +664,13 @@ export default function HorseViewer3D({
           facingRight,
         );
 
+        console.log("Red line norm X:", {
+          shoulder: lm.shoulder?.x ?? 0.36,
+          girth: lm.girth?.x ?? 0.42,
+          point_of_hip: lm.point_of_hip?.x,
+          loin: lm.loin?.x,
+          buttock: lm.buttock?.x ?? 0.85,
+        });
         console.log("Red line X:", {
           line1X: shoulderX,
           line2X: girthX,
@@ -673,6 +679,8 @@ export default function HorseViewer3D({
           landmarkXMin,
           landmarkXMax,
           facingRight,
+          distinct:
+            new Set([shoulderX, girthX, hipX, buttockX]).size === 4,
         });
 
         scene.add(
@@ -757,7 +765,7 @@ export default function HorseViewer3D({
           bboxYMax,
         );
         const hindSphereY = imageYToWorldY(
-          lm.buttock?.y ?? 0.35,
+          lm.hind_hock?.y ?? lm.hock?.y ?? 0.65,
           plumbLandmarkYMin,
           plumbLandmarkYMax,
           bboxYMin,
@@ -766,7 +774,7 @@ export default function HorseViewer3D({
 
         const frontPlumbGeo = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(frontPlumbX, finalBbox.min.y, bboxCenter.z),
-          new THREE.Vector3(frontPlumbX, finalBbox.max.y, bboxCenter.z),
+          new THREE.Vector3(frontPlumbX, frontSphereY, bboxCenter.z),
         ]);
         const plumbMat = new THREE.LineBasicMaterial({
           color: 0xffffff,
@@ -778,7 +786,7 @@ export default function HorseViewer3D({
 
         const hindPlumbGeo = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(hindPlumbX, finalBbox.min.y, bboxCenter.z),
-          new THREE.Vector3(hindPlumbX, finalBbox.max.y, bboxCenter.z),
+          new THREE.Vector3(hindPlumbX, hindSphereY, bboxCenter.z),
         ]);
         const hindPlumbLine = new THREE.Line(hindPlumbGeo, plumbMat.clone());
         scene.add(hindPlumbLine);
