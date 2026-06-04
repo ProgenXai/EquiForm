@@ -641,58 +641,121 @@ export default function HorseViewer3D({
 
             if (leftPhotoUrl) {
               textureMap.left = await loadPhotoTexture(leftPhotoUrl);
+              textureMap.left!.colorSpace = THREE.SRGBColorSpace;
             }
             if (rightPhotoUrl) {
               textureMap.right = await loadPhotoTexture(rightPhotoUrl);
+              textureMap.right!.colorSpace = THREE.SRGBColorSpace;
             }
             if (frontPhotoUrl) {
               textureMap.front = await loadPhotoTexture(frontPhotoUrl);
+              textureMap.front!.colorSpace = THREE.SRGBColorSpace;
             }
             if (hindPhotoUrl) {
               textureMap.hind = await loadPhotoTexture(hindPhotoUrl);
+              textureMap.hind!.colorSpace = THREE.SRGBColorSpace;
             }
 
-            const primaryTexture = textureMap.left ?? textureMap.right;
-            if (primaryTexture) {
-              primaryTexture.colorSpace = THREE.SRGBColorSpace;
+            const leftTex = textureMap.left ?? textureMap.right;
+            const rightTex = textureMap.right ?? textureMap.left;
+            const frontTex = textureMap.front ?? leftTex;
+            const hindTex = textureMap.hind ?? leftTex;
+
+            if (leftTex || rightTex || frontTex || hindTex) {
+              const shaderMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                  leftMap: { value: leftTex ?? null },
+                  rightMap: { value: rightTex ?? null },
+                  frontMap: { value: frontTex ?? null },
+                  hindMap: { value: hindTex ?? null },
+                  bboxMin: {
+                    value: new THREE.Vector3(
+                      finalBbox.min.x,
+                      finalBbox.min.y,
+                      finalBbox.min.z,
+                    ),
+                  },
+                  bboxMax: {
+                    value: new THREE.Vector3(
+                      finalBbox.max.x,
+                      finalBbox.max.y,
+                      finalBbox.max.z,
+                    ),
+                  },
+                  facingRight: { value: facingRight ? 1.0 : 0.0 },
+                },
+                vertexShader: `
+                  varying vec3 vWorldNormal;
+                  varying vec3 vWorldPos;
+                  void main() {
+                    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+                    vWorldPos = worldPos.xyz;
+                    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+                    gl_Position = projectionMatrix * viewMatrix * worldPos;
+                  }
+                `,
+                fragmentShader: `
+                  uniform sampler2D leftMap;
+                  uniform sampler2D rightMap;
+                  uniform sampler2D frontMap;
+                  uniform sampler2D hindMap;
+                  uniform vec3 bboxMin;
+                  uniform vec3 bboxMax;
+                  uniform float facingRight;
+                  varying vec3 vWorldNormal;
+                  varying vec3 vWorldPos;
+
+                  vec4 samplePlanar(sampler2D tex, vec2 uv) {
+                    return texture2D(tex, clamp(uv, 0.0, 1.0));
+                  }
+
+                  void main() {
+                    vec3 size = bboxMax - bboxMin;
+
+                    vec3 normPos = (vWorldPos - bboxMin) / size;
+
+                    float sideU = facingRight > 0.5 ? 1.0 - normPos.x : normPos.x;
+                    float sideV = normPos.y;
+                    vec2 sideUV = vec2(sideU, sideV);
+
+                    float frontU = normPos.z;
+                    float frontV = normPos.y;
+                    vec2 frontUV = vec2(frontU, frontV);
+
+                    float leftWeight  = max(0.0, -vWorldNormal.x);
+                    float rightWeight = max(0.0,  vWorldNormal.x);
+                    float frontWeight = max(0.0,  vWorldNormal.z);
+                    float hindWeight  = max(0.0, -vWorldNormal.z);
+
+                    float total = leftWeight + rightWeight + frontWeight + hindWeight;
+                    if (total < 0.001) total = 1.0;
+
+                    leftWeight  /= total;
+                    rightWeight /= total;
+                    frontWeight /= total;
+                    hindWeight  /= total;
+
+                    vec4 color = vec4(0.0);
+                    color += leftWeight  * samplePlanar(leftMap,  sideUV);
+                    color += rightWeight * samplePlanar(rightMap, sideUV);
+                    color += frontWeight * samplePlanar(frontMap, frontUV);
+                    color += hindWeight  * samplePlanar(hindMap,  frontUV);
+
+                    gl_FragColor = vec4(color.rgb, 1.0);
+                  }
+                `,
+                side: THREE.FrontSide,
+              });
 
               model.traverse((child) => {
                 if (!(child instanceof THREE.Mesh)) return;
-
-                const geometry = child.geometry.clone();
-                const positions = geometry.attributes.position;
-                const uvs = new Float32Array(positions.count * 2);
-
-                child.updateMatrixWorld(true);
-
-                for (let i = 0; i < positions.count; i++) {
-                  const vertex = new THREE.Vector3(
-                    positions.getX(i),
-                    positions.getY(i),
-                    positions.getZ(i),
-                  );
-                  vertex.applyMatrix4(child.matrixWorld);
-
-                  const rawU =
-                    (vertex.x - finalBbox.min.x) /
-                    (finalBbox.max.x - finalBbox.min.x);
-                  const u = facingRight ? 1 - rawU : rawU;
-                  const v =
-                    (vertex.y - finalBbox.min.y) /
-                    (finalBbox.max.y - finalBbox.min.y);
-
-                  uvs[i * 2] = u;
-                  uvs[i * 2 + 1] = v;
+                const oldMat = child.material;
+                child.material = shaderMaterial.clone();
+                if (Array.isArray(oldMat)) {
+                  oldMat.forEach((m) => m.dispose());
+                } else {
+                  oldMat.dispose();
                 }
-
-                geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-                child.geometry = geometry;
-
-                child.material = new THREE.MeshStandardMaterial({
-                  map: primaryTexture,
-                  metalness: 0.1,
-                  roughness: 0.7,
-                });
               });
             }
           } catch (err) {
