@@ -496,10 +496,10 @@ export default function HorseViewer3D({
           }
         };
 
-        const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.22);
+        const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.25);
         const girthZ = landmarkToZ(landmarks.left?.girth?.x ?? 0.42);
-        const hipZ = landmarkToZ(landmarks.left?.point_of_hip?.x ?? 0.72);
-        const buttockZ = landmarkToZ(landmarks.left?.buttock?.x ?? 0.92);
+        const hipZ = landmarkToZ(landmarks.left?.point_of_hip?.x ?? 0.65);
+        const buttockZ = landmarkToZ(landmarks.left?.buttock?.x ?? 0.82);
 
         scene.add(
           makeVerticalLine(
