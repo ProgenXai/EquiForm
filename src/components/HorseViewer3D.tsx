@@ -482,7 +482,7 @@ export default function HorseViewer3D({
         }
 
         const landmarkToZ = (normX: number) => {
-          return finalBbox.min.z + normX * depth;
+          return finalBbox.max.z - normX * depth;
         };
 
         const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.22);
@@ -526,12 +526,21 @@ export default function HorseViewer3D({
             0xff3333,
           ),
         );
+        const frontLegZ =
+          landmarks.left?.front_knee?.x !== undefined
+            ? landmarkToZ(landmarks.left.front_knee.x)
+            : finalBbox.min.z + depth * 0.25;
+        const hindLegZ =
+          landmarks.left?.hind_hock?.x !== undefined
+            ? landmarkToZ(landmarks.left.hind_hock.x)
+            : finalBbox.min.z + depth * 0.75;
+
         scene.add(
           makeVerticalLine(
             bboxCenter.x,
             finalBbox.max.y * 0.55,
             0,
-            finalBbox.min.z + depth * 0.12,
+            frontLegZ,
             0xffffff,
           ),
         );
@@ -540,7 +549,7 @@ export default function HorseViewer3D({
             bboxCenter.x,
             finalBbox.max.y * 0.55,
             0,
-            finalBbox.max.z - depth * 0.12,
+            hindLegZ,
             0xffffff,
           ),
         );
