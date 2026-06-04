@@ -652,35 +652,6 @@ export default function HorseViewer3D({
 
         const lm = landmarks?.left ?? {};
         const poses = computeBonePoses(lm);
-
-        scene.traverse((obj) => {
-          if (obj.type !== "Bone") return;
-          const bone = obj as THREE.Bone;
-
-          switch (bone.name) {
-            case "DEF-spine003":
-            case "DEF-spine004":
-              bone.rotation.z = poses.backAngle * 0.05;
-              break;
-
-            case "DEF-spine005":
-            case "DEF-spine006":
-              bone.rotation.z = poses.shoulderAngle * 0.03;
-              break;
-
-            case "DEF-upper_armL":
-            case "ORG-upper_armL":
-              bone.rotation.z = poses.frontLegAngle * 0.05;
-              break;
-
-            case "DEF-thighL":
-            case "ORG-thighL":
-              bone.rotation.z = poses.hipAngle * 0.05;
-              break;
-          }
-        });
-
-        scene.updateMatrixWorld(true);
         console.log("Bone poses:", poses);
 
         const width = finalBbox.max.x - finalBbox.min.x;
