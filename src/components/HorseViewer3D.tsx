@@ -724,8 +724,12 @@ export default function HorseViewer3D({
 
                     float leftWeight  = max(0.0, -vWorldNormal.x);
                     float rightWeight = max(0.0,  vWorldNormal.x);
-                    float frontWeight = max(0.0,  vWorldNormal.z);
-                    float hindWeight  = max(0.0, -vWorldNormal.z);
+                    float frontWeight = vWorldNormal.z > 0.6 ? vWorldNormal.z : 0.0;
+                    float hindWeight  = vWorldNormal.z < -0.6 ? -vWorldNormal.z : 0.0;
+
+                    float sideWeight = 1.0 - frontWeight - hindWeight;
+                    leftWeight  = leftWeight * sideWeight;
+                    rightWeight = rightWeight * sideWeight;
 
                     float total = leftWeight + rightWeight + frontWeight + hindWeight;
                     if (total < 0.001) total = 1.0;
