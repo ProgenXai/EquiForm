@@ -482,7 +482,7 @@ export default function HorseViewer3D({
         }
 
         const landmarkToZ = (normX: number) => {
-          return finalBbox.min.z + (1 - normX) * depth;
+          return finalBbox.min.z + normX * depth;
         };
 
         const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.22);
