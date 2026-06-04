@@ -481,8 +481,19 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
+        // Detect facing direction: if poll x < 0.5, horse faces right in photo (nose on left)
+        const facingRight = (landmarks.left?.poll?.x ?? 0.5) < 0.5;
+
         const landmarkToZ = (normX: number) => {
-          return finalBbox.max.z - normX * depth;
+          if (facingRight) {
+            // Horse nose is on left (small x), butt on right (large x)
+            // 3D model nose is on right (max z), butt on left (min z)
+            return finalBbox.max.z - normX * depth;
+          } else {
+            // Horse nose is on right (large x), butt on left (small x)
+            // 3D model nose is on right (max z), butt on left (min z)
+            return finalBbox.min.z + normX * depth;
+          }
         };
 
         const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.22);
