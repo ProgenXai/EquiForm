@@ -481,10 +481,10 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
-        const shoulderZ = finalBbox.min.z + depth * 0.78;
-        const girthZ = finalBbox.min.z + depth * 0.58;
-        const hipZ = finalBbox.min.z + depth * 0.28;
-        const buttockZ = finalBbox.min.z + depth * 0.08;
+        const shoulderZ = finalBbox.min.z + depth * 0.22;
+        const girthZ = finalBbox.min.z + depth * 0.42;
+        const hipZ = finalBbox.min.z + depth * 0.72;
+        const buttockZ = finalBbox.min.z + depth * 0.92;
 
         console.log("Fixed Z positions:", {
           shoulderZ,
