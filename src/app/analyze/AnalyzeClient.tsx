@@ -1770,6 +1770,10 @@ export default function AnalyzeClient() {
                           landmarks={fullReportResult.landmarks}
                           coatColor={fullReportResult.coatColor}
                           markings={fullReportResult.markings}
+                          leftPhotoUrl={fullReportPhotos.left?.supabaseUrl}
+                          rightPhotoUrl={fullReportPhotos.right?.supabaseUrl}
+                          frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}
+                          hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
                         />
 
                         <p className="mt-8 text-sm leading-relaxed text-zinc-300">
