@@ -373,6 +373,12 @@ function setBoneWorldPosition(bone: THREE.Bone, worldPos: THREE.Vector3): void {
   bone.position.copy(local);
 }
 
+async function loadPhotoTexture(url: string): Promise<THREE.Texture> {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(url, resolve, undefined, reject);
+  });
+}
+
 export default function HorseViewer3D({
   landmarks,
   coatColor,
@@ -626,6 +632,43 @@ export default function HorseViewer3D({
         console.log("Morph weights:", morphWeights);
 
         coatTexture = applyCoatColor(model, coatColor, markings);
+
+        if (leftPhotoUrl || rightPhotoUrl || frontPhotoUrl || hindPhotoUrl) {
+          try {
+            const textureMap: Partial<Record<string, THREE.Texture>> = {};
+
+            if (leftPhotoUrl) {
+              textureMap.left = await loadPhotoTexture(leftPhotoUrl);
+            }
+            if (rightPhotoUrl) {
+              textureMap.right = await loadPhotoTexture(rightPhotoUrl);
+            }
+            if (frontPhotoUrl) {
+              textureMap.front = await loadPhotoTexture(frontPhotoUrl);
+            }
+            if (hindPhotoUrl) {
+              textureMap.hind = await loadPhotoTexture(hindPhotoUrl);
+            }
+
+            const primaryTexture = textureMap.left ?? textureMap.right;
+            if (primaryTexture) {
+              primaryTexture.colorSpace = THREE.SRGBColorSpace;
+              model.traverse((child) => {
+                if (!(child instanceof THREE.Mesh)) return;
+                if (child.name.includes("Hair") || child.name.includes("hair")) {
+                  return;
+                }
+                child.material = new THREE.MeshStandardMaterial({
+                  map: primaryTexture,
+                  metalness: 0.1,
+                  roughness: 0.7,
+                });
+              });
+            }
+          } catch (err) {
+            console.warn("Photo texture load failed, using coat color:", err);
+          }
+        }
 
         const finalBbox = new THREE.Box3().setFromObject(model);
         console.log("finalBbox Z:", finalBbox.min.z, "to", finalBbox.max.z);
