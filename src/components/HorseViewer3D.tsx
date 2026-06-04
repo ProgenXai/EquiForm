@@ -360,41 +360,13 @@ function applyMorphWeights(
   });
 }
 
-function computeBonePoses(landmarks: Record<string, { x: number; y: number }>) {
-  const lm = landmarks ?? {};
-
-  // Calculate angles from 2D landmarks
-  // Shoulder angle: poll to shoulder vector
-  const shoulderAngle = Math.atan2(
-    (lm.withers?.y ?? 0.18) - (lm.shoulder?.y ?? 0.45),
-    (lm.withers?.x ?? 0.32) - (lm.shoulder?.x ?? 0.18),
-  );
-
-  // Back/topline angle: shoulder to croup
-  const backAngle = Math.atan2(
-    (lm.croup?.y ?? lm.loin?.y ?? 0.2) - (lm.withers?.y ?? 0.18),
-    (lm.croup?.x ?? lm.loin?.x ?? 0.62) - (lm.withers?.x ?? 0.32),
-  );
-
-  // Hip angle: point_of_hip to buttock
-  const hipAngle = Math.atan2(
-    (lm.buttock?.y ?? 0.42) - (lm.point_of_hip?.y ?? 0.38),
-    (lm.buttock?.x ?? 0.88) - (lm.point_of_hip?.x ?? 0.72),
-  );
-
-  // Front leg angle: shoulder to front_knee
-  const frontLegAngle = Math.atan2(
-    (lm.front_knee?.y ?? 0.68) - (lm.shoulder?.y ?? 0.45),
-    (lm.front_knee?.x ?? 0.22) - (lm.shoulder?.x ?? 0.18),
-  );
-
-  // Hind leg angle: point_of_hip to hind_hock
-  const hindLegAngle = Math.atan2(
-    (lm.hind_hock?.y ?? 0.65) - (lm.point_of_hip?.y ?? 0.38),
-    (lm.hind_hock?.x ?? 0.75) - (lm.point_of_hip?.x ?? 0.72),
-  );
-
-  return { shoulderAngle, backAngle, hipAngle, frontLegAngle, hindLegAngle };
+function setBoneWorldPosition(bone: THREE.Bone, worldPos: THREE.Vector3): void {
+  const local = worldPos.clone();
+  if (bone.parent) {
+    bone.parent.updateMatrixWorld(true);
+    bone.parent.worldToLocal(local);
+  }
+  bone.position.copy(local);
 }
 
 export default function HorseViewer3D({
@@ -651,8 +623,100 @@ export default function HorseViewer3D({
         });
 
         const lm = landmarks?.left ?? {};
-        const poses = computeBonePoses(lm);
-        console.log("Bone poses:", poses);
+
+        const ikAllLmY = [
+          lm.withers?.y,
+          lm.shoulder?.y,
+          lm.front_knee?.y,
+          lm.hind_hock?.y,
+          lm.buttock?.y,
+        ].filter((v): v is number => v != null);
+        const ikLandmarkYMin =
+          ikAllLmY.length > 0 ? Math.min(...ikAllLmY) : finalBbox.min.y;
+        const ikLandmarkYMax =
+          ikAllLmY.length > 0 ? Math.max(...ikAllLmY) : finalBbox.max.y;
+
+        const mapY = (normY: number) => {
+          const span = ikLandmarkYMax - ikLandmarkYMin;
+          if (span <= 0) return finalBbox.min.y;
+          return (
+            finalBbox.max.y -
+            ((normY - ikLandmarkYMin) / span) *
+              (finalBbox.max.y - finalBbox.min.y)
+          );
+        };
+
+        const ikAllLmX = [
+          lm.shoulder?.x,
+          lm.girth?.x,
+          lm.point_of_hip?.x ?? lm.loin?.x,
+          lm.buttock?.x,
+          lm.front_knee?.x ?? lm.knee?.x,
+          lm.hind_hock?.x ?? lm.hock?.x,
+        ].filter((v): v is number => v != null);
+        const ikLandmarkXMin =
+          ikAllLmX.length > 0 ? Math.min(...ikAllLmX) : 0;
+        const ikLandmarkXMax =
+          ikAllLmX.length > 0 ? Math.max(...ikAllLmX) : 1;
+
+        const mapX = (normX: number) =>
+          imageXToWorldX(
+            normX,
+            ikLandmarkXMin,
+            ikLandmarkXMax,
+            finalBbox.min.x,
+            finalBbox.max.x,
+            facingRight,
+          );
+
+        const frontKneeNormX = lm.front_knee?.x ?? lm.knee?.x ?? lm.shoulder?.x ?? 0.36;
+        const frontKneeNormY = lm.front_knee?.y ?? lm.knee?.y ?? 0.68;
+        const hindHockNormX =
+          lm.hind_hock?.x ?? lm.hock?.x ?? lm.point_of_hip?.x ?? 0.75;
+        const hindHockNormY = lm.hind_hock?.y ?? lm.hock?.y ?? 0.65;
+        const hipNormX = lm.point_of_hip?.x ?? lm.loin?.x ?? 0.72;
+        const hipNormY = lm.point_of_hip?.y ?? 0.38;
+
+        const ikTargets: Record<string, THREE.Vector3> = {
+          "forefoot_ik.L": new THREE.Vector3(
+            mapX(frontKneeNormX),
+            mapY(frontKneeNormY),
+            bboxCenter.z,
+          ),
+          "hind_foot_ik.L": new THREE.Vector3(
+            mapX(hindHockNormX),
+            mapY(hindHockNormY),
+            bboxCenter.z,
+          ),
+          "upper_arm_ik_target.L": new THREE.Vector3(
+            mapX(frontKneeNormX),
+            mapY(frontKneeNormY),
+            bboxCenter.z,
+          ),
+          "thigh_ik_target.L": new THREE.Vector3(
+            mapX(hipNormX),
+            mapY(hipNormY),
+            bboxCenter.z,
+          ),
+        };
+
+        model.traverse((obj) => {
+          if (!(obj instanceof THREE.Bone)) return;
+          const target = ikTargets[obj.name];
+          if (!target) return;
+          setBoneWorldPosition(obj, target);
+        });
+
+        model.updateMatrixWorld(true);
+        console.log("IK targets:", ikTargets);
+
+        scene.traverse((obj) => {
+          if (obj.type === "Bone") {
+            const worldPos = new THREE.Vector3();
+            obj.getWorldPosition(worldPos);
+            bonePositions[obj.name] = worldPos;
+          }
+        });
 
         const width = finalBbox.max.x - finalBbox.min.x;
         const depth = finalBbox.max.z - finalBbox.min.z;
@@ -789,8 +853,6 @@ export default function HorseViewer3D({
           ),
         );
 
-        const frontKneeNormX =
-          lm.front_knee?.x ?? lm.knee?.x ?? lm.shoulder?.x ?? 0.36;
         let frontPlumbX = imageXToWorldX(
           frontKneeNormX,
           landmarkXMin,
