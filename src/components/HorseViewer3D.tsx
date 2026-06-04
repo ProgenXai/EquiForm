@@ -22,7 +22,7 @@ type HorseViewer3DProps = {
 };
 
 const HORSE_MODEL_PATH =
-  "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-compressed.glb";
+  "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-rigged.glb";
 const COAT_COLOR_MAP: Record<string, number> = {
   black: 0x0a0a0a,
   bay: 0x6b3a2a,
