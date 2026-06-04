@@ -853,60 +853,19 @@ export default function HorseViewer3D({
           ),
         );
 
-        let frontPlumbX = imageXToWorldX(
-          frontKneeNormX,
-          landmarkXMin,
-          landmarkXMax,
-          bboxXMin,
-          bboxXMax,
-          facingRight,
-        );
+        const elbowBone = bonePositions["VIS_upper_arm_ik_poleL"];
+        const frontPlumbX = elbowBone
+          ? elbowBone.x
+          : (bonePositions["forefoot_ikL"]?.x ?? line1X);
+        const frontSphereY = elbowBone
+          ? elbowBone.y
+          : finalBbox.max.y * 0.6;
 
-        let hindPlumbX = imageXToWorldX(
-          lm.buttock?.x ?? 0.85,
-          landmarkXMin,
-          landmarkXMax,
-          bboxXMin,
-          bboxXMax,
-          facingRight,
-        );
-
-        const allLmY = [
-          lm.poll?.y,
-          lm.withers?.y,
-          lm.shoulder?.y,
-          lm.croup?.y,
-          lm.buttock?.y,
-          lm.front_knee?.y,
-          lm.hock?.y,
-          lm.hind_hock?.y,
-        ].filter((v): v is number => v != null);
-        const plumbLandmarkYMin =
-          allLmY.length > 0 ? Math.min(...allLmY) : finalBbox.min.y;
-        const plumbLandmarkYMax =
-          allLmY.length > 0 ? Math.max(...allLmY) : finalBbox.max.y;
-        const bboxYMin = finalBbox.min.y;
-        const bboxYMax = finalBbox.max.y;
-
-        let frontSphereY = imageYToWorldY(
-          lm.front_knee?.y ?? lm.knee?.y ?? lm.shoulder?.y ?? 0.55,
-          plumbLandmarkYMin,
-          plumbLandmarkYMax,
-          bboxYMin,
-          bboxYMax,
-        );
-        let hindSphereY = imageYToWorldY(
-          lm.hind_hock?.y ?? lm.hock?.y ?? 0.65,
-          plumbLandmarkYMin,
-          plumbLandmarkYMax,
-          bboxYMin,
-          bboxYMax,
-        );
-
-        frontPlumbX = bonePositions["VIS_upper_arm_ik_poleL"]?.x ?? frontPlumbX;
-        hindPlumbX = bonePositions["VIS_thigh_ik_poleL"]?.x ?? hindPlumbX;
-        frontSphereY = bonePositions["VIS_upper_arm_ik_poleL"]?.y ?? frontSphereY;
-        hindSphereY = bonePositions["VIS_thigh_ik_poleL"]?.y ?? hindSphereY;
+        const buttockBone = bonePositions["ORG-tail003"];
+        const hindPlumbX = buttockBone ? buttockBone.x : line4X;
+        const hindSphereY = buttockBone
+          ? buttockBone.y
+          : finalBbox.max.y * 0.7;
 
         const frontPlumbGeo = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(frontPlumbX, finalBbox.min.y, bboxCenter.z),
