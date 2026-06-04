@@ -784,12 +784,11 @@ export async function POST(request: Request) {
         const { data: existingReports } = await serviceClient
           .from("reports")
           .select("id")
-          .eq("user_id", userId)
-          .limit(2);
+          .eq("user_id", userId);
 
         const isFirstReport = existingReports && existingReports.length === 1;
 
-        if (isFirstReport && userEmail) {
+        if (isFirstReport && user.email) {
           await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -798,7 +797,7 @@ export async function POST(request: Request) {
             },
             body: JSON.stringify({
               from: "EquiForm <reports@equiform.app>",
-              to: userEmail,
+              to: user.email,
               subject: "Your First EquiForm Conformation Report is Ready 🐴",
               html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 24px;">
