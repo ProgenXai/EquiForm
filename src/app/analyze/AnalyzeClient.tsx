@@ -247,6 +247,7 @@ const FRONT_VIEW_TIPS = [
 
 const HIND_VIEW_TIPS = [
   "Horse facing directly away from the camera",
+  "Tail tied up or braided for an unobstructed view of hindquarters and hooves",
   PHOTO_DISTANCE_TIP,
   "All four feet visible on level ground",
   "Camera at hip height — not from above or below",
