@@ -438,7 +438,7 @@ export default function HorseViewer3D({
         const scaledBbox = new THREE.Box3().setFromObject(model);
         model.position.y -= scaledBbox.min.y;
 
-        model.rotation.y = Math.PI / 2;
+        model.rotation.y = 0;
 
         coatTexture = applyCoatColor(model, coatColor, markings);
 
@@ -584,9 +584,9 @@ export default function HorseViewer3D({
         scene.add(disc);
 
         camera.position.set(
-          finalBbox.max.x + 5.0,
+          bboxCenter.x,
           bboxCenter.y,
-          bboxCenter.z,
+          finalBbox.max.z + 5.0,
         );
         camera.lookAt(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.target.set(bboxCenter.x, bboxCenter.y, bboxCenter.z);
