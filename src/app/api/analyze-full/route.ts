@@ -736,6 +736,94 @@ export async function POST(request: Request) {
       );
     }
 
+    const userId = user.id;
+    const userEmail = user.email ?? null;
+    const betterSideReport =
+      betterSide === "left" ? leftReport : rightReport;
+
+    const reportText = JSON.stringify({
+      type: "full",
+      combinedScore,
+      betterSide,
+      leftReport,
+      rightReport,
+      frontReport,
+      hindReport,
+      coatColor,
+      markings,
+    });
+
+    const { error: insertError } = await serviceClient.from("reports").insert({
+      user_id: userId,
+      horse_name: horseName,
+      overall_score: combinedScore,
+      balance_score: betterSideReport.balance.score,
+      shoulder_score: betterSideReport.shoulder_angle.score,
+      hip_score: betterSideReport.hip_angle.score,
+      topline_score: betterSideReport.topline_quality.score,
+      leg_score: betterSideReport.leg_alignment.score,
+      report_text: reportText,
+      overlay_url: overlayUrl,
+    });
+
+    if (insertError) {
+      console.error("[analyze-full] failed to save report:", insertError);
+    } else {
+      // Send first-report email
+      try {
+        const { data: existingReports } = await serviceClient
+          .from("reports")
+          .select("id")
+          .eq("user_id", userId)
+          .limit(2);
+
+        const isFirstReport = existingReports && existingReports.length === 1;
+
+        if (isFirstReport && userEmail) {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "EquiForm <reports@equiform.app>",
+              to: userEmail,
+              subject: "Your First EquiForm Conformation Report is Ready 🐴",
+              html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 24px;">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #0f172a; font-size: 28px; margin: 0;">EquiForm</h1>
+              <p style="color: #64748b; font-size: 14px; margin: 4px 0 0;">AI-Powered Horse Conformation Analysis</p>
+            </div>
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 32px; margin-bottom: 24px;">
+              <h2 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Your conformation report is ready!</h2>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+                Your first EquiForm AI conformation analysis is complete. Log in to view your full report including scores, overlays, and detailed analysis.
+              </p>
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="https://www.equiform.app/my-reports" style="background-color: #0f172a; color: #ffffff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: 600; display: inline-block;">
+                  View My Report
+                </a>
+              </div>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
+                Need more analyses? <a href="https://www.equiform.app/buy-rosettes" style="color: #0f172a;">Purchase additional Report Tokens</a> to keep evaluating your horses.
+              </p>
+            </div>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+              AI-generated analysis is for informational purposes only. Not veterinary advice. <a href="https://www.equiform.app/disclaimer" style="color: #9ca3af;">Full Disclaimer</a>
+            </p>
+          </div>
+        `,
+            }),
+          });
+        }
+      } catch (emailError) {
+        console.error("First report email failed:", emailError);
+        // Don't throw — email failure should not break the report
+      }
+    }
+
     if (!isAdmin) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
