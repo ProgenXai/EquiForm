@@ -315,16 +315,150 @@ function applyCoatColor(
   coatColor?: string,
   markings?: string[],
 ): THREE.CanvasTexture | null {
-  const coatTexture = createCoatTexture(coatColor, markings);
-  const color = coatTexture ? 0xffffff : resolveCoatColor(coatColor);
+  const activeMarkings =
+    markings?.filter((marking) => marking !== "none" && marking.trim() !== "") ??
+    [];
+  const baseColor = resolveCoatColor(coatColor);
+  const base = new THREE.Color(baseColor);
+  const white = new THREE.Color(0xffffff);
 
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
 
     const previousMaterial = child.material;
+    const previousGeometry = child.geometry;
+    const geometry = previousGeometry.clone();
+    const positions = geometry.attributes.position;
+    if (!positions) return;
+
+    child.updateMatrixWorld(true);
+
+    const colors = new Float32Array(positions.count * 3);
+
+    for (let i = 0; i < positions.count; i++) {
+      const vertex = new THREE.Vector3(
+        positions.getX(i),
+        positions.getY(i),
+        positions.getZ(i),
+      );
+      vertex.applyMatrix4(child.matrixWorld);
+
+      let isWhite = false;
+
+      for (const marking of activeMarkings) {
+        switch (marking) {
+          case "star":
+            if (
+              vertex.x > 1.2 &&
+              vertex.x < 1.35 &&
+              vertex.y > 2.05 &&
+              vertex.y < 2.15 &&
+              vertex.z > -0.22 &&
+              vertex.z < -0.14
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "snip":
+            if (
+              vertex.x > 1.33 &&
+              vertex.x < 1.45 &&
+              vertex.y > 1.95 &&
+              vertex.y < 2.05 &&
+              vertex.z > -0.22 &&
+              vertex.z < -0.14
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "stripe":
+            if (
+              vertex.x > 1.2 &&
+              vertex.x < 1.45 &&
+              vertex.y > 1.95 &&
+              vertex.y < 2.15 &&
+              vertex.z > -0.2 &&
+              vertex.z < -0.16
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "blaze":
+            if (
+              vertex.x > 1.2 &&
+              vertex.x < 1.45 &&
+              vertex.y > 1.95 &&
+              vertex.y < 2.15 &&
+              vertex.z > -0.24 &&
+              vertex.z < -0.12
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "right_sock":
+            if (
+              vertex.y > 0.05 &&
+              vertex.y < 0.45 &&
+              vertex.x > 0.62 &&
+              vertex.x < 0.85 &&
+              vertex.z > -0.05 &&
+              vertex.z < 0.12
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "left_sock":
+            if (
+              vertex.y > 0.05 &&
+              vertex.y < 0.45 &&
+              vertex.x > 0.62 &&
+              vertex.x < 0.85 &&
+              vertex.z > -0.46 &&
+              vertex.z < -0.3
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "right_stocking":
+            if (
+              vertex.y > 0.05 &&
+              vertex.y < 0.85 &&
+              vertex.x > 0.62 &&
+              vertex.x < 0.85 &&
+              vertex.z > -0.05 &&
+              vertex.z < 0.12
+            ) {
+              isWhite = true;
+            }
+            break;
+          case "left_stocking":
+            if (
+              vertex.y > 0.05 &&
+              vertex.y < 0.85 &&
+              vertex.x > 0.62 &&
+              vertex.x < 0.85 &&
+              vertex.z > -0.46 &&
+              vertex.z < -0.3
+            ) {
+              isWhite = true;
+            }
+            break;
+        }
+      }
+
+      const c = isWhite ? white : base;
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
+    }
+
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    child.geometry = geometry;
+    previousGeometry.dispose();
+
     child.material = new THREE.MeshStandardMaterial({
-      color,
-      map: coatTexture ?? undefined,
+      color: 0xffffff,
+      vertexColors: true,
       metalness: 0.28,
       roughness: 0.48,
     });
@@ -336,7 +470,7 @@ function applyCoatColor(
     }
   });
 
-  return coatTexture;
+  return null;
 }
 
 function formatDebugNumber(
