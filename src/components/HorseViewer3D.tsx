@@ -376,6 +376,10 @@ export default function HorseViewer3D({
   className = "",
 }: HorseViewer3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const frontPlumbLineRef = useRef<THREE.Line | null>(null);
+  const hindPlumbLineRef = useRef<THREE.Line | null>(null);
+  const frontSphereRef = useRef<THREE.Mesh | null>(null);
+  const hindSphereRef = useRef<THREE.Mesh | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(true);
@@ -492,6 +496,26 @@ export default function HorseViewer3D({
     controls.minPolarAngle = Math.PI * 0.22;
     controls.autoRotate = false;
     controls.autoRotateSpeed = 0.35;
+
+    const updatePlumbVisibility = () => {
+      const azimuth = controls.getAzimuthalAngle();
+      const isFrontOrHind = Math.abs(Math.cos(azimuth)) > 0.5;
+
+      if (frontPlumbLineRef.current) {
+        frontPlumbLineRef.current.visible = isFrontOrHind;
+      }
+      if (hindPlumbLineRef.current) {
+        hindPlumbLineRef.current.visible = isFrontOrHind;
+      }
+      if (frontSphereRef.current) {
+        frontSphereRef.current.visible = isFrontOrHind;
+      }
+      if (hindSphereRef.current) {
+        hindSphereRef.current.visible = isFrontOrHind;
+      }
+    };
+
+    controls.addEventListener("change", updatePlumbVisibility);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
@@ -882,25 +906,33 @@ export default function HorseViewer3D({
           opacity: 0.85,
         });
         const frontPlumbLine = new THREE.Line(frontPlumbGeo, plumbMat);
+        frontPlumbLine.visible = false;
         scene.add(frontPlumbLine);
+        frontPlumbLineRef.current = frontPlumbLine;
 
         const hindPlumbGeo = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(hindPlumbX, finalBbox.min.y, bboxCenter.z),
           new THREE.Vector3(hindPlumbX, hindSphereY, bboxCenter.z),
         ]);
         const hindPlumbLine = new THREE.Line(hindPlumbGeo, plumbMat.clone());
+        hindPlumbLine.visible = false;
         scene.add(hindPlumbLine);
+        hindPlumbLineRef.current = hindPlumbLine;
 
         const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
         const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
         const frontSphere = new THREE.Mesh(sphereGeo, sphereMat);
         frontSphere.position.set(frontPlumbX, frontSphereY, bboxCenter.z);
+        frontSphere.visible = false;
         scene.add(frontSphere);
+        frontSphereRef.current = frontSphere;
 
         const hindSphere = new THREE.Mesh(sphereGeo.clone(), sphereMat.clone());
         hindSphere.position.set(hindPlumbX, hindSphereY, bboxCenter.z);
+        hindSphere.visible = false;
         scene.add(hindSphere);
+        hindSphereRef.current = hindSphere;
 
         if (!disposed) {
           setDebugInfo({
@@ -956,7 +988,12 @@ export default function HorseViewer3D({
       setDebugInfo(null);
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
+      controls.removeEventListener("change", updatePlumbVisibility);
       controls.dispose();
+      frontPlumbLineRef.current = null;
+      hindPlumbLineRef.current = null;
+      frontSphereRef.current = null;
+      hindSphereRef.current = null;
 
       scene.traverse((object) => {
         if (object instanceof THREE.Line) {
