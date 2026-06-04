@@ -438,7 +438,7 @@ export default function HorseViewer3D({
         const scaledBbox = new THREE.Box3().setFromObject(model);
         model.position.y -= scaledBbox.min.y;
 
-        model.rotation.y = Math.PI;
+        model.rotation.y = 0;
 
         coatTexture = applyCoatColor(model, coatColor, markings);
 
@@ -488,11 +488,11 @@ export default function HorseViewer3D({
           if (facingRight) {
             // Horse nose is on left (small x), butt on right (large x)
             // 3D model nose is on right (max z), butt on left (min z)
-            return finalBbox.max.z - normX * depth;
+            return finalBbox.min.z + normX * depth;
           } else {
             // Horse nose is on right (large x), butt on left (small x)
             // 3D model nose is on right (max z), butt on left (min z)
-            return finalBbox.min.z + normX * depth;
+            return finalBbox.max.z - normX * depth;
           }
         };
 
