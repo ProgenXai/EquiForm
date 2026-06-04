@@ -239,6 +239,7 @@ const SIDE_VIEW_TIPS = [
 
 const FRONT_VIEW_TIPS = [
   "Horse facing directly toward the camera",
+  "Lead rope or halter should not obstruct the chest or legs",
   PHOTO_DISTANCE_TIP,
   "All four feet visible on level ground",
   "Camera at chest height — not from above or below",
