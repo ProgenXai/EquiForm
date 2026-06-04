@@ -360,6 +360,43 @@ function applyMorphWeights(
   });
 }
 
+function computeBonePoses(landmarks: Record<string, { x: number; y: number }>) {
+  const lm = landmarks ?? {};
+
+  // Calculate angles from 2D landmarks
+  // Shoulder angle: poll to shoulder vector
+  const shoulderAngle = Math.atan2(
+    (lm.withers?.y ?? 0.18) - (lm.shoulder?.y ?? 0.45),
+    (lm.withers?.x ?? 0.32) - (lm.shoulder?.x ?? 0.18),
+  );
+
+  // Back/topline angle: shoulder to croup
+  const backAngle = Math.atan2(
+    (lm.croup?.y ?? lm.loin?.y ?? 0.2) - (lm.withers?.y ?? 0.18),
+    (lm.croup?.x ?? lm.loin?.x ?? 0.62) - (lm.withers?.x ?? 0.32),
+  );
+
+  // Hip angle: point_of_hip to buttock
+  const hipAngle = Math.atan2(
+    (lm.buttock?.y ?? 0.42) - (lm.point_of_hip?.y ?? 0.38),
+    (lm.buttock?.x ?? 0.88) - (lm.point_of_hip?.x ?? 0.72),
+  );
+
+  // Front leg angle: shoulder to front_knee
+  const frontLegAngle = Math.atan2(
+    (lm.front_knee?.y ?? 0.68) - (lm.shoulder?.y ?? 0.45),
+    (lm.front_knee?.x ?? 0.22) - (lm.shoulder?.x ?? 0.18),
+  );
+
+  // Hind leg angle: point_of_hip to hind_hock
+  const hindLegAngle = Math.atan2(
+    (lm.hind_hock?.y ?? 0.65) - (lm.point_of_hip?.y ?? 0.38),
+    (lm.hind_hock?.x ?? 0.75) - (lm.point_of_hip?.x ?? 0.72),
+  );
+
+  return { shoulderAngle, backAngle, hipAngle, frontLegAngle, hindLegAngle };
+}
+
 export default function HorseViewer3D({
   landmarks,
   coatColor,
@@ -613,6 +650,39 @@ export default function HorseViewer3D({
           }
         });
 
+        const lm = landmarks?.left ?? {};
+        const poses = computeBonePoses(lm);
+
+        scene.traverse((obj) => {
+          if (obj.type !== "Bone") return;
+          const bone = obj as THREE.Bone;
+
+          switch (bone.name) {
+            case "DEF-spine003":
+            case "DEF-spine004":
+              bone.rotation.z = poses.backAngle * 0.3;
+              break;
+
+            case "DEF-spine005":
+            case "DEF-spine006":
+              bone.rotation.z = poses.shoulderAngle * 0.2;
+              break;
+
+            case "DEF-upper_armL":
+            case "ORG-upper_armL":
+              bone.rotation.z = poses.frontLegAngle * 0.4;
+              break;
+
+            case "DEF-thighL":
+            case "ORG-thighL":
+              bone.rotation.z = poses.hipAngle * 0.4;
+              break;
+          }
+        });
+
+        scene.updateMatrixWorld(true);
+        console.log("Bone poses:", poses);
+
         const width = finalBbox.max.x - finalBbox.min.x;
         const depth = finalBbox.max.z - finalBbox.min.z;
 
@@ -635,7 +705,6 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
-        const lm = landmarks.left ?? {};
         const allLmX = [
           lm.shoulder?.x,
           lm.girth?.x,
