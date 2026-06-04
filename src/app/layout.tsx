@@ -36,7 +36,34 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#2dd4bf" />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <div className="flex-1">{children}</div>
+        <footer>
+          <p
+            style={{
+              fontSize: "11px",
+              color: "#6b7280",
+              textAlign: "center",
+              padding: "8px 16px",
+              borderTop: "1px solid #e5e7eb",
+              marginTop: "8px",
+            }}
+          >
+            AI-generated analysis is for informational purposes only and does
+            not constitute veterinary advice.
+            <a
+              href="/disclaimer"
+              style={{
+                color: "#6b7280",
+                textDecoration: "underline",
+                marginLeft: "4px",
+              }}
+            >
+              Full Disclaimer
+            </a>
+          </p>
+        </footer>
+      </body>
     </html>
   );
 }

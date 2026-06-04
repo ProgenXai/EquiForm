@@ -2009,6 +2009,26 @@ export default function AnalyzeClient() {
             </div>
           </section>
         ) : null}
+
+        {fullReportResult || (result && emailSubmitted) ? (
+          <p
+            style={{
+              fontSize: "11px",
+              color: "#9ca3af",
+              textAlign: "center",
+              padding: "12px 16px",
+            }}
+          >
+            AI-generated analysis is for informational and educational purposes
+            only. Not veterinary advice.{" "}
+            <a
+              href="/disclaimer"
+              style={{ color: "#9ca3af", textDecoration: "underline" }}
+            >
+              Full Disclaimer
+            </a>
+          </p>
+        ) : null}
       </main>
       </div>
     </div>
