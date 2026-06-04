@@ -603,6 +603,16 @@ export default function HorseViewer3D({
             console.log("MESH:", child.name);
           }
         });
+
+        const bonePositions: Record<string, THREE.Vector3> = {};
+        scene.traverse((obj) => {
+          if (obj.type === "Bone") {
+            const worldPos = new THREE.Vector3();
+            obj.getWorldPosition(worldPos);
+            bonePositions[obj.name] = worldPos;
+          }
+        });
+
         const width = finalBbox.max.x - finalBbox.min.x;
         const depth = finalBbox.max.z - finalBbox.min.z;
 
@@ -646,7 +656,7 @@ export default function HorseViewer3D({
         );
         console.log("finalBbox X:", bboxXMin, "to", bboxXMax);
 
-        const shoulderX = imageXToWorldX(
+        let line1X = imageXToWorldX(
           lm.shoulder?.x ?? 0.36,
           landmarkXMin,
           landmarkXMax,
@@ -654,7 +664,7 @@ export default function HorseViewer3D({
           bboxXMax,
           facingRight,
         );
-        const girthX = imageXToWorldX(
+        let line2X = imageXToWorldX(
           lm.girth?.x ?? 0.42,
           landmarkXMin,
           landmarkXMax,
@@ -662,7 +672,7 @@ export default function HorseViewer3D({
           bboxXMax,
           facingRight,
         );
-        const hipX = imageXToWorldX(
+        let line3X = imageXToWorldX(
           lm.point_of_hip?.x ?? lm.loin?.x ?? 0.65,
           landmarkXMin,
           landmarkXMax,
@@ -670,7 +680,7 @@ export default function HorseViewer3D({
           bboxXMax,
           facingRight,
         );
-        const buttockX = imageXToWorldX(
+        let line4X = imageXToWorldX(
           lm.buttock?.x ?? 0.85,
           landmarkXMin,
           landmarkXMax,
@@ -678,6 +688,11 @@ export default function HorseViewer3D({
           bboxXMax,
           facingRight,
         );
+
+        line1X = bonePositions["VIS_upper_arm_ik_poleL"]?.x ?? line1X;
+        line2X = bonePositions["DEF-spine003"]?.x ?? line2X;
+        line3X = bonePositions["DEF-spine001"]?.x ?? line3X;
+        line4X = bonePositions["ORG-tail001"]?.x ?? line4X;
 
         console.log("Red line norm X:", {
           shoulder: lm.shoulder?.x ?? 0.36,
@@ -687,20 +702,19 @@ export default function HorseViewer3D({
           buttock: lm.buttock?.x ?? 0.85,
         });
         console.log("Red line X:", {
-          line1X: shoulderX,
-          line2X: girthX,
-          line3X: hipX,
-          line4X: buttockX,
+          line1X,
+          line2X,
+          line3X,
+          line4X,
           landmarkXMin,
           landmarkXMax,
           facingRight,
-          distinct:
-            new Set([shoulderX, girthX, hipX, buttockX]).size === 4,
+          distinct: new Set([line1X, line2X, line3X, line4X]).size === 4,
         });
 
         scene.add(
           makeVerticalLine(
-            shoulderX,
+            line1X,
             finalBbox.max.y,
             0,
             bboxCenter.z,
@@ -709,7 +723,7 @@ export default function HorseViewer3D({
         );
         scene.add(
           makeVerticalLine(
-            girthX,
+            line2X,
             finalBbox.max.y,
             0,
             bboxCenter.z,
@@ -718,7 +732,7 @@ export default function HorseViewer3D({
         );
         scene.add(
           makeVerticalLine(
-            hipX,
+            line3X,
             finalBbox.max.y,
             0,
             bboxCenter.z,
@@ -727,7 +741,7 @@ export default function HorseViewer3D({
         );
         scene.add(
           makeVerticalLine(
-            buttockX,
+            line4X,
             finalBbox.max.y,
             0,
             bboxCenter.z,
@@ -820,10 +834,10 @@ export default function HorseViewer3D({
         if (!disposed) {
           setDebugInfo({
             ...morphWeights,
-            line1X: shoulderX,
-            line2X: girthX,
-            line3X: hipX,
-            line4X: buttockX,
+            line1X,
+            line2X,
+            line3X,
+            line4X,
             frontPlumbX,
             hindPlumbX,
             facingRight,
