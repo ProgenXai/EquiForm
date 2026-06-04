@@ -484,83 +484,78 @@ export default function HorseViewer3D({
         // Detect facing direction: if poll x < 0.5, horse faces right in photo (nose on left)
         const facingRight = (landmarks.left?.poll?.x ?? 0.5) < 0.5;
 
-        const landmarkToZ = (normX: number) => {
+        const landmarkToX = (normX: number) => {
           if (facingRight) {
-            // Horse nose is on left (small x), butt on right (large x)
-            // 3D model nose is on right (max z), butt on left (min z)
-            return finalBbox.min.z + normX * depth;
+            return finalBbox.min.x + normX * width;
           } else {
-            // Horse nose is on right (large x), butt on left (small x)
-            // 3D model nose is on right (max z), butt on left (min z)
-            return finalBbox.max.z - normX * depth;
+            return finalBbox.max.x - normX * width;
           }
         };
 
-        const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.25);
-        const girthZ = landmarkToZ(landmarks.left?.girth?.x ?? 0.42);
-        const hipZ = landmarkToZ(landmarks.left?.point_of_hip?.x ?? 0.65);
-        const buttockZ = landmarkToZ(landmarks.left?.buttock?.x ?? 0.82);
-
-        scene.add(
-          makeVerticalLine(
-            bboxCenter.x,
-            finalBbox.max.y,
-            0,
-            shoulderZ,
-            0xff3333,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            bboxCenter.x,
-            finalBbox.max.y,
-            0,
-            girthZ,
-            0xff3333,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            bboxCenter.x,
-            finalBbox.max.y,
-            0,
-            hipZ,
-            0xff3333,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            bboxCenter.x,
-            finalBbox.max.y,
-            0,
-            buttockZ,
-            0xff3333,
-          ),
-        );
-        const frontLegZ =
+        const shoulderX = landmarkToX(landmarks.left?.shoulder?.x ?? 0.25);
+        const girthX = landmarkToX(landmarks.left?.girth?.x ?? 0.42);
+        const hipX = landmarkToX(landmarks.left?.point_of_hip?.x ?? 0.65);
+        const buttockX = landmarkToX(landmarks.left?.buttock?.x ?? 0.82);
+        const frontLegX =
           landmarks.left?.front_knee?.x !== undefined
-            ? landmarkToZ(landmarks.left.front_knee.x)
-            : finalBbox.min.z + depth * 0.25;
-        const hindLegZ =
+            ? landmarkToX(landmarks.left.front_knee.x)
+            : finalBbox.min.x + width * 0.25;
+        const hindLegX =
           landmarks.left?.hind_hock?.x !== undefined
-            ? landmarkToZ(landmarks.left.hind_hock.x)
-            : finalBbox.min.z + depth * 0.75;
+            ? landmarkToX(landmarks.left.hind_hock.x)
+            : finalBbox.min.x + width * 0.75;
 
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            shoulderX,
+            finalBbox.max.y,
+            0,
+            bboxCenter.z,
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            girthX,
+            finalBbox.max.y,
+            0,
+            bboxCenter.z,
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            hipX,
+            finalBbox.max.y,
+            0,
+            bboxCenter.z,
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            buttockX,
+            finalBbox.max.y,
+            0,
+            bboxCenter.z,
+            0xff3333,
+          ),
+        );
+        scene.add(
+          makeVerticalLine(
+            frontLegX,
             finalBbox.max.y * 0.55,
             0,
-            frontLegZ,
+            bboxCenter.z,
             0xffffff,
           ),
         );
         scene.add(
           makeVerticalLine(
-            bboxCenter.x,
+            hindLegX,
             finalBbox.max.y * 0.55,
             0,
-            hindLegZ,
+            bboxCenter.z,
             0xffffff,
           ),
         );
@@ -577,9 +572,9 @@ export default function HorseViewer3D({
         scene.add(disc);
 
         camera.position.set(
-          bboxCenter.x + 6.0,
+          bboxCenter.x,
           bboxCenter.y,
-          bboxCenter.z,
+          bboxCenter.z + 6.0,
         );
         camera.lookAt(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.target.set(bboxCenter.x, bboxCenter.y, bboxCenter.z);
