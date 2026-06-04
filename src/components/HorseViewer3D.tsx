@@ -633,6 +633,8 @@ export default function HorseViewer3D({
 
         coatTexture = applyCoatColor(model, coatColor, markings);
 
+        const finalBbox = new THREE.Box3().setFromObject(model);
+
         if (leftPhotoUrl || rightPhotoUrl || frontPhotoUrl || hindPhotoUrl) {
           try {
             const textureMap: Partial<Record<string, THREE.Texture>> = {};
@@ -653,11 +655,38 @@ export default function HorseViewer3D({
             const primaryTexture = textureMap.left ?? textureMap.right;
             if (primaryTexture) {
               primaryTexture.colorSpace = THREE.SRGBColorSpace;
+
               model.traverse((child) => {
                 if (!(child instanceof THREE.Mesh)) return;
-                if (child.name.includes("Hair") || child.name.includes("hair")) {
-                  return;
+
+                const geometry = child.geometry.clone();
+                const positions = geometry.attributes.position;
+                const uvs = new Float32Array(positions.count * 2);
+
+                child.updateMatrixWorld(true);
+
+                for (let i = 0; i < positions.count; i++) {
+                  const vertex = new THREE.Vector3(
+                    positions.getX(i),
+                    positions.getY(i),
+                    positions.getZ(i),
+                  );
+                  vertex.applyMatrix4(child.matrixWorld);
+
+                  const u =
+                    (vertex.x - finalBbox.min.x) /
+                    (finalBbox.max.x - finalBbox.min.x);
+                  const v =
+                    (vertex.y - finalBbox.min.y) /
+                    (finalBbox.max.y - finalBbox.min.y);
+
+                  uvs[i * 2] = u;
+                  uvs[i * 2 + 1] = v;
                 }
+
+                geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+                child.geometry = geometry;
+
                 child.material = new THREE.MeshStandardMaterial({
                   map: primaryTexture,
                   metalness: 0.1,
@@ -670,7 +699,6 @@ export default function HorseViewer3D({
           }
         }
 
-        const finalBbox = new THREE.Box3().setFromObject(model);
         console.log("finalBbox Z:", finalBbox.min.z, "to", finalBbox.max.z);
         console.log("finalBbox X range:", finalBbox.min.x, "to", finalBbox.max.x);
         console.log("finalBbox Y:", finalBbox.min.y, "to", finalBbox.max.y);
