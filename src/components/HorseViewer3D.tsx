@@ -853,15 +853,20 @@ export default function HorseViewer3D({
           ),
         );
 
-        const elbowBone = bonePositions["VIS_upper_arm_ik_poleL"];
+        const elbowBone =
+          bonePositions["VIS_upper_arm_ik_pole.L"] ??
+          bonePositions["VIS_upper_arm_ik_poleL"];
         const frontPlumbX = elbowBone
           ? elbowBone.x
-          : (bonePositions["forefoot_ikL"]?.x ?? line1X);
+          : (bonePositions["forefoot_ik.L"]?.x ??
+            bonePositions["forefoot_ikL"]?.x ??
+            line1X);
         const frontSphereY = elbowBone
           ? elbowBone.y
           : finalBbox.max.y * 0.6;
 
-        const buttockBone = bonePositions["ORG-tail003"];
+        const buttockBone =
+          bonePositions["ORG-tail.003"] ?? bonePositions["ORG-tail003"];
         const hindPlumbX = buttockBone ? buttockBone.x : line4X;
         const hindSphereY = buttockBone
           ? buttockBone.y
