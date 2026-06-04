@@ -492,11 +492,15 @@ export default function HorseViewer3D({
         );
         console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
 
+        const bodyFrontZ = 0.634; // forefoot bone Z position
+        const bodyRearZ = -0.858; // hind foot bone Z position
+        const bodyDepth = bodyFrontZ - bodyRearZ;
+
         const landmarkToZ = (normX: number) => {
           if (facingRight) {
-            return finalBbox.max.z - normX * depth;
+            return bodyFrontZ - normX * bodyDepth;
           } else {
-            return finalBbox.min.z + normX * depth;
+            return bodyRearZ + normX * bodyDepth;
           }
         };
 
