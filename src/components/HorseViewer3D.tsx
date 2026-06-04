@@ -573,7 +573,8 @@ export default function HorseViewer3D({
         const scaledBbox = new THREE.Box3().setFromObject(model);
         model.position.y -= scaledBbox.min.y;
 
-        model.rotation.y = Math.PI / 2;
+        const facingRight = (landmarks.left?.poll?.x ?? 0.21) < 0.5;
+        model.rotation.y = facingRight ? Math.PI / 2 : -Math.PI / 2;
 
         const morphWeights = computeMorphWeights(
           landmarks.left ?? {},
@@ -633,7 +634,6 @@ export default function HorseViewer3D({
         ].filter((v): v is number => v != null);
         const landmarkXMin = Math.min(...allLmX);
         const landmarkXMax = Math.max(...allLmX);
-        const facingRight = (lm.poll?.x ?? 0.21) < 0.5;
         const bboxXMin = finalBbox.min.x;
         const bboxXMax = finalBbox.max.x;
 
