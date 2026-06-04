@@ -579,7 +579,11 @@ export default function HorseViewer3D({
         disc.position.set(bboxCenter.x, 0.01, bboxCenter.z);
         scene.add(disc);
 
-        camera.position.set(finalBbox.min.x - 5.0, bboxCenter.y, bboxCenter.z);
+        camera.position.set(
+          bboxCenter.x,
+          bboxCenter.y,
+          finalBbox.max.z + 5.0,
+        );
         camera.lookAt(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.target.set(bboxCenter.x, bboxCenter.y, bboxCenter.z);
         controls.update();
