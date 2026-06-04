@@ -660,22 +660,22 @@ export default function HorseViewer3D({
           switch (bone.name) {
             case "DEF-spine003":
             case "DEF-spine004":
-              bone.rotation.z = poses.backAngle * 0.3;
+              bone.rotation.z = poses.backAngle * 0.05;
               break;
 
             case "DEF-spine005":
             case "DEF-spine006":
-              bone.rotation.z = poses.shoulderAngle * 0.2;
+              bone.rotation.z = poses.shoulderAngle * 0.03;
               break;
 
             case "DEF-upper_armL":
             case "ORG-upper_armL":
-              bone.rotation.z = poses.frontLegAngle * 0.4;
+              bone.rotation.z = poses.frontLegAngle * 0.05;
               break;
 
             case "DEF-thighL":
             case "ORG-thighL":
-              bone.rotation.z = poses.hipAngle * 0.4;
+              bone.rotation.z = poses.hipAngle * 0.05;
               break;
           }
         });
