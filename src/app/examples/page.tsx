@@ -53,6 +53,7 @@ const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
 
 const GUIDELINES = [
   "Full side profile required — the horse must be fully visible from head to hoof, standing squarely on level ground, facing left or right. Angled, 3/4, or front-facing photos will not work.",
+  "Tie or braid your horse's tail up so both hind legs are clearly visible.",
   "One horse, no obstructions — only one horse in the frame, with no people, fences, gates, or objects blocking any part of the body. Legs, shoulders, and hindquarters must be fully visible.",
   "Horse must be standing still and square — no motion, no cocked legs, no stretched halter poses, no camped-out stance. All four feet should be planted naturally on the ground.",
   "Good lighting and contrast — the horse must be clearly visible against the background. Avoid dark horses in dark settings, heavy shadows across the body, or overexposed/washed-out photos.",
