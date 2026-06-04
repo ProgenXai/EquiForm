@@ -673,9 +673,10 @@ export default function HorseViewer3D({
                   );
                   vertex.applyMatrix4(child.matrixWorld);
 
-                  const u =
+                  const rawU =
                     (vertex.x - finalBbox.min.x) /
                     (finalBbox.max.x - finalBbox.min.x);
+                  const u = facingRight ? 1 - rawU : rawU;
                   const v =
                     (vertex.y - finalBbox.min.y) /
                     (finalBbox.max.y - finalBbox.min.y);
