@@ -544,6 +544,21 @@ export default function HorseViewer3D({
         const model = gltf.scene;
         scene.add(model);
 
+        scene.traverse((obj) => {
+          if ((obj as THREE.Mesh).isMesh) {
+            const mesh = obj as THREE.Mesh;
+            if (mesh.morphTargetDictionary) {
+              console.log(
+                "MORPH MESH:",
+                mesh.name,
+                Object.keys(mesh.morphTargetDictionary),
+              );
+            } else {
+              console.log("NO MORPHS:", mesh.name);
+            }
+          }
+        });
+
         const bbox = new THREE.Box3().setFromObject(model);
         const center = bbox.getCenter(new THREE.Vector3());
         const size = bbox.getSize(new THREE.Vector3());
