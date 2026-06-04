@@ -753,7 +753,10 @@ export async function POST(request: Request) {
       markings,
     });
 
-    const { error: insertError } = await serviceClient.from("reports").insert({
+    console.log("Attempting report save for user:", userId, userEmail);
+    console.log("userId at save:", userId, "userEmail at save:", userEmail);
+
+    const { data, error } = await serviceClient.from("reports").insert({
       user_id: userId,
       horse_name: horseName,
       overall_score: combinedScore,
@@ -766,8 +769,15 @@ export async function POST(request: Request) {
       overlay_url: overlayUrl,
     });
 
-    if (insertError) {
-      console.error("[analyze-full] failed to save report:", insertError);
+    console.log(
+      "Report save result:",
+      JSON.stringify(data),
+      JSON.stringify(error),
+    );
+
+    if (error) {
+      console.error("Report save error:", error.message, error.code, error.details);
+      console.error("[analyze-full] failed to save report:", error);
     } else {
       // Send first-report email
       try {
