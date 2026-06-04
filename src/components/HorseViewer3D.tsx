@@ -692,7 +692,7 @@ export default function HorseViewer3D({
         line1X = bonePositions["VIS_upper_arm_ik_poleL"]?.x ?? line1X;
         line2X = bonePositions["DEF-spine003"]?.x ?? line2X;
         line3X = bonePositions["DEF-spine001"]?.x ?? line3X;
-        line4X = bonePositions["ORG-tail001"]?.x ?? line4X;
+        line4X = bonePositions["ORG-tail003"]?.x ?? line4X;
 
         console.log("Red line norm X:", {
           shoulder: lm.shoulder?.x ?? 0.36,
