@@ -494,9 +494,9 @@ export default function HorseViewer3D({
 
         const landmarkToZ = (normX: number) => {
           if (facingRight) {
-            return finalBbox.min.z + normX * depth;
-          } else {
             return finalBbox.max.z - normX * depth;
+          } else {
+            return finalBbox.min.z + normX * depth;
           }
         };
 
