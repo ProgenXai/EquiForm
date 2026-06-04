@@ -70,7 +70,7 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
 };
 
 const COAT_COLOR_DETECTION_PROMPT =
-  'Look at this horse photo and identify: 1) The base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Any white markings visible (blaze, stripe, star, snip, left_sock, right_sock, left_stocking, right_stocking, none). Return ONLY valid JSON: { "coat": "bay", "markings": ["blaze", "left_sock"] }';
+  'Carefully examine this horse photo and identify: 1) The base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Any white markings visible on the face or legs. Look carefully for: on the face - blaze (wide white stripe down face), stripe (narrow white stripe down face), star (white spot on forehead), snip (white spot on muzzle/nostril area). On the legs - sock (white from hoof to below knee/hock), stocking (white from hoof to knee/hock or above). Specify left or right for each leg marking. If you see any white at all on the face or legs, identify it specifically. Only use "none" if there are truly zero white markings anywhere. Return ONLY valid JSON: { "coat": "black", "markings": ["star", "snip", "right_sock"] }';
 
 const VALID_COAT_COLORS = new Set([
   "black",
@@ -630,10 +630,16 @@ export async function POST(request: Request) {
     const betterSide: "left" | "right" =
       leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
 
-    const { coatColor, markings } = await detectCoatColor(
-      anthropic,
-      preparedByView[betterSide],
-    );
+    const [sideCoatResult, frontCoatResult] = await Promise.all([
+      detectCoatColor(anthropic, preparedByView[betterSide]),
+      detectCoatColor(anthropic, preparedByView.front),
+    ]);
+
+    const coatColor = sideCoatResult.coatColor;
+    const allMarkings = [
+      ...new Set([...sideCoatResult.markings, ...frontCoatResult.markings]),
+    ].filter((m) => m !== "none");
+    const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
     const combinedScore = calculateCombinedScore(
       leftReport,
