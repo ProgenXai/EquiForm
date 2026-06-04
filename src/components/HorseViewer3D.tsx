@@ -492,8 +492,8 @@ export default function HorseViewer3D({
         );
         console.log("finalBbox X:", finalBbox.min.x, "to", finalBbox.max.x);
 
-        const bodyFrontX = -1.12;
-        const bodyRearX = 1.69;
+        const bodyFrontX = 1.69;
+        const bodyRearX = -1.12;
         const bodyDepth = Math.abs(bodyFrontX - bodyRearX);
 
         const landmarkToX = (normX: number) => {
