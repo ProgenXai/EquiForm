@@ -751,7 +751,7 @@ export default function HorseViewer3D({
 
         const frontKneeNormX =
           lm.front_knee?.x ?? lm.knee?.x ?? lm.shoulder?.x ?? 0.36;
-        const frontPlumbX = imageXToWorldX(
+        let frontPlumbX = imageXToWorldX(
           frontKneeNormX,
           landmarkXMin,
           landmarkXMax,
@@ -760,7 +760,7 @@ export default function HorseViewer3D({
           facingRight,
         );
 
-        const hindPlumbX = imageXToWorldX(
+        let hindPlumbX = imageXToWorldX(
           lm.buttock?.x ?? 0.85,
           landmarkXMin,
           landmarkXMax,
@@ -786,20 +786,25 @@ export default function HorseViewer3D({
         const bboxYMin = finalBbox.min.y;
         const bboxYMax = finalBbox.max.y;
 
-        const frontSphereY = imageYToWorldY(
+        let frontSphereY = imageYToWorldY(
           lm.front_knee?.y ?? lm.knee?.y ?? lm.shoulder?.y ?? 0.55,
           plumbLandmarkYMin,
           plumbLandmarkYMax,
           bboxYMin,
           bboxYMax,
         );
-        const hindSphereY = imageYToWorldY(
+        let hindSphereY = imageYToWorldY(
           lm.hind_hock?.y ?? lm.hock?.y ?? 0.65,
           plumbLandmarkYMin,
           plumbLandmarkYMax,
           bboxYMin,
           bboxYMax,
         );
+
+        frontPlumbX = bonePositions["VIS_upper_arm_ik_poleL"]?.x ?? frontPlumbX;
+        hindPlumbX = bonePositions["VIS_thigh_ik_poleL"]?.x ?? hindPlumbX;
+        frontSphereY = bonePositions["VIS_upper_arm_ik_poleL"]?.y ?? frontSphereY;
+        hindSphereY = bonePositions["VIS_thigh_ik_poleL"]?.y ?? hindSphereY;
 
         const frontPlumbGeo = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(frontPlumbX, finalBbox.min.y, bboxCenter.z),
