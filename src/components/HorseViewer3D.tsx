@@ -481,17 +481,14 @@ export default function HorseViewer3D({
           return new THREE.Line(geo, mat);
         }
 
-        const shoulderZ = finalBbox.min.z + depth * 0.22;
-        const girthZ = finalBbox.min.z + depth * 0.42;
-        const hipZ = finalBbox.min.z + depth * 0.72;
-        const buttockZ = finalBbox.min.z + depth * 0.92;
+        const landmarkToZ = (normX: number) => {
+          return finalBbox.min.z + (1 - normX) * depth;
+        };
 
-        console.log("Fixed Z positions:", {
-          shoulderZ,
-          girthZ,
-          hipZ,
-          buttockZ,
-        });
+        const shoulderZ = landmarkToZ(landmarks.left?.shoulder?.x ?? 0.22);
+        const girthZ = landmarkToZ(landmarks.left?.girth?.x ?? 0.42);
+        const hipZ = landmarkToZ(landmarks.left?.point_of_hip?.x ?? 0.72);
+        const buttockZ = landmarkToZ(landmarks.left?.buttock?.x ?? 0.92);
 
         scene.add(
           makeVerticalLine(
