@@ -428,6 +428,7 @@ function calculateCombinedScore(
 }
 
 export async function POST(request: Request) {
+  console.log("[analyze-full] POST handler entered");
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: "Anthropic API key is not configured" },
