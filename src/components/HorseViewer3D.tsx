@@ -765,8 +765,6 @@ export default function HorseViewer3D({
         applyMorphWeights(model, morphWeights);
         console.log("Morph weights:", morphWeights);
 
-        coatTexture = applyCoatColor(model, coatColor, markings);
-
         const finalBbox = new THREE.Box3().setFromObject(model);
 
         console.log("finalBbox Z:", finalBbox.min.z, "to", finalBbox.max.z);
@@ -882,6 +880,7 @@ export default function HorseViewer3D({
 
         model.updateMatrixWorld(true);
         console.log("IK targets:", ikTargets);
+        coatTexture = applyCoatColor(model, coatColor, markings);
 
         scene.traverse((obj) => {
           if (obj.type === "Bone") {
