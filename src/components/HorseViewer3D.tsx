@@ -274,217 +274,126 @@ function paintMarking(
   }
 }
 
-function createCoatTexture(
+const BASE_COLOR_TEXTURE_URL =
+  "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-base-color.png";
+
+const MARKING_UV_ZONES: Record<
+  string,
+  { u1: number; v1: number; u2: number; v2: number; shape: "ellipse" | "rect" }
+> = {
+  star: { u1: 0.72, v1: 0.62, u2: 0.82, v2: 0.72, shape: "ellipse" },
+  snip: { u1: 0.73, v1: 0.52, u2: 0.81, v2: 0.6, shape: "ellipse" },
+  blaze: { u1: 0.73, v1: 0.52, u2: 0.81, v2: 0.74, shape: "rect" },
+  stripe: { u1: 0.75, v1: 0.54, u2: 0.79, v2: 0.72, shape: "rect" },
+  right_sock: { u1: 0.18, v1: 0.02, u2: 0.28, v2: 0.22, shape: "rect" },
+  left_sock: { u1: 0.08, v1: 0.02, u2: 0.18, v2: 0.22, shape: "rect" },
+  right_stocking: { u1: 0.18, v1: 0.02, u2: 0.28, v2: 0.35, shape: "rect" },
+  left_stocking: { u1: 0.08, v1: 0.02, u2: 0.18, v2: 0.35, shape: "rect" },
+};
+
+const COAT_COLOR_TINTS: Record<string, { r: number; g: number; b: number }> = {
+  black: { r: 0.04, g: 0.04, b: 0.04 },
+  bay: { r: 0.42, g: 0.23, b: 0.10 },
+  dark_bay: { r: 0.24, g: 0.12, b: 0.06 },
+  chestnut: { r: 0.55, g: 0.27, b: 0.08 },
+  sorrel: { r: 0.75, g: 0.38, b: 0.14 },
+  gray: { r: 0.63, g: 0.63, b: 0.63 },
+  dun: { r: 0.77, g: 0.64, b: 0.35 },
+  buckskin: { r: 0.78, g: 0.66, b: 0.43 },
+  palomino: { r: 0.91, g: 0.78, b: 0.47 },
+  roan: { r: 0.55, g: 0.35, b: 0.35 },
+  cremello: { r: 0.96, g: 0.90, b: 0.78 },
+  pinto: { r: 0.55, g: 0.27, b: 0.08 },
+};
+
+async function applyCoatColor(
+  root: THREE.Object3D,
   coatColor?: string,
   markings?: string[],
-): THREE.CanvasTexture | null {
+): Promise<THREE.CanvasTexture | null> {
   const activeMarkings =
-    markings?.filter((marking) => marking !== "none" && marking.trim() !== "") ??
-    [];
+    markings?.filter((m) => m !== "none" && m.trim() !== "") ?? [];
 
-  if (activeMarkings.length === 0) {
-    return null;
-  }
-
+  const SIZE = 2048;
   const canvas = document.createElement("canvas");
-  canvas.width = COAT_TEXTURE_SIZE;
-  canvas.height = COAT_TEXTURE_SIZE;
-
+  canvas.width = SIZE;
+  canvas.height = SIZE;
   const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return null;
+  if (!ctx) return null;
+
+  await new Promise<void>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, SIZE, SIZE);
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = BASE_COLOR_TEXTURE_URL;
+  });
+
+  const tint = COAT_COLOR_TINTS[coatColor ?? ""] ?? null;
+  if (tint) {
+    const imageData = ctx.getImageData(0, 0, SIZE, SIZE);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const alpha = data[i + 3];
+      if (alpha < 10) continue;
+      data[i] = Math.min(255, data[i] * tint.r * 3.0);
+      data[i + 1] = Math.min(255, data[i + 1] * tint.g * 3.0);
+      data[i + 2] = Math.min(255, data[i + 2] * tint.b * 3.0);
+    }
+    ctx.putImageData(imageData, 0, 0);
   }
 
-  ctx.fillStyle = coatColorToCss(resolveCoatColor(coatColor));
-  ctx.fillRect(0, 0, COAT_TEXTURE_SIZE, COAT_TEXTURE_SIZE);
-
+  ctx.fillStyle = "#ffffff";
   for (const marking of activeMarkings) {
-    paintMarking(ctx, marking);
+    const zone = MARKING_UV_ZONES[marking];
+    if (!zone) continue;
+
+    const px = zone.u1 * SIZE;
+    const py = (1 - zone.v2) * SIZE;
+    const pw = (zone.u2 - zone.u1) * SIZE;
+    const ph = (zone.v2 - zone.v1) * SIZE;
+
+    if (zone.shape === "ellipse") {
+      ctx.beginPath();
+      ctx.ellipse(
+        px + pw / 2,
+        py + ph / 2,
+        pw / 2,
+        ph / 2,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    } else {
+      ctx.fillRect(px, py, pw, ph);
+    }
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.flipY = false;
   texture.needsUpdate = true;
-  return texture;
-}
-
-function applyCoatColor(
-  root: THREE.Object3D,
-  coatColor?: string,
-  markings?: string[],
-): THREE.CanvasTexture | null {
-  const activeMarkings =
-    markings?.filter((marking) => marking !== "none" && marking.trim() !== "") ??
-    [];
-  const baseColor = resolveCoatColor(coatColor);
-  const base = new THREE.Color(baseColor);
-  const white = new THREE.Color(0xffffff);
-
-  const boneNameToIndex: Record<string, number[]> = {};
-  root.traverse((child) => {
-    if (child instanceof THREE.SkinnedMesh && child.skeleton) {
-      child.skeleton.bones.forEach((bone, index) => {
-        const name = bone.name.toLowerCase();
-        if (!boneNameToIndex[name]) boneNameToIndex[name] = [];
-        boneNameToIndex[name].push(index);
-      });
-    }
-  });
-  console.log("Bone name map keys:", Object.keys(boneNameToIndex));
-
-  const markingBoneKeywords: Record<string, string[]> = {
-    right_sock: ["f_hoof.r", "forefoot.r", "cannon.r", "fetlock.r"],
-    left_sock: ["f_hoof.l", "forefoot.l", "cannon.l", "fetlock.l"],
-    right_stocking: [
-      "f_hoof.r",
-      "forefoot.r",
-      "cannon.r",
-      "fetlock.r",
-      "knee.r",
-    ],
-    left_stocking: [
-      "f_hoof.l",
-      "forefoot.l",
-      "cannon.l",
-      "fetlock.l",
-      "knee.l",
-    ],
-  };
 
   root.traverse((child) => {
-    if (!(child instanceof THREE.SkinnedMesh)) return;
-
-    const geometry = child.geometry.clone();
-    const positions = geometry.attributes.position;
-    const skinIndex = geometry.attributes.skinIndex;
-    const skinWeight = geometry.attributes.skinWeight;
-
-    if (!positions) return;
-
-    child.updateMatrixWorld(true);
-    const colors = new Float32Array(positions.count * 3);
-
-    for (let i = 0; i < positions.count; i++) {
-      let isWhite = false;
-
-      for (const marking of activeMarkings) {
-        if (marking === "star" || marking === "snip") {
-          const vertex = new THREE.Vector3(
-            positions.getX(i),
-            positions.getY(i),
-            positions.getZ(i),
-          );
-          vertex.applyMatrix4(child.matrixWorld);
-          switch (marking) {
-            case "star":
-              if (
-                vertex.x > 1.6 &&
-                vertex.x < 1.85 &&
-                vertex.y > 2.1 &&
-                vertex.y < 2.28 &&
-                vertex.z > -0.12 &&
-                vertex.z < 0.12
-              ) {
-                isWhite = true;
-              }
-              break;
-            case "snip":
-              if (
-                vertex.x > 1.68 &&
-                vertex.x < 1.9 &&
-                vertex.y > 1.62 &&
-                vertex.y < 1.78 &&
-                vertex.z > -0.12 &&
-                vertex.z < 0.12
-              ) {
-                isWhite = true;
-              }
-              break;
-          }
-          continue;
-        }
-
-        const keywords = markingBoneKeywords[marking];
-        if (!keywords) {
-          const vertex = new THREE.Vector3(
-            positions.getX(i),
-            positions.getY(i),
-            positions.getZ(i),
-          );
-          vertex.applyMatrix4(child.matrixWorld);
-          if (
-            marking === "blaze" &&
-            vertex.x > 1.2 &&
-            vertex.x < 1.65 &&
-            vertex.y > 1.65 &&
-            vertex.y < 2.1 &&
-            vertex.z > -0.15 &&
-            vertex.z < 0.15
-          ) {
-            isWhite = true;
-          }
-          if (
-            marking === "stripe" &&
-            vertex.x > 1.25 &&
-            vertex.x < 1.55 &&
-            vertex.y > 1.7 &&
-            vertex.y < 2.05 &&
-            vertex.z > -0.08 &&
-            vertex.z < 0.08
-          ) {
-            isWhite = true;
-          }
-          continue;
-        }
-
-        if (skinIndex && skinWeight) {
-          for (let j = 0; j < 4; j++) {
-            const boneIdx = skinIndex.getComponent(i, j);
-            const weight = skinWeight.getComponent(i, j);
-            if (weight < 0.1) continue;
-
-            for (const [boneName, indices] of Object.entries(boneNameToIndex)) {
-              if (indices.includes(boneIdx)) {
-                for (const keyword of keywords) {
-                  if (boneName.includes(keyword.toLowerCase())) {
-                    isWhite = true;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      const c = isWhite ? white : base;
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
-    }
-
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const previousGeometry = child.geometry;
-    child.geometry = geometry;
-    previousGeometry.dispose();
-
-    const previousMaterial = child.material;
+    if (!(child instanceof THREE.Mesh)) return;
+    const prev = child.material;
     child.material = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      vertexColors: true,
+      map: texture,
       metalness: 0.28,
       roughness: 0.48,
     });
-
-    if (Array.isArray(previousMaterial)) {
-      previousMaterial.forEach((m) => m.dispose());
+    if (Array.isArray(prev)) {
+      prev.forEach((m) => m.dispose());
     } else {
-      previousMaterial.dispose();
+      prev.dispose();
     }
   });
 
-  return null;
+  return texture;
 }
 
 function formatDebugNumber(
@@ -888,7 +797,7 @@ export default function HorseViewer3D({
 
         model.updateMatrixWorld(true);
         console.log("IK targets:", ikTargets);
-        coatTexture = applyCoatColor(model, coatColor, markings);
+        coatTexture = await applyCoatColor(model, coatColor, markings);
 
         scene.traverse((obj) => {
           if (obj.type === "Bone") {
