@@ -69,8 +69,17 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
   hind: HIND_VIEW_VALIDATION_PROMPT,
 };
 
-const COAT_COLOR_DETECTION_PROMPT =
-  'You are examining a horse photo for coat color and white markings. IMPORTANT: Look very carefully for ANY white or light-colored areas, even small ones. On BLACK or DARK horses, white markings can be subtle. 1) Identify the base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Look carefully for white markings: FACE - star (any white spot on forehead, even small), snip (any white on muzzle or between nostrils, even small), stripe (narrow white line down face), blaze (wide white stripe down face). LEGS - right_sock/left_sock (white on lower leg below knee), right_stocking/left_stocking (white extending to or above knee). For dark horses especially, zoom into the face and leg areas mentally and look for ANY white. Only return "none" if you are 100% certain there are zero white markings anywhere. Return ONLY valid JSON: { "coat": "black", "markings": ["star", "snip", "right_sock"] }';
+const COAT_COLOR_DETECTION_PROMPT_SIDE =
+  'You are examining a horse SIDE PROFILE photo. 1) Identify the base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Look carefully for white markings visible from this side: FACE - star (white spot on forehead), snip (white on muzzle), stripe (narrow white line down face), blaze (wide white stripe down face). LEGS - only report leg markings you can CLEARLY see on the legs visible in this side view. Do NOT guess or assume markings you cannot clearly see. Return ONLY valid JSON: { "coat": "black", "markings": ["star", "snip"] }';
+
+const COAT_COLOR_DETECTION_PROMPT_FRONT =
+  'You are examining a horse FRONT VIEW photo. Look carefully at what you can clearly see: FACE markings - star (white spot on forehead), snip (white on muzzle/between nostrils), blaze (wide white stripe down face), stripe (narrow white line). FRONT LEGS - right_sock or left_sock ONLY if you can clearly see white on that specific front leg. If a front leg is clearly dark/black with NO white, do NOT report a sock for it. Only report markings you can definitively confirm. Return ONLY valid JSON: { "coat": "black", "markings": ["blaze"] }';
+
+const COAT_COLOR_DETECTION_PROMPT_HIND =
+  'You are examining a horse HIND VIEW photo showing the rear of the horse. Look carefully ONLY at the hind legs. If a hind leg clearly has white on it report right_hind_sock or left_hind_sock. If a hind leg is clearly dark with no white do NOT report a sock. Only report what you can clearly confirm from this view. Return ONLY valid JSON: { "coat": "black", "markings": ["right_hind_sock", "left_hind_sock"] }';
+
+const COAT_COLOR_DETECTION_PROMPT_SIDE_RIGHT =
+  'You are examining a horse RIGHT SIDE PROFILE photo. 1) Identify the base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Look carefully for white markings visible from the right side. Only report markings you can CLEARLY see. Return ONLY valid JSON: { "coat": "black", "markings": ["right_sock"] }';
 
 const VALID_COAT_COLORS = new Set([
   "black",
@@ -373,7 +382,7 @@ async function detectCoatColor(
         role: "user",
         content: [
           buildAnthropicImageContent(prepared),
-          { type: "text", text: COAT_COLOR_DETECTION_PROMPT },
+          { type: "text", text: COAT_COLOR_DETECTION_PROMPT_SIDE },
         ],
       },
     ],
@@ -630,14 +639,49 @@ export async function POST(request: Request) {
     const betterSide: "left" | "right" =
       leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
 
-    const [sideCoatResult, frontCoatResult] = await Promise.all([
-      detectCoatColor(anthropic, preparedByView[betterSide]),
-      detectCoatColor(anthropic, preparedByView.front),
+    const detectCoatColorWithPrompt = async (
+      prepared: PreparedViewImage,
+      prompt: string,
+    ): Promise<{ coatColor: string; markings: string[] }> => {
+      const coatMessage = await anthropic.messages.create({
+        model: "claude-opus-4-5-20251101",
+        max_tokens: 256,
+        messages: [
+          {
+            role: "user",
+            content: [
+              buildAnthropicImageContent(prepared),
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+      });
+      const coatText = coatMessage.content
+        .filter((block) => block.type === "text")
+        .map((block) => block.text)
+        .join("\n")
+        .trim();
+      return parseCoatDetectionResponse(coatText);
+    };
+
+    const [leftCoatResult, rightCoatResult, frontCoatResult, hindCoatResult] = await Promise.all([
+      detectCoatColorWithPrompt(preparedByView.left, COAT_COLOR_DETECTION_PROMPT_SIDE),
+      detectCoatColorWithPrompt(preparedByView.right, COAT_COLOR_DETECTION_PROMPT_SIDE_RIGHT),
+      detectCoatColorWithPrompt(preparedByView.front, COAT_COLOR_DETECTION_PROMPT_FRONT),
+      detectCoatColorWithPrompt(preparedByView.hind, COAT_COLOR_DETECTION_PROMPT_HIND),
     ]);
 
-    const coatColor = sideCoatResult.coatColor;
+    const coatColor = leftCoatResult.coatColor !== "bay"
+      ? leftCoatResult.coatColor
+      : rightCoatResult.coatColor;
+
     const allMarkings = [
-      ...new Set([...sideCoatResult.markings, ...frontCoatResult.markings]),
+      ...new Set([
+        ...leftCoatResult.markings,
+        ...rightCoatResult.markings,
+        ...frontCoatResult.markings,
+        ...hindCoatResult.markings,
+      ]),
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
