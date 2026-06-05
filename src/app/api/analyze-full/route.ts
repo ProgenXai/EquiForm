@@ -747,6 +747,26 @@ export async function POST(request: Request) {
     const betterSideReport =
       betterSide === "left" ? leftReport : rightReport;
 
+    const markingNames: Record<string, string> = {
+      blaze: "blaze",
+      stripe: "stripe down the face",
+      star: "star on the forehead",
+      snip: "snip on the muzzle",
+      left_sock: "left front sock",
+      right_sock: "right front sock",
+      left_stocking: "left front stocking",
+      right_stocking: "right front stocking",
+    };
+
+    const activeMarkingNames = markings
+      .filter((m) => m !== "none")
+      .map((m) => markingNames[m] ?? m);
+
+    const markingsDescription =
+      activeMarkingNames.length > 0
+        ? `White markings: ${activeMarkingNames.join(", ")}.`
+        : "No white markings detected.";
+
     const reportText = JSON.stringify({
       type: "full",
       combinedScore,
@@ -757,6 +777,7 @@ export async function POST(request: Request) {
       hindReport,
       coatColor,
       markings,
+      markingsDescription,
     });
 
     console.log("Attempting report save for user:", userId, userEmail);
