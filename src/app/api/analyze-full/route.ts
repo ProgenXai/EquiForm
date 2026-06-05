@@ -921,6 +921,7 @@ export async function POST(request: Request) {
       horseName,
       coatColor,
       markings,
+      markingsDescription,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);

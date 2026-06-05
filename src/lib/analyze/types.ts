@@ -50,4 +50,5 @@ export type FullReportApiResponse = {
   horseName: string | null;
   coatColor?: string;
   markings?: string[];
+  markingsDescription?: string;
 };
