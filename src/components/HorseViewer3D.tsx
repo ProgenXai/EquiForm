@@ -333,6 +333,45 @@ function applyCoatColor(
 
     child.updateMatrixWorld(true);
 
+    if (
+      child.name.toLowerCase().includes("horse") ||
+      child.name.toLowerCase().includes("body")
+    ) {
+      const headVerts: THREE.Vector3[] = [];
+      for (let i = 0; i < positions.count; i++) {
+        const v = new THREE.Vector3(
+          positions.getX(i),
+          positions.getY(i),
+          positions.getZ(i),
+        );
+        v.applyMatrix4(child.matrixWorld);
+        if (v.x > 1.0 && v.y > 1.5) headVerts.push(v);
+      }
+      if (headVerts.length > 0) {
+        const xs = headVerts.map((v) => v.x);
+        const ys = headVerts.map((v) => v.y);
+        const zs = headVerts.map((v) => v.z);
+        console.log(
+          "HEAD verts X:",
+          Math.min(...xs).toFixed(3),
+          "to",
+          Math.max(...xs).toFixed(3),
+        );
+        console.log(
+          "HEAD verts Y:",
+          Math.min(...ys).toFixed(3),
+          "to",
+          Math.max(...ys).toFixed(3),
+        );
+        console.log(
+          "HEAD verts Z:",
+          Math.min(...zs).toFixed(3),
+          "to",
+          Math.max(...zs).toFixed(3),
+        );
+      }
+    }
+
     const colors = new Float32Array(positions.count * 3);
 
     for (let i = 0; i < positions.count; i++) {
