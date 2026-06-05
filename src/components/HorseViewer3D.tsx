@@ -381,9 +381,9 @@ function applyCoatColor(
             case "star":
               if (
                 vertex.x > 1.3 &&
-                vertex.x < 1.55 &&
-                vertex.y > 2.08 &&
-                vertex.y < 2.28 &&
+                vertex.x < 1.56 &&
+                vertex.y > 2.12 &&
+                vertex.y < 2.3 &&
                 vertex.z > -0.12 &&
                 vertex.z < 0.12
               ) {
@@ -392,10 +392,10 @@ function applyCoatColor(
               break;
             case "snip":
               if (
-                vertex.x > 1.45 &&
-                vertex.x < 1.7 &&
-                vertex.y > 1.62 &&
-                vertex.y < 1.82 &&
+                vertex.x > 1.48 &&
+                vertex.x < 1.72 &&
+                vertex.y > 1.72 &&
+                vertex.y < 1.88 &&
                 vertex.z > -0.12 &&
                 vertex.z < 0.12
               ) {
