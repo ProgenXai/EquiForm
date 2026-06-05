@@ -330,6 +330,26 @@ function applyCoatColor(
 
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
+    child.updateMatrixWorld(true);
+    const positions = child.geometry.attributes.position;
+    if (!positions) return;
+    for (let i = 0; i < positions.count; i++) {
+      const vertex = new THREE.Vector3(
+        positions.getX(i),
+        positions.getY(i),
+        positions.getZ(i),
+      );
+      vertex.applyMatrix4(child.matrixWorld);
+      if (vertex.x > 1.25 && vertex.y > 1.8) {
+        console.log(
+          `HEAD VERTEX: x=${vertex.x.toFixed(3)} y=${vertex.y.toFixed(3)} z=${vertex.z.toFixed(3)}`,
+        );
+      }
+    }
+  });
+
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
 
     const previousMaterial = child.material;
     const previousGeometry = child.geometry;
@@ -355,12 +375,12 @@ function applyCoatColor(
         switch (marking) {
           case "star":
             if (
-              vertex.x > 1.32 &&
-              vertex.x < 1.48 &&
-              vertex.y > 2.0 &&
-              vertex.y < 2.12 &&
-              vertex.z > -0.08 &&
-              vertex.z < 0.08
+              vertex.x > 1.35 &&
+              vertex.x < 1.52 &&
+              vertex.y > 1.85 &&
+              vertex.y < 2.0 &&
+              vertex.z > -0.1 &&
+              vertex.z < 0.1
             ) {
               isWhite = true;
             }
@@ -368,11 +388,11 @@ function applyCoatColor(
           case "snip":
             if (
               vertex.x > 1.52 &&
-              vertex.x < 1.68 &&
-              vertex.y > 1.62 &&
-              vertex.y < 1.78 &&
-              vertex.z > -0.08 &&
-              vertex.z < 0.08
+              vertex.x < 1.72 &&
+              vertex.y > 1.55 &&
+              vertex.y < 1.75 &&
+              vertex.z > -0.1 &&
+              vertex.z < 0.1
             ) {
               isWhite = true;
             }
