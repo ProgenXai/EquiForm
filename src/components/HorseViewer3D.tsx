@@ -329,14 +329,15 @@ async function applyCoatColor(
     img.src = BASE_COLOR_TEXTURE_URL;
   });
 
-  const tint = COAT_COLOR_TINTS[coatColor ?? ""] ?? null;
+  const skipTint = ["black", "dark_bay"].includes(coatColor ?? "");
+  const tint = skipTint ? null : (COAT_COLOR_TINTS[coatColor ?? ""] ?? null);
   if (tint) {
     const imageData = ctx.getImageData(0, 0, SIZE, SIZE);
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
       const alpha = data[i + 3];
       if (alpha < 10) continue;
-      data[i] = Math.min(255, data[i] * tint.r * 3.0);
+      data[i]     = Math.min(255, data[i]     * tint.r * 3.0);
       data[i + 1] = Math.min(255, data[i + 1] * tint.g * 3.0);
       data[i + 2] = Math.min(255, data[i + 2] * tint.b * 3.0);
     }
