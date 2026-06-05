@@ -1776,12 +1776,6 @@ export default function AnalyzeClient() {
                           hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
                         />
 
-                        {fullReportResult.markingsDescription ? (
-                          <p className="mt-4 text-xs text-zinc-400 italic">
-                            {fullReportResult.markingsDescription}
-                          </p>
-                        ) : null}
-
                         <p className="mt-4 text-sm leading-relaxed text-zinc-300">
                           {betterSideReport.summary}
                         </p>
