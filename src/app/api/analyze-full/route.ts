@@ -582,7 +582,9 @@ export async function POST(request: Request) {
       })),
     );
 
-    if (validationResults.some((result) => !result.valid)) {
+    const failedViews = validationResults.filter((result) => !result.valid).map((r) => r.view);
+    if (failedViews.length > 0) {
+      console.log("[analyze-full] validation failed for views:", failedViews.join(", "));
       return NextResponse.json({ error: INVALID_IMAGE_ERROR }, { status: 400 });
     }
 
