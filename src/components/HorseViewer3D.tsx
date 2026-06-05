@@ -278,14 +278,16 @@ const BASE_COLOR_TEXTURE_URL =
   "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-base-color.png";
 
 const MARKING_UV_ZONES: Record<string, { u1: number; v1: number; u2: number; v2: number; shape: "ellipse" | "rect" }> = {
-  star:            { u1: 0.28, v1: 0.28, u2: 0.38, v2: 0.36, shape: "ellipse" },
-  snip:            { u1: 0.29, v1: 0.22, u2: 0.37, v2: 0.28, shape: "ellipse" },
-  blaze:           { u1: 0.29, v1: 0.22, u2: 0.37, v2: 0.38, shape: "rect" },
-  stripe:          { u1: 0.31, v1: 0.24, u2: 0.35, v2: 0.36, shape: "rect" },
-  right_sock:      { u1: 0.55, v1: 0.88, u2: 0.62, v2: 0.98, shape: "rect" },
-  left_sock:       { u1: 0.38, v1: 0.88, u2: 0.45, v2: 0.98, shape: "rect" },
-  right_stocking:  { u1: 0.55, v1: 0.78, u2: 0.62, v2: 0.98, shape: "rect" },
-  left_stocking:   { u1: 0.38, v1: 0.78, u2: 0.45, v2: 0.98, shape: "rect" },
+  star:            { u1: 0.52, v1: 0.42, u2: 0.62, v2: 0.52, shape: "ellipse" },
+  snip:            { u1: 0.53, v1: 0.35, u2: 0.61, v2: 0.42, shape: "ellipse" },
+  blaze:           { u1: 0.53, v1: 0.35, u2: 0.61, v2: 0.54, shape: "rect" },
+  stripe:          { u1: 0.55, v1: 0.37, u2: 0.59, v2: 0.52, shape: "rect" },
+  right_sock:      { u1: 0.42, v1: 0.02, u2: 0.52, v2: 0.18, shape: "rect" },
+  left_sock:       { u1: 0.82, v1: 0.02, u2: 0.92, v2: 0.18, shape: "rect" },
+  right_stocking:  { u1: 0.42, v1: 0.02, u2: 0.52, v2: 0.32, shape: "rect" },
+  left_stocking:   { u1: 0.82, v1: 0.02, u2: 0.92, v2: 0.32, shape: "rect" },
+  right_hind_sock: { u1: 0.08, v1: 0.78, u2: 0.18, v2: 0.95, shape: "rect" },
+  left_hind_sock:  { u1: 0.18, v1: 0.78, u2: 0.28, v2: 0.95, shape: "rect" },
 };
 
 const COAT_COLOR_TINTS: Record<string, { r: number; g: number; b: number }> = {
@@ -317,6 +319,17 @@ async function applyCoatColor(
   canvas.height = SIZE;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
+
+  const loadTexture = (url: string): Promise<THREE.Texture> =>
+    new Promise((resolve) => {
+      new THREE.TextureLoader().load(url, resolve, undefined, () => resolve(new THREE.Texture()));
+    });
+
+  const [normalTexture, roughnessTexture, metalnessTexture] = await Promise.all([
+    loadTexture("https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-normal2k.png"),
+    loadTexture("https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-roughness.png"),
+    loadTexture("https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-metalness.png"),
+  ]);
 
   await new Promise<void>((resolve) => {
     const img = new Image();
@@ -381,6 +394,9 @@ async function applyCoatColor(
     const prev = child.material;
     child.material = new THREE.MeshStandardMaterial({
       map: texture,
+      normalMap: normalTexture,
+      roughnessMap: roughnessTexture,
+      metalnessMap: metalnessTexture,
       metalness: 0.28,
       roughness: 0.48,
     });
