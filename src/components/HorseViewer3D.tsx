@@ -355,12 +355,12 @@ function applyCoatColor(
         switch (marking) {
           case "star":
             if (
-              vertex.x > 1.2 &&
-              vertex.x < 1.35 &&
-              vertex.y > 2.05 &&
-              vertex.y < 2.15 &&
-              vertex.z > -0.22 &&
-              vertex.z < -0.14
+              vertex.x > 1.0 &&
+              vertex.x < 1.5 &&
+              vertex.y > 1.8 &&
+              vertex.y < 2.3 &&
+              vertex.z > -0.28 &&
+              vertex.z < -0.08
             ) {
               isWhite = true;
             }
