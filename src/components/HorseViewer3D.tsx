@@ -277,18 +277,15 @@ function paintMarking(
 const BASE_COLOR_TEXTURE_URL =
   "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-base-color.png";
 
-const MARKING_UV_ZONES: Record<
-  string,
-  { u1: number; v1: number; u2: number; v2: number; shape: "ellipse" | "rect" }
-> = {
-  star: { u1: 0.72, v1: 0.62, u2: 0.82, v2: 0.72, shape: "ellipse" },
-  snip: { u1: 0.73, v1: 0.52, u2: 0.81, v2: 0.6, shape: "ellipse" },
-  blaze: { u1: 0.73, v1: 0.52, u2: 0.81, v2: 0.74, shape: "rect" },
-  stripe: { u1: 0.75, v1: 0.54, u2: 0.79, v2: 0.72, shape: "rect" },
-  right_sock: { u1: 0.18, v1: 0.02, u2: 0.28, v2: 0.22, shape: "rect" },
-  left_sock: { u1: 0.08, v1: 0.02, u2: 0.18, v2: 0.22, shape: "rect" },
-  right_stocking: { u1: 0.18, v1: 0.02, u2: 0.28, v2: 0.35, shape: "rect" },
-  left_stocking: { u1: 0.08, v1: 0.02, u2: 0.18, v2: 0.35, shape: "rect" },
+const MARKING_UV_ZONES: Record<string, { u1: number; v1: number; u2: number; v2: number; shape: "ellipse" | "rect" }> = {
+  star:            { u1: 0.28, v1: 0.28, u2: 0.38, v2: 0.36, shape: "ellipse" },
+  snip:            { u1: 0.29, v1: 0.22, u2: 0.37, v2: 0.28, shape: "ellipse" },
+  blaze:           { u1: 0.29, v1: 0.22, u2: 0.37, v2: 0.38, shape: "rect" },
+  stripe:          { u1: 0.31, v1: 0.24, u2: 0.35, v2: 0.36, shape: "rect" },
+  right_sock:      { u1: 0.55, v1: 0.88, u2: 0.62, v2: 0.98, shape: "rect" },
+  left_sock:       { u1: 0.38, v1: 0.88, u2: 0.45, v2: 0.98, shape: "rect" },
+  right_stocking:  { u1: 0.55, v1: 0.78, u2: 0.62, v2: 0.98, shape: "rect" },
+  left_stocking:   { u1: 0.38, v1: 0.78, u2: 0.45, v2: 0.98, shape: "rect" },
 };
 
 const COAT_COLOR_TINTS: Record<string, { r: number; g: number; b: number }> = {
