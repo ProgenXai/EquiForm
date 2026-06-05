@@ -322,153 +322,105 @@ function applyCoatColor(
   const base = new THREE.Color(baseColor);
   const white = new THREE.Color(0xffffff);
 
+  const boneNameToIndex: Record<string, number[]> = {};
   root.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      console.log("MESH NAME:", child.name);
+    if (child instanceof THREE.SkinnedMesh && child.skeleton) {
+      child.skeleton.bones.forEach((bone, index) => {
+        const name = bone.name.toLowerCase();
+        if (!boneNameToIndex[name]) boneNameToIndex[name] = [];
+        boneNameToIndex[name].push(index);
+      });
     }
   });
+  console.log("Bone name map keys:", Object.keys(boneNameToIndex));
+
+  const markingBoneKeywords: Record<string, string[]> = {
+    star: ["skull", "head"],
+    snip: ["nose", "muzzle"],
+    right_sock: ["f_hoof.r", "forefoot.r", "cannon.r", "fetlock.r"],
+    left_sock: ["f_hoof.l", "forefoot.l", "cannon.l", "fetlock.l"],
+    right_stocking: [
+      "f_hoof.r",
+      "forefoot.r",
+      "cannon.r",
+      "fetlock.r",
+      "knee.r",
+    ],
+    left_stocking: [
+      "f_hoof.l",
+      "forefoot.l",
+      "cannon.l",
+      "fetlock.l",
+      "knee.l",
+    ],
+  };
 
   root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
-    child.updateMatrixWorld(true);
-    const positions = child.geometry.attributes.position;
-    if (!positions) return;
-    for (let i = 0; i < positions.count; i++) {
-      const vertex = new THREE.Vector3(
-        positions.getX(i),
-        positions.getY(i),
-        positions.getZ(i),
-      );
-      vertex.applyMatrix4(child.matrixWorld);
-      if (vertex.x > 1.25 && vertex.y > 1.8) {
-        console.log(
-          `HEAD VERTEX: x=${vertex.x.toFixed(3)} y=${vertex.y.toFixed(3)} z=${vertex.z.toFixed(3)}`,
-        );
-      }
-    }
-  });
+    if (!(child instanceof THREE.SkinnedMesh)) return;
 
-  root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
-
-    const previousMaterial = child.material;
-    const previousGeometry = child.geometry;
-    const geometry = previousGeometry.clone();
+    const geometry = child.geometry.clone();
     const positions = geometry.attributes.position;
+    const skinIndex = geometry.attributes.skinIndex;
+    const skinWeight = geometry.attributes.skinWeight;
+
     if (!positions) return;
 
     child.updateMatrixWorld(true);
-
     const colors = new Float32Array(positions.count * 3);
 
     for (let i = 0; i < positions.count; i++) {
-      const vertex = new THREE.Vector3(
-        positions.getX(i),
-        positions.getY(i),
-        positions.getZ(i),
-      );
-      vertex.applyMatrix4(child.matrixWorld);
-
       let isWhite = false;
 
       for (const marking of activeMarkings) {
-        switch (marking) {
-          case "star":
-            if (
-              vertex.x > 1.35 &&
-              vertex.x < 1.52 &&
-              vertex.y > 1.85 &&
-              vertex.y < 2.0 &&
-              vertex.z > -0.1 &&
-              vertex.z < 0.1
-            ) {
-              isWhite = true;
+        const keywords = markingBoneKeywords[marking];
+        if (!keywords) {
+          const vertex = new THREE.Vector3(
+            positions.getX(i),
+            positions.getY(i),
+            positions.getZ(i),
+          );
+          vertex.applyMatrix4(child.matrixWorld);
+          if (
+            marking === "blaze" &&
+            vertex.x > 1.2 &&
+            vertex.x < 1.65 &&
+            vertex.y > 1.65 &&
+            vertex.y < 2.1 &&
+            vertex.z > -0.15 &&
+            vertex.z < 0.15
+          ) {
+            isWhite = true;
+          }
+          if (
+            marking === "stripe" &&
+            vertex.x > 1.25 &&
+            vertex.x < 1.55 &&
+            vertex.y > 1.7 &&
+            vertex.y < 2.05 &&
+            vertex.z > -0.08 &&
+            vertex.z < 0.08
+          ) {
+            isWhite = true;
+          }
+          continue;
+        }
+
+        if (skinIndex && skinWeight) {
+          for (let j = 0; j < 4; j++) {
+            const boneIdx = skinIndex.getComponent(i, j);
+            const weight = skinWeight.getComponent(i, j);
+            if (weight < 0.1) continue;
+
+            for (const [boneName, indices] of Object.entries(boneNameToIndex)) {
+              if (indices.includes(boneIdx)) {
+                for (const keyword of keywords) {
+                  if (boneName.includes(keyword.toLowerCase())) {
+                    isWhite = true;
+                  }
+                }
+              }
             }
-            break;
-          case "snip":
-            if (
-              vertex.x > 1.52 &&
-              vertex.x < 1.72 &&
-              vertex.y > 1.55 &&
-              vertex.y < 1.75 &&
-              vertex.z > -0.1 &&
-              vertex.z < 0.1
-            ) {
-              isWhite = true;
-            }
-            break;
-          case "stripe":
-            if (
-              vertex.x > 1.2 &&
-              vertex.x < 1.45 &&
-              vertex.y > 1.95 &&
-              vertex.y < 2.15 &&
-              vertex.z > -0.2 &&
-              vertex.z < -0.16
-            ) {
-              isWhite = true;
-            }
-            break;
-          case "blaze":
-            if (
-              vertex.x > 1.2 &&
-              vertex.x < 1.45 &&
-              vertex.y > 1.95 &&
-              vertex.y < 2.15 &&
-              vertex.z > -0.24 &&
-              vertex.z < -0.12
-            ) {
-              isWhite = true;
-            }
-            break;
-          case "right_sock":
-            if (
-              vertex.y > 0.05 &&
-              vertex.y < 0.45 &&
-              vertex.x > 0.62 &&
-              vertex.x < 0.85 &&
-              vertex.z > -0.05 &&
-              vertex.z < 0.12
-            ) {
-              isWhite = true;
-            }
-            break;
-          case "left_sock":
-            if (
-              vertex.y > 0.05 &&
-              vertex.y < 0.45 &&
-              vertex.x > 0.62 &&
-              vertex.x < 0.85 &&
-              vertex.z > -0.46 &&
-              vertex.z < -0.3
-            ) {
-              isWhite = true;
-            }
-            break;
-          case "right_stocking":
-            if (
-              vertex.y > 0.05 &&
-              vertex.y < 0.85 &&
-              vertex.x > 0.62 &&
-              vertex.x < 0.85 &&
-              vertex.z > -0.05 &&
-              vertex.z < 0.12
-            ) {
-              isWhite = true;
-            }
-            break;
-          case "left_stocking":
-            if (
-              vertex.y > 0.05 &&
-              vertex.y < 0.85 &&
-              vertex.x > 0.62 &&
-              vertex.x < 0.85 &&
-              vertex.z > -0.46 &&
-              vertex.z < -0.3
-            ) {
-              isWhite = true;
-            }
-            break;
+          }
         }
       }
 
@@ -479,9 +431,11 @@ function applyCoatColor(
     }
 
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const previousGeometry = child.geometry;
     child.geometry = geometry;
     previousGeometry.dispose();
 
+    const previousMaterial = child.material;
     child.material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       vertexColors: true,
@@ -490,7 +444,7 @@ function applyCoatColor(
     });
 
     if (Array.isArray(previousMaterial)) {
-      previousMaterial.forEach((material) => material.dispose());
+      previousMaterial.forEach((m) => m.dispose());
     } else {
       previousMaterial.dispose();
     }
