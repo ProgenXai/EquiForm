@@ -380,24 +380,24 @@ function applyCoatColor(
           switch (marking) {
             case "star":
               if (
-                vertex.x > 1.38 &&
-                vertex.x < 1.58 &&
-                vertex.y > 1.95 &&
-                vertex.y < 2.12 &&
-                vertex.z > -0.22 &&
-                vertex.z < -0.1
+                vertex.x > 1.6 &&
+                vertex.x < 1.85 &&
+                vertex.y > 2.1 &&
+                vertex.y < 2.28 &&
+                vertex.z > -0.12 &&
+                vertex.z < 0.12
               ) {
                 isWhite = true;
               }
               break;
             case "snip":
               if (
-                vertex.x > 1.55 &&
-                vertex.x < 1.75 &&
-                vertex.y > 1.55 &&
-                vertex.y < 1.72 &&
-                vertex.z > -0.22 &&
-                vertex.z < -0.1
+                vertex.x > 1.68 &&
+                vertex.x < 1.9 &&
+                vertex.y > 1.62 &&
+                vertex.y < 1.78 &&
+                vertex.z > -0.12 &&
+                vertex.z < 0.12
               ) {
                 isWhite = true;
               }
