@@ -335,8 +335,6 @@ function applyCoatColor(
   console.log("Bone name map keys:", Object.keys(boneNameToIndex));
 
   const markingBoneKeywords: Record<string, string[]> = {
-    star: ["skull", "head"],
-    snip: ["nose", "muzzle"],
     right_sock: ["f_hoof.r", "forefoot.r", "cannon.r", "fetlock.r"],
     left_sock: ["f_hoof.l", "forefoot.l", "cannon.l", "fetlock.l"],
     right_stocking: [
@@ -372,6 +370,42 @@ function applyCoatColor(
       let isWhite = false;
 
       for (const marking of activeMarkings) {
+        if (marking === "star" || marking === "snip") {
+          const vertex = new THREE.Vector3(
+            positions.getX(i),
+            positions.getY(i),
+            positions.getZ(i),
+          );
+          vertex.applyMatrix4(child.matrixWorld);
+          switch (marking) {
+            case "star":
+              if (
+                vertex.x > 1.28 &&
+                vertex.x < 1.52 &&
+                vertex.y > 1.65 &&
+                vertex.y < 1.92 &&
+                vertex.z > -0.12 &&
+                vertex.z < 0.12
+              ) {
+                isWhite = true;
+              }
+              break;
+            case "snip":
+              if (
+                vertex.x > 1.42 &&
+                vertex.x < 1.65 &&
+                vertex.y > 1.35 &&
+                vertex.y < 1.58 &&
+                vertex.z > -0.12 &&
+                vertex.z < 0.12
+              ) {
+                isWhite = true;
+              }
+              break;
+          }
+          continue;
+        }
+
         const keywords = markingBoneKeywords[marking];
         if (!keywords) {
           const vertex = new THREE.Vector3(
