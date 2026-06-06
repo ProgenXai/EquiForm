@@ -1442,7 +1442,7 @@ export default function AnalyzeClient() {
           ) : (
             <>
               <p className="mb-4 text-center text-sm text-zinc-400">
-                Upload one photo for each view in any order. All four photos must be of the same horse.
+                Upload one photo for each labeled view below. All four photos must be of the same horse.
               </p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
