@@ -23,6 +23,7 @@ type HorseViewer3DProps = {
   rightPhotoUrl?: string;
   frontPhotoUrl?: string;
   hindPhotoUrl?: string;
+  tripoGlbUrl?: string | null;
 };
 
 const HORSE_MODEL_PATH =
@@ -558,6 +559,7 @@ export default function HorseViewer3D({
   rightPhotoUrl,
   frontPhotoUrl,
   hindPhotoUrl,
+  tripoGlbUrl,
 }: HorseViewer3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const frontPlumbLineRef = useRef<THREE.Line | null>(null);
@@ -755,7 +757,8 @@ export default function HorseViewer3D({
 
     void (async () => {
       try {
-        const gltf = await loader.loadAsync(HORSE_MODEL_PATH);
+        const modelUrl = tripoGlbUrl ?? HORSE_MODEL_PATH;
+        const gltf = await loader.loadAsync(modelUrl);
         if (disposed) return;
 
         const model = gltf.scene;

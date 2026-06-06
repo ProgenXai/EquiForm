@@ -1770,6 +1770,7 @@ export default function AnalyzeClient() {
                           landmarks={fullReportResult.landmarks}
                           coatColor={fullReportResult.coatColor}
                           markings={fullReportResult.markings}
+                          tripoGlbUrl={fullReportResult.tripoGlbUrl}
                           leftPhotoUrl={fullReportPhotos.left?.supabaseUrl}
                           rightPhotoUrl={fullReportPhotos.right?.supabaseUrl}
                           frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}

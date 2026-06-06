@@ -472,6 +472,118 @@ function flipBufferHorizontally(
   return flipped;
 }
 
+async function generateTripo3DModel(
+  leftUrl: string,
+  rightUrl: string,
+  frontUrl: string,
+  hindUrl: string,
+): Promise<string | null> {
+  const apiKey = process.env.TRIPO_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  try {
+    // Submit multiview generation task
+    const submitResponse = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        type: "multiview_to_model",
+        files: [
+          { type: "jpeg", url: leftUrl },
+          { type: "jpeg", url: rightUrl },
+          { type: "jpeg", url: frontUrl },
+          { type: "jpeg", url: hindUrl },
+        ],
+        model_version: "v2.5-20250123",
+        texture: true,
+        texture_quality: "detailed",
+      }),
+    });
+
+    if (!submitResponse.ok) {
+      console.error("[tripo3d] submit failed:", await submitResponse.text());
+      return null;
+    }
+
+    const submitData = await submitResponse.json() as {
+      code: number;
+      data?: { task_id?: string };
+    };
+
+    if (submitData.code !== 0 || !submitData.data?.task_id) {
+      console.error("[tripo3d] submit error:", submitData);
+      return null;
+    }
+
+    const taskId = submitData.data.task_id;
+    console.log("[tripo3d] task submitted:", taskId);
+
+    // Poll until complete (max 3 minutes)
+    const maxAttempts = 36;
+    const pollInterval = 5000;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      const statusResponse = await fetch(
+        `https://api.tripo3d.ai/v2/openapi/task/${taskId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      if (!statusResponse.ok) {
+        console.error("[tripo3d] poll failed:", await statusResponse.text());
+        continue;
+      }
+
+      const statusData = await statusResponse.json() as {
+        code: number;
+        data?: {
+          status?: string;
+          result?: {
+            pbr_model?: { url?: string };
+            model?: { url?: string };
+          };
+        };
+      };
+
+      if (statusData.code !== 0) {
+        console.error("[tripo3d] poll error:", statusData);
+        return null;
+      }
+
+      const status = statusData.data?.status;
+      console.log(`[tripo3d] attempt ${attempt + 1} status:`, status);
+
+      if (status === "success") {
+        const glbUrl =
+          statusData.data?.result?.pbr_model?.url ??
+          statusData.data?.result?.model?.url ??
+          null;
+        console.log("[tripo3d] model ready:", glbUrl);
+        return glbUrl;
+      }
+
+      if (status === "failed" || status === "cancelled") {
+        console.error("[tripo3d] task failed with status:", status);
+        return null;
+      }
+    }
+
+    console.error("[tripo3d] timed out waiting for model");
+    return null;
+  } catch (error) {
+    console.error("[tripo3d] unexpected error:", error);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   console.log("[analyze-full] POST handler entered");
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -708,11 +820,12 @@ export async function POST(request: Request) {
       hind: toConformationLandmarks(detectedLandmarksByView.hind, "hind"),
     };
 
-    const [leftReport, rightReport, frontReport, hindReport] = await Promise.all([
+    const [leftReport, rightReport, frontReport, hindReport, tripoGlbUrl] = await Promise.all([
       generateViewReport(anthropic, "left", preparedByView.left),
       generateViewReport(anthropic, "right", preparedByView.right),
       generateViewReport(anthropic, "front", preparedByView.front),
       generateViewReport(anthropic, "hind", preparedByView.hind),
+      generateTripo3DModel(imageUrls.left, imageUrls.right, imageUrls.front, imageUrls.hind),
     ]);
 
     const betterSide: "left" | "right" =
@@ -1045,6 +1158,7 @@ export async function POST(request: Request) {
       coatColor,
       markings,
       markingsDescription,
+      tripoGlbUrl,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);

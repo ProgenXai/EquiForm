@@ -51,4 +51,5 @@ export type FullReportApiResponse = {
   coatColor?: string;
   markings?: string[];
   markingsDescription?: string;
+  tripoGlbUrl?: string | null;
 };
