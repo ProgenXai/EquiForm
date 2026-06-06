@@ -309,6 +309,12 @@ async function applyCoatColor(
   root: THREE.Object3D,
   coatColor?: string,
   markings?: string[],
+  leftPhotoUrl?: string,
+  frontPhotoUrl?: string,
+  hindPhotoUrl?: string,
+  leftLandmarks?: Record<string, LandmarkPoint>,
+  frontLandmarks?: Record<string, LandmarkPoint>,
+  hindLandmarks?: Record<string, LandmarkPoint>,
 ): Promise<THREE.CanvasTexture | null> {
   const activeMarkings =
     markings?.filter((m) => m !== "none" && m.trim() !== "") ?? [];
@@ -319,6 +325,7 @@ async function applyCoatColor(
   canvas.height = SIZE;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
+  const context = ctx;
 
   const loadTexture = (url: string): Promise<THREE.Texture> =>
     new Promise((resolve) => {
@@ -331,6 +338,7 @@ async function applyCoatColor(
     loadTexture("https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-metalness.png"),
   ]);
 
+  // Load base color texture first
   await new Promise<void>((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -342,6 +350,7 @@ async function applyCoatColor(
     img.src = BASE_COLOR_TEXTURE_URL;
   });
 
+  // Apply coat color tint
   const skipTint = ["black", "dark_bay"].includes(coatColor ?? "");
   const tint = skipTint ? null : (COAT_COLOR_TINTS[coatColor ?? ""] ?? null);
   if (tint) {
@@ -357,6 +366,102 @@ async function applyCoatColor(
     ctx.putImageData(imageData, 0, 0);
   }
 
+  // Helper: load an image from a URL into an HTMLImageElement
+  const loadImage = (url: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+      img.src = url;
+    });
+
+  // Helper: get bounding box from landmark points, with padding
+  function landmarkBBox(
+    lm: Record<string, LandmarkPoint>,
+    keys: string[],
+    padFraction = 0.05,
+  ): { x: number; y: number; w: number; h: number } | null {
+    const points = keys
+      .map((k) => lm[k])
+      .filter((p): p is LandmarkPoint => !!p && typeof p.x === "number");
+    if (points.length < 2) return null;
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const padX = (maxX - minX) * padFraction;
+    const padY = (maxY - minY) * padFraction;
+    return {
+      x: Math.max(0, minX - padX),
+      y: Math.max(0, minY - padY),
+      w: Math.min(1, maxX + padX) - Math.max(0, minX - padX),
+      h: Math.min(1, maxY + padY) - Math.max(0, minY - padY),
+    };
+  }
+
+  // Helper: project a cropped region of a photo onto a UV zone of the texture canvas
+  async function projectPhotoToUV(
+    photoUrl: string,
+    cropNorm: { x: number; y: number; w: number; h: number },
+    uvZone: { u1: number; v1: number; u2: number; v2: number },
+    alpha = 0.92,
+  ): Promise<void> {
+    try {
+      const img = await loadImage(photoUrl);
+      const srcX = cropNorm.x * img.naturalWidth;
+      const srcY = cropNorm.y * img.naturalHeight;
+      const srcW = cropNorm.w * img.naturalWidth;
+      const srcH = cropNorm.h * img.naturalHeight;
+
+      // UV zone to canvas pixel coords (v is flipped: v=0 is bottom of texture)
+      const dstX = uvZone.u1 * SIZE;
+      const dstY = (1 - uvZone.v2) * SIZE;
+      const dstW = (uvZone.u2 - uvZone.u1) * SIZE;
+      const dstH = (uvZone.v2 - uvZone.v1) * SIZE;
+
+      context.save();
+      context.globalAlpha = alpha;
+      context.drawImage(img, srcX, srcY, srcW, srcH, dstX, dstY, dstW, dstH);
+      context.restore();
+    } catch {
+      // If photo projection fails, fall back to tinted texture — no crash
+    }
+  }
+
+  // Project left side photo onto body UV region
+  if (leftPhotoUrl && leftLandmarks) {
+    const bodyKeys = ["poll", "shoulder", "withers", "girth", "loin", "flank", "buttock", "tail", "front_knee", "front_hoof", "hind_hock", "hind_hoof"];
+    const bbox = landmarkBBox(leftLandmarks, bodyKeys, 0.04);
+    if (bbox) {
+      // Body UV zone: large center mass of the texture
+      await projectPhotoToUV(leftPhotoUrl, bbox, { u1: 0.05, v1: 0.18, u2: 0.82, v2: 0.78 });
+    }
+  }
+
+  // Project front photo onto head/face UV region
+  if (frontPhotoUrl && frontLandmarks) {
+    const faceKeys = ["poll", "muzzle", "left_eye", "right_eye", "left_ear", "right_ear", "left_point_of_shoulder", "right_point_of_shoulder"];
+    const bbox = landmarkBBox(frontLandmarks, faceKeys, 0.08);
+    if (bbox) {
+      // Head UV zone: center-right area of texture
+      await projectPhotoToUV(frontPhotoUrl, bbox, { u1: 0.52, v1: 0.35, u2: 0.82, v2: 0.72 });
+    }
+  }
+
+  // Project hind photo onto hindquarter UV region
+  if (hindPhotoUrl && hindLandmarks) {
+    const hindKeys = ["tail", "left_point_of_hip", "right_point_of_hip", "left_buttock", "right_buttock", "left_hock", "right_hock", "left_hind_hoof", "right_hind_hoof"];
+    const bbox = landmarkBBox(hindLandmarks, hindKeys, 0.06);
+    if (bbox) {
+      // Hindquarter UV zone: upper left area of texture
+      await projectPhotoToUV(hindPhotoUrl, bbox, { u1: 0.05, v1: 0.72, u2: 0.42, v2: 0.98 });
+    }
+  }
+
+  // Paint white markings on top of photo projection
   ctx.fillStyle = "#ffffff";
   for (const marking of activeMarkings) {
     const zone = MARKING_UV_ZONES[marking];
@@ -811,7 +916,17 @@ export default function HorseViewer3D({
 
         model.updateMatrixWorld(true);
         console.log("IK targets:", ikTargets);
-        coatTexture = await applyCoatColor(model, coatColor, markings);
+        coatTexture = await applyCoatColor(
+          model,
+          coatColor,
+          markings,
+          leftPhotoUrl,
+          frontPhotoUrl,
+          hindPhotoUrl,
+          landmarks.left,
+          landmarks.front,
+          landmarks.hind,
+        );
 
         scene.traverse((obj) => {
           if (obj.type === "Bone") {
