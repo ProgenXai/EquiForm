@@ -492,14 +492,12 @@ async function generateTripo3DModel(
       body: JSON.stringify({
         type: "multiview_to_model",
         files: [
-          { type: "jpeg", url: leftUrl },
-          { type: "jpeg", url: rightUrl },
-          { type: "jpeg", url: frontUrl },
-          { type: "jpeg", url: hindUrl },
+          { type: "jpg", url: frontUrl },
+          { type: "jpg", url: hindUrl },
+          { type: "jpg", url: leftUrl },
+          { type: "jpg", url: rightUrl },
         ],
         model_version: "v2.5-20250123",
-        texture: true,
-        texture_quality: "detailed",
       }),
     });
 
