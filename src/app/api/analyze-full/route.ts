@@ -483,6 +483,8 @@ async function generateTripo3DModel(
 
   try {
     // Submit multiview generation task
+    console.log("[tripo3d] submitting with URLs:", { frontUrl, hindUrl, leftUrl, rightUrl });
+
     const submitResponse = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
       method: "POST",
       headers: {
