@@ -427,6 +427,51 @@ function calculateCombinedScore(
   );
 }
 
+function compareImageSimilarity(
+  bufferA: Buffer,
+  bufferB: Buffer,
+  sampleSize = 64,
+): number {
+  // Sample pixels at regular intervals and compare brightness values
+  const stepA = Math.floor(bufferA.length / (sampleSize * sampleSize));
+  const stepB = Math.floor(bufferB.length / (sampleSize * sampleSize));
+
+  if (stepA === 0 || stepB === 0) return 0;
+
+  let matchCount = 0;
+  const totalSamples = sampleSize * sampleSize;
+
+  for (let i = 0; i < totalSamples; i++) {
+    const idxA = Math.min(i * stepA, bufferA.length - 1);
+    const idxB = Math.min(i * stepB, bufferB.length - 1);
+    const diff = Math.abs(bufferA[idxA]! - bufferB[idxB]!);
+    if (diff < 15) matchCount++;
+  }
+
+  return matchCount / totalSamples;
+}
+
+function flipBufferHorizontally(
+  buffer: Buffer,
+  width: number,
+  height: number,
+): Buffer {
+  const channels = Math.floor(buffer.length / (width * height));
+  if (channels < 1) return buffer;
+
+  const flipped = Buffer.allocUnsafe(buffer.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcIdx = (y * width + x) * channels;
+      const dstIdx = (y * width + (width - 1 - x)) * channels;
+      for (let c = 0; c < channels; c++) {
+        flipped[dstIdx + c] = buffer[srcIdx + c]!;
+      }
+    }
+  }
+  return flipped;
+}
+
 export async function POST(request: Request) {
   console.log("[analyze-full] POST handler entered");
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -571,6 +616,37 @@ export async function POST(request: Request) {
         );
       }),
     );
+
+    // Detect if left and right photos are the same or mirrored
+    const leftPrepared = preparedByView.left;
+    const rightPrepared = preparedByView.right;
+
+    const leftRaw = await sharp(leftPrepared.inputBuffer)
+      .resize(64, 64, { fit: "fill" })
+      .raw()
+      .toBuffer();
+
+    const rightRaw = await sharp(rightPrepared.inputBuffer)
+      .resize(64, 64, { fit: "fill" })
+      .raw()
+      .toBuffer();
+
+    const directSimilarity = compareImageSimilarity(leftRaw, rightRaw);
+
+    const rightFlipped = flipBufferHorizontally(rightRaw, 64, 64);
+    const flippedSimilarity = compareImageSimilarity(leftRaw, rightFlipped);
+
+    const DUPLICATE_THRESHOLD = 0.90;
+
+    if (directSimilarity > DUPLICATE_THRESHOLD || flippedSimilarity > DUPLICATE_THRESHOLD) {
+      return NextResponse.json(
+        {
+          error:
+            "It looks like the same photo may have been used for both side views. Please upload separate left and right side photos of your horse for the most accurate analysis.",
+        },
+        { status: 400 },
+      );
+    }
 
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
