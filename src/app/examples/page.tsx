@@ -214,19 +214,28 @@ export default function ExamplesPage() {
           </ul>
         </section>
 
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-10 flex flex-col items-center gap-4">
           <Link
             href="/analyze"
-            className="rounded-lg bg-accent px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+            className="w-full max-w-sm rounded-xl bg-accent px-8 py-5 text-center text-lg font-bold text-white transition hover:bg-accent-hover sm:w-auto"
           >
             Analyze a Horse
           </Link>
-          <Link
-            href="/buy-rosettes"
-            className="rounded-lg border border-accent bg-transparent px-6 py-3 text-center text-sm font-semibold text-accent transition hover:bg-accent/10"
-          >
-            Buy Report Credits
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/buy-rosettes"
+              className="rounded-lg border border-accent bg-transparent px-6 py-3 text-center text-sm font-semibold text-accent transition hover:bg-accent/10"
+            >
+              Buy Report Credits
+            </Link>
+            <Link
+              href="/analyze"
+              onClick={() => history.back()}
+              className="rounded-lg border border-zinc-700 bg-transparent px-6 py-3 text-center text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+            >
+              ← Back
+            </Link>
+          </div>
         </div>
       </main>
     </div>
