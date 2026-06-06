@@ -1106,7 +1106,7 @@ export default function AnalyzeClient() {
         <button
           type="button"
           onClick={handleRemoveSingleViewPhoto}
-          className="-ml-6 -mt-8 mb-2 block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
+          className="mb-4 rounded-xl border border-zinc-700 bg-transparent px-6 py-3 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
         >
           ← Back
         </button>
@@ -1115,7 +1115,7 @@ export default function AnalyzeClient() {
         <button
           type="button"
           onClick={() => void handleRemoveFullReportPhotos()}
-          className="-ml-6 -mt-8 mb-2 block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
+          className="mb-4 rounded-xl border border-zinc-700 bg-transparent px-6 py-3 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
         >
           ← Back
         </button>
