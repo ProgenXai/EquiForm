@@ -230,7 +230,6 @@ export default function ExamplesPage() {
             </Link>
             <Link
               href="/analyze"
-              onClick={() => history.back()}
               className="rounded-lg border border-zinc-700 bg-transparent px-6 py-3 text-center text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
             >
               ← Back
