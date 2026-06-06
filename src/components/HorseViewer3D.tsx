@@ -757,8 +757,11 @@ export default function HorseViewer3D({
 
     void (async () => {
       try {
-        const modelUrl = tripoGlbUrl ?? HORSE_MODEL_PATH;
-        const gltf = await loader.loadAsync(modelUrl);
+        if (!tripoGlbUrl) {
+          setLoading(false);
+          return;
+        }
+        const gltf = await loader.loadAsync(tripoGlbUrl);
         if (disposed) return;
 
         const model = gltf.scene;
