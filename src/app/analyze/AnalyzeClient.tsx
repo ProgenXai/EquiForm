@@ -144,6 +144,15 @@ const SIDE_VIEW_TIPS = [
   "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
 ];
 
+const SINGLE_VIEW_TIPS = [
+  "Use a clear side profile photo",
+  PHOTO_DISTANCE_TIP,
+  "Horse must be standing still",
+  "All four feet visible on level ground",
+  "Horse standing square with a natural stance",
+  "For best 3D model results, use a clear side profile with the horse standing square and the full body visible.",
+];
+
 const FRONT_VIEW_TIPS = [
   "Horse facing directly toward the camera",
   "Lead rope or halter should not obstruct the chest or legs",
@@ -1938,7 +1947,7 @@ export default function AnalyzeClient() {
               <div className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
                 <p className="font-medium text-accent">For best results:</p>
                 <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-                  {SIDE_VIEW_TIPS.map((tip) => (
+                  {SINGLE_VIEW_TIPS.map((tip) => (
                     <li key={tip}>{tip}</li>
                   ))}
                 </ul>
