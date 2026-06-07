@@ -176,6 +176,7 @@ const PENDING_RESULT_KEY = "equiform_pending_result";
 
 type BalanceResponse = {
   single_view_balance?: number;
+  single_view_3d_balance?: number;
   full_report_balance?: number;
 };
 
@@ -342,6 +343,9 @@ export default function AnalyzeClient() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [singleViewBalance, setSingleViewBalance] = useState<number | null>(null);
+  const [singleView3DBalance, setSingleView3DBalance] = useState<number | null>(
+    null,
+  );
   const [fullReportBalance, setFullReportBalance] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -349,7 +353,6 @@ export default function AnalyzeClient() {
   const [session, setSession] = useState<Session | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
-  const [generate3D, setGenerate3D] = useState(false);
   const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
   const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
   const [meshy3DError, setMeshy3DError] = useState<string | null>(null);
@@ -357,7 +360,18 @@ export default function AnalyzeClient() {
 
   function applyBalanceData(data: BalanceResponse) {
     setSingleViewBalance(data.single_view_balance ?? 0);
+    setSingleView3DBalance(data.single_view_3d_balance ?? 0);
     setFullReportBalance(data.full_report_balance ?? 0);
+  }
+
+  async function refreshSingleView3DBalance(userId: string) {
+    const { data: tokenRow } = await supabase
+      .from("user_tokens")
+      .select("single_view_3d_balance")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    setSingleView3DBalance(tokenRow?.single_view_3d_balance ?? 0);
   }
 
   useEffect(() => {
@@ -502,6 +516,7 @@ export default function AnalyzeClient() {
 
         const balanceData = (await balanceResponse.json()) as BalanceResponse;
         applyBalanceData(balanceData);
+        await refreshSingleView3DBalance(session.user.id);
 
         const adminResponse = await fetch("/api/check-admin", {
           headers: {
@@ -514,6 +529,7 @@ export default function AnalyzeClient() {
         console.log("isAdmin:", adminData.isAdmin === true);
       } else {
         setSingleViewBalance(0);
+        setSingleView3DBalance(0);
         setFullReportBalance(0);
         setIsAdmin(false);
         console.log("isAdmin:", false);
@@ -787,6 +803,8 @@ export default function AnalyzeClient() {
         data: { session },
       } = await supabase.auth.getSession();
 
+      const shouldGenerate3D = (singleView3DBalance ?? 0) > 0;
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -801,7 +819,7 @@ export default function AnalyzeClient() {
           sex: sex.trim(),
           discipline: discipline.trim(),
           horseName: horseName.trim(),
-          ...(generate3D ? { generate3D: true } : {}),
+          ...(shouldGenerate3D ? { generate3D: true } : {}),
         }),
       });
 
@@ -839,7 +857,7 @@ export default function AnalyzeClient() {
 
       setResult(result);
 
-      if (session?.access_token) {
+      if (session?.access_token && session.user) {
         const balanceResponse = await fetch("/api/get-balance", {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -848,6 +866,7 @@ export default function AnalyzeClient() {
 
         const balanceData = (await balanceResponse.json()) as BalanceResponse;
         applyBalanceData(balanceData);
+        await refreshSingleView3DBalance(session.user.id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
@@ -1021,7 +1040,10 @@ export default function AnalyzeClient() {
 
   const hasAnalyzeAccess =
     isAdmin ||
-    (isLoggedIn && singleViewBalance !== null && singleViewBalance > 0);
+    (isLoggedIn &&
+      singleViewBalance !== null &&
+      singleView3DBalance !== null &&
+      (singleViewBalance > 0 || singleView3DBalance > 0));
   const fullReportFilledCount = FULL_REPORT_SLOTS.filter(
     (slot) => fullReportPhotos[slot.view]?.supabaseUrl,
   ).length;
@@ -1597,20 +1619,6 @@ export default function AnalyzeClient() {
               </>
             ) : null}
 
-            {singleViewPhoto?.previewUrl ? (
-              <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={generate3D}
-                  onChange={(event) => setGenerate3D(event.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-accent focus:ring-accent"
-                />
-                <span className="text-sm text-zinc-200">
-                  Generate 3D Model (+$8)
-                </span>
-              </label>
-            ) : null}
-
             <button
               type="button"
               onClick={() => void handleAnalyze()}
@@ -1633,7 +1641,7 @@ export default function AnalyzeClient() {
               </Link>
             ) : null}
 
-            {!authLoading && !isAdmin && isLoggedIn && (singleViewBalance === 0 || singleViewBalance === null) ? (
+            {!authLoading && !isAdmin && isLoggedIn && (singleViewBalance === 0 || singleViewBalance === null) && (singleView3DBalance === 0 || singleView3DBalance === null) ? (
               <Link
                 href="/buy-rosettes"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
