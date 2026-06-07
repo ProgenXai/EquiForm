@@ -10,8 +10,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AnalyzeApiResponse,
   ConformationReport,
+  DetectedLandmarkPoint,
   FullReportApiResponse,
 } from "@/lib/analyze/types";
+import { extractJsonObject } from "@/lib/analyze/landmark-parser";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
@@ -361,6 +363,152 @@ function TypeaheadInput({
       ) : null}
     </div>
   );
+}
+
+function coerceReportText(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => coerceReportText(item))
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of [
+      "notes",
+      "text",
+      "analysis",
+      "content",
+      "summary",
+      "description",
+    ]) {
+      if (typeof record[key] === "string") {
+        return record[key].trim();
+      }
+    }
+  }
+
+  return "";
+}
+
+function normalizeViewReport(report: ConformationReport): ConformationReport {
+  const section = (value: ConformationReport["balance"]) => ({
+    score: Math.min(100, Math.max(0, Math.round(Number(value?.score) || 0))),
+    notes: coerceReportText(value?.notes),
+  });
+
+  return {
+    balance: section(report.balance),
+    shoulder_angle: section(report.shoulder_angle),
+    hip_angle: section(report.hip_angle),
+    topline_quality: section(report.topline_quality),
+    leg_alignment: section(report.leg_alignment),
+    overall_score: Math.min(
+      100,
+      Math.max(0, Math.round(Number(report.overall_score) || 0)),
+    ),
+    summary: coerceReportText(report.summary),
+  };
+}
+
+function parseViewReportValue(value: unknown): ConformationReport {
+  let candidate: unknown = value;
+
+  if (typeof candidate === "string") {
+    const parsed: unknown = JSON.parse(extractJsonObject(candidate));
+    candidate =
+      parsed && typeof parsed === "object" && "report" in parsed
+        ? (parsed as { report: unknown }).report
+        : parsed;
+  } else if (
+    candidate &&
+    typeof candidate === "object" &&
+    "report" in candidate
+  ) {
+    candidate = (candidate as { report: unknown }).report;
+  }
+
+  if (!candidate || typeof candidate !== "object") {
+    throw new Error("Invalid full report view data");
+  }
+
+  return normalizeViewReport(candidate as ConformationReport);
+}
+
+function parseLandmarkPoints(
+  value: unknown,
+): Record<string, DetectedLandmarkPoint> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const points: Record<string, DetectedLandmarkPoint> = {};
+
+  for (const [key, point] of Object.entries(value as Record<string, unknown>)) {
+    if (!point || typeof point !== "object") continue;
+
+    const candidate = point as { x?: unknown; y?: unknown };
+    if (typeof candidate.x === "number" && typeof candidate.y === "number") {
+      points[key] = { x: candidate.x, y: candidate.y };
+    }
+  }
+
+  return points;
+}
+
+function parseFullReportApiResponse(
+  raw: FullReportApiResponse & {
+    error?: string;
+    meshyTaskId?: string | null;
+    glbUrl?: string | null;
+  },
+): FullReportApiResponse {
+  return {
+    overlayImage:
+      typeof raw.overlayImage === "string"
+        ? raw.overlayImage
+        : typeof raw.overlayUrl === "string"
+          ? raw.overlayUrl
+          : "",
+    overlayUrl: typeof raw.overlayUrl === "string" ? raw.overlayUrl : undefined,
+    frontOverlayUrl:
+      typeof raw.frontOverlayUrl === "string" ? raw.frontOverlayUrl : undefined,
+    hindOverlayUrl:
+      typeof raw.hindOverlayUrl === "string" ? raw.hindOverlayUrl : undefined,
+    leftReport: parseViewReportValue(raw.leftReport),
+    rightReport: parseViewReportValue(raw.rightReport),
+    frontReport: parseViewReportValue(raw.frontReport),
+    hindReport: parseViewReportValue(raw.hindReport),
+    combinedScore: Math.min(
+      100,
+      Math.max(0, Math.round(Number(raw.combinedScore) || 0)),
+    ),
+    betterSide: raw.betterSide === "right" ? "right" : "left",
+    landmarks: {
+      left: parseLandmarkPoints(raw.landmarks?.left),
+      right: parseLandmarkPoints(raw.landmarks?.right),
+      front: parseLandmarkPoints(raw.landmarks?.front),
+      hind: parseLandmarkPoints(raw.landmarks?.hind),
+    },
+    horseName: typeof raw.horseName === "string" ? raw.horseName : null,
+    coatColor: typeof raw.coatColor === "string" ? raw.coatColor : undefined,
+    markings: Array.isArray(raw.markings)
+      ? raw.markings.filter((marking): marking is string => typeof marking === "string")
+      : undefined,
+    markingsDescription:
+      typeof raw.markingsDescription === "string"
+        ? raw.markingsDescription
+        : undefined,
+    tripoGlbUrl:
+      typeof raw.tripoGlbUrl === "string" ? raw.tripoGlbUrl : null,
+    reportId: typeof raw.reportId === "string" ? raw.reportId : null,
+    pdfUrl: typeof raw.pdfUrl === "string" ? raw.pdfUrl : null,
+  };
 }
 
 function buildFullReportPdfReport(
@@ -1486,11 +1634,7 @@ export default function AnalyzeClient() {
         throw new Error(apiResult.error ?? "Full report analysis failed");
       }
 
-      setFullReportResult({
-        ...apiResult,
-        frontOverlayUrl: apiResult.frontOverlayUrl,
-        hindOverlayUrl: apiResult.hindOverlayUrl,
-      });
+      setFullReportResult(parseFullReportApiResponse(apiResult));
 
       if (apiResult.meshyTaskId) {
         setMeshyTaskId(apiResult.meshyTaskId);
@@ -2372,7 +2516,7 @@ export default function AnalyzeClient() {
                         </div>
 
                         <p className="mt-4 text-sm leading-relaxed text-zinc-300">
-                          {betterSideReport.summary}
+                          {coerceReportText(betterSideReport.summary)}
                         </p>
 
                         <div className="mt-8 space-y-6">
@@ -2413,11 +2557,11 @@ export default function AnalyzeClient() {
                                               {label}
                                             </h4>
                                             <span className="text-sm font-semibold text-accent">
-                                              {section.score}/100
+                                              {section?.score ?? 0}/100
                                             </span>
                                           </div>
                                           <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-                                            {section.notes}
+                                            {coerceReportText(section?.notes)}
                                           </p>
                                         </li>
                                       );
