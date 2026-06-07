@@ -1204,7 +1204,7 @@ export async function POST(request: Request) {
       detectCoatColorWithPrompt(preparedByView.hind, COAT_COLOR_DETECTION_PROMPT_HIND),
     ]);
 
-    const coatColor = leftCoatResult.coatColor !== "bay"
+    const detectedCoatColor = leftCoatResult.coatColor !== "bay"
       ? leftCoatResult.coatColor
       : rightCoatResult.coatColor;
 
@@ -1359,7 +1359,7 @@ export async function POST(request: Request) {
       rightReport,
       frontReport,
       hindReport,
-      coatColor,
+      coatColor: detectedCoatColor,
       markings,
       markingsDescription,
     });
@@ -1520,7 +1520,7 @@ export async function POST(request: Request) {
         hind: detectedLandmarksByView.hind,
       },
       horseName,
-      coatColor,
+      coatColor: detectedCoatColor,
       markings,
       markingsDescription,
       meshyTaskId,

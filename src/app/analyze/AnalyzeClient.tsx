@@ -5,7 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { FileCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AnalyzeApiResponse,
@@ -229,6 +229,139 @@ const HORSE_SEX_OPTIONS = [
   "Colt",
   "Filly",
 ] as const;
+
+const BREED_SUGGESTIONS = [
+  "Quarter Horse",
+  "Thoroughbred",
+  "Paint",
+  "Appaloosa",
+  "Arabian",
+  "Warmblood",
+  "Friesian",
+  "Morgan",
+  "Tennessee Walking Horse",
+  "Andalusian",
+  "Draft Horse",
+  "Mustang",
+  "Standardbred",
+  "Paso Fino",
+  "Rocky Mountain Horse",
+] as const;
+
+const COAT_COLOR_SUGGESTIONS = [
+  "Bay",
+  "Dark Bay",
+  "Black",
+  "Chestnut",
+  "Sorrel",
+  "Palomino",
+  "Buckskin",
+  "Dun",
+  "Grullo",
+  "Gray",
+  "Roan",
+  "Bay Roan",
+  "Red Roan",
+  "Blue Roan",
+  "Cremello",
+  "Perlino",
+  "White",
+  "Paint",
+  "Appaloosa",
+  "Pinto",
+] as const;
+
+const TYPEAHEAD_INPUT_CLASS =
+  "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none";
+
+type TypeaheadInputProps = {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  required?: boolean;
+  suggestions: readonly string[];
+};
+
+function TypeaheadInput({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  required,
+  suggestions,
+}: TypeaheadInputProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filteredSuggestions = useMemo(() => {
+    const query = value.trim().toLowerCase();
+    if (!query) return [...suggestions];
+    return suggestions.filter((suggestion) =>
+      suggestion.toLowerCase().includes(query),
+    );
+  }, [suggestions, value]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label
+        htmlFor={id}
+        className="mb-2 block text-xs font-medium text-zinc-400"
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        required={required}
+        autoComplete="off"
+        className={TYPEAHEAD_INPUT_CLASS}
+      />
+      {open && filteredSuggestions.length > 0 ? (
+        <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950 py-1 shadow-lg">
+          {filteredSuggestions.map((suggestion) => (
+            <li key={suggestion}>
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(suggestion);
+                  setOpen(false);
+                }}
+              >
+                {suggestion}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 function buildFullReportPdfReport(
   fullReportResult: FullReportApiResponse,
@@ -1606,40 +1739,24 @@ export default function AnalyzeClient() {
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
-              <div>
-                <label
-                  htmlFor="breed"
-                  className="mb-2 block text-xs font-medium text-zinc-400"
-                >
-                  Breed
-                </label>
-                <input
-                  id="breed"
-                  type="text"
-                  value={breed}
-                  onChange={(event) => setBreed(event.target.value)}
-                  placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
-                  required
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="coat-color"
-                  className="mb-2 block text-xs font-medium text-zinc-400"
-                >
-                  Coat Color
-                </label>
-                <input
-                  id="coat-color"
-                  type="text"
-                  value={coatColor}
-                  onChange={(event) => setCoatColor(event.target.value)}
-                  placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
-                  required
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                />
-              </div>
+              <TypeaheadInput
+                id="breed"
+                label="Breed"
+                value={breed}
+                onChange={setBreed}
+                placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
+                required
+                suggestions={BREED_SUGGESTIONS}
+              />
+              <TypeaheadInput
+                id="coat-color"
+                label="Coat Color"
+                value={coatColor}
+                onChange={setCoatColor}
+                placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
+                required
+                suggestions={COAT_COLOR_SUGGESTIONS}
+              />
               <div>
                 <label
                   htmlFor="age"
@@ -1894,40 +2011,24 @@ export default function AnalyzeClient() {
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label
-                    htmlFor="full-report-breed"
-                    className="mb-2 block text-xs font-medium text-zinc-400"
-                  >
-                    Breed
-                  </label>
-                  <input
-                    id="full-report-breed"
-                    type="text"
-                    value={breed}
-                    onChange={(event) => setBreed(event.target.value)}
-                    placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
-                    required
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="full-report-coat-color"
-                    className="mb-2 block text-xs font-medium text-zinc-400"
-                  >
-                    Coat Color
-                  </label>
-                  <input
-                    id="full-report-coat-color"
-                    type="text"
-                    value={coatColor}
-                    onChange={(event) => setCoatColor(event.target.value)}
-                    placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
-                    required
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                  />
-                </div>
+                <TypeaheadInput
+                  id="full-report-breed"
+                  label="Breed"
+                  value={breed}
+                  onChange={setBreed}
+                  placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
+                  required
+                  suggestions={BREED_SUGGESTIONS}
+                />
+                <TypeaheadInput
+                  id="full-report-coat-color"
+                  label="Coat Color"
+                  value={coatColor}
+                  onChange={setCoatColor}
+                  placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
+                  required
+                  suggestions={COAT_COLOR_SUGGESTIONS}
+                />
                 <div>
                   <label
                     htmlFor="full-report-age"
