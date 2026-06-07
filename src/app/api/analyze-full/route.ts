@@ -27,6 +27,7 @@ import {
   drawHindConformationOverlay,
 } from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
+import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -1400,6 +1401,17 @@ export async function POST(request: Request) {
       console.error("Report save error:", error.message, error.code, error.details);
       console.error("[analyze-full] failed to save report:", error);
     } else {
+      if (savedReport && userId && horseName) {
+        await linkReportToHorse(serviceClient, userId, savedReport.id, {
+          name: horseName,
+          breed: breed || null,
+          coat_color: coatColor ?? "",
+          age: age ?? "",
+          sex: sex ?? "",
+          discipline,
+        });
+      }
+
       // Send first-report email
       try {
         const { data: existingReports } = await serviceClient
