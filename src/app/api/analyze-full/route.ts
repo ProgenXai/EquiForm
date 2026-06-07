@@ -486,7 +486,7 @@ async function generateTripo3DModel(
       files: [
         { type: "jpg", url: frontUrl },
         { type: "jpg", url: bestSideUrl },
-        {},
+        null,
         { type: "jpg", url: hindUrl },
       ],
       model_version: "v2.5-20250123",
