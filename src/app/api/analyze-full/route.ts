@@ -521,8 +521,6 @@ async function generateTripo3DModel(
 
     const prompt = `A ${coatName} horse standing square on level ground, all four legs correctly placed with hooves on the ground, natural conformation stance, photorealistic. ${markingText}${noMarkingText}${sideText}No extra limbs, no floating body parts, correct equine anatomy throughout.`;
 
-    console.log("[tripo3d] prompt:", prompt);
-
     const submitResponse = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
       method: "POST",
       headers: {
@@ -536,7 +534,7 @@ async function generateTripo3DModel(
           { type: "jpg", url: hindUrl },
           { type: "jpg", url: bestSideUrl },
         ],
-        model_version: "v2.5-20250123",
+        model_version: "v2.0-20240919",
       }),
     });
 
