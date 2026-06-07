@@ -482,13 +482,71 @@ async function generateTripo3DModel(
   if (!apiKey) return null;
 
   try {
+    const uploadTripoImageFromUrl = async (
+      imageUrl: string,
+    ): Promise<string | null> => {
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        console.error("[tripo3d] fetch for upload failed:", imageUrl);
+        return null;
+      }
+
+      const buffer = Buffer.from(await imageResponse.arrayBuffer());
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new Blob([new Uint8Array(buffer)], { type: "image/jpeg" }),
+        "photo.jpg",
+      );
+
+      const uploadResponse = await fetch(
+        "https://api.tripo3d.ai/v2/openapi/upload",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: formData,
+        },
+      );
+
+      if (!uploadResponse.ok) {
+        console.error("[tripo3d] upload failed:", await uploadResponse.text());
+        return null;
+      }
+
+      const uploadData = (await uploadResponse.json()) as {
+        code: number;
+        data?: { file_token?: string; image_token?: string };
+      };
+
+      if (uploadData.code !== 0) {
+        console.error("[tripo3d] upload error:", JSON.stringify(uploadData));
+        return null;
+      }
+
+      return uploadData.data?.file_token ?? uploadData.data?.image_token ?? null;
+    };
+
+    const [frontToken, leftToken, hindToken, rightToken] = await Promise.all([
+      uploadTripoImageFromUrl(frontUrl),
+      uploadTripoImageFromUrl(leftUrl),
+      uploadTripoImageFromUrl(hindUrl),
+      uploadTripoImageFromUrl(rightUrl),
+    ]);
+
+    if (!frontToken || !leftToken || !hindToken || !rightToken) {
+      console.error("[tripo3d] one or more image uploads failed");
+      return null;
+    }
+
     const tripoPayload = {
       type: "multiview_to_model",
       files: [
-        { type: "jpg", url: frontUrl },
-        { type: "jpg", url: leftUrl },
-        { type: "jpg", url: hindUrl },
-        { type: "jpg", url: rightUrl },
+        { type: "jpg", file_token: frontToken },
+        { type: "jpg", file_token: leftToken },
+        { type: "jpg", file_token: hindToken },
+        { type: "jpg", file_token: rightToken },
       ],
       model_version: "v2.5-20250123",
     };
