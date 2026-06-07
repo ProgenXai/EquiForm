@@ -423,7 +423,9 @@ export default function AnalyzeClient() {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AnalyzeApiResponse | null>(null);
+  const [result, setResult] = useState<
+    (AnalyzeApiResponse & { glbUrl?: string | null; disclaimer?: string }) | null
+  >(null);
   const [fullReportResult, setFullReportResult] =
     useState<FullReportApiResponse | null>(null);
   const [email, setEmail] = useState("");
@@ -438,6 +440,7 @@ export default function AnalyzeClient() {
   const [session, setSession] = useState<Session | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [generate3D, setGenerate3D] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   function applyBalanceData(data: BalanceResponse) {
@@ -759,6 +762,9 @@ export default function AnalyzeClient() {
       formData.append("image", fileToSend);
       formData.append("horseName", horseName.trim());
       formData.append("viewMode", viewMode);
+      if (generate3D) {
+        formData.append("generate3D", "true");
+      }
 
       const {
         data: { session },
@@ -779,6 +785,8 @@ export default function AnalyzeClient() {
         error?: string;
         requiresPayment?: boolean;
         overlayUrl?: string;
+        glbUrl?: string | null;
+        disclaimer?: string;
       };
 
       try {
@@ -795,6 +803,8 @@ export default function AnalyzeClient() {
           error?: string;
           requiresPayment?: boolean;
           overlayUrl?: string;
+          glbUrl?: string | null;
+          disclaimer?: string;
         };
       } catch (parseError) {
         if (
@@ -1468,6 +1478,20 @@ export default function AnalyzeClient() {
               </>
             ) : null}
 
+            {previewUrl ? (
+              <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={generate3D}
+                  onChange={(event) => setGenerate3D(event.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-accent focus:ring-accent"
+                />
+                <span className="text-sm text-zinc-200">
+                  Generate 3D Model (+$8)
+                </span>
+              </label>
+            ) : null}
+
             <button
               type="button"
               onClick={() => void handleAnalyze()}
@@ -2104,6 +2128,28 @@ export default function AnalyzeClient() {
                   );
                 })}
               </ul>
+
+              {result.glbUrl ? (
+                <>
+                  <HorseViewer3D
+                    className="mt-8"
+                    landmarks={
+                      analyzedViewMode === "front"
+                        ? { front: result.landmarks }
+                        : analyzedViewMode === "hind"
+                          ? { hind: result.landmarks }
+                          : { left: result.landmarks }
+                    }
+                    tripoGlbUrl={result.glbUrl}
+                  />
+                  {result.disclaimer ? (
+                    <p className="mt-3 text-xs italic text-zinc-500">
+                      {result.disclaimer}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => void handleShareScore()}
