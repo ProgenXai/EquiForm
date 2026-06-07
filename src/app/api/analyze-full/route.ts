@@ -569,6 +569,47 @@ async function generateMeshy3DModel(
   }
 }
 
+async function persistMeshyGlbToSupabase(
+  meshyGlbUrl: string,
+  userId: string,
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+): Promise<string | null> {
+  try {
+    const glbResponse = await fetch(meshyGlbUrl);
+    if (!glbResponse.ok) {
+      console.error(
+        "[analyze-full] failed to download GLB from Meshy:",
+        meshyGlbUrl,
+      );
+      return null;
+    }
+
+    const glbBuffer = Buffer.from(await glbResponse.arrayBuffer());
+    const storagePath = `3d-models/${userId}/${Date.now()}.glb`;
+
+    const { error: uploadError } = await serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .upload(storagePath, glbBuffer, {
+        contentType: "model/gltf-binary",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("[analyze-full] GLB upload failed:", uploadError);
+      return null;
+    }
+
+    const { data: publicUrlData } = serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .getPublicUrl(storagePath);
+
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error("[analyze-full] persistMeshyGlbToSupabase error:", error);
+    return null;
+  }
+}
+
 async function generateTripo3DModel(
   frontUrl: string,
   leftUrl: string,
@@ -799,12 +840,16 @@ export async function POST(request: Request) {
       imageUrls[view] = trimmedUrl;
     }
 
-    const glbUrl = await generateMeshy3DModel(
+    const serviceClient = createServiceRoleClient();
+    const meshyGlbUrl = await generateMeshy3DModel(
       imageUrls.front,
       imageUrls.left,
       imageUrls.hind,
       imageUrls.right,
     );
+    const glbUrl = meshyGlbUrl
+      ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
+      : null;
 
     const placeholderSection = {
       score: 85,
@@ -1140,12 +1185,15 @@ export async function POST(request: Request) {
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
-    const tripoGlbUrl = await generateMeshy3DModel(
+    const meshyGlbUrl = await generateMeshy3DModel(
       imageUrls.front,
       imageUrls.left,
       imageUrls.hind,
       imageUrls.right,
     );
+    const glbUrl = meshyGlbUrl
+      ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
+      : null;
 
     const combinedScore = calculateCombinedScore(
       leftReport,
@@ -1407,7 +1455,7 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log("[analyze-full] glbUrl:", tripoGlbUrl);
+    console.log("[analyze-full] glbUrl:", glbUrl);
 
     return NextResponse.json({
       overlayUrl,
@@ -1430,8 +1478,8 @@ export async function POST(request: Request) {
       coatColor,
       markings,
       markingsDescription,
-      tripoGlbUrl,
-      glbUrl: tripoGlbUrl,
+      tripoGlbUrl: glbUrl,
+      glbUrl,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);
