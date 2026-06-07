@@ -304,7 +304,29 @@ type TypeaheadInputProps = {
   placeholder: string;
   required?: boolean;
   suggestions: readonly string[];
+  appendOnSelect?: boolean;
+  hint?: string;
 };
+
+function appendTypeaheadValue(current: string, suggestion: string): string {
+  const trimmed = current.trim();
+  if (!trimmed) {
+    return suggestion;
+  }
+
+  const existing = trimmed
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (
+    existing.some((part) => part.toLowerCase() === suggestion.toLowerCase())
+  ) {
+    return trimmed;
+  }
+
+  return `${trimmed}, ${suggestion}`;
+}
 
 function TypeaheadInput({
   id,
@@ -314,17 +336,42 @@ function TypeaheadInput({
   placeholder,
   required,
   suggestions,
+  appendOnSelect = false,
+  hint,
 }: TypeaheadInputProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filteredSuggestions = useMemo(() => {
-    const query = value.trim().toLowerCase();
-    if (!query) return [...suggestions];
-    return suggestions.filter((suggestion) =>
-      suggestion.toLowerCase().includes(query),
+    let query = value.trim().toLowerCase();
+    if (appendOnSelect) {
+      const lastComma = value.lastIndexOf(",");
+      query = (lastComma >= 0 ? value.slice(lastComma + 1) : value)
+        .trim()
+        .toLowerCase();
+    }
+
+    const selectedValues = appendOnSelect
+      ? value
+          .split(",")
+          .map((part) => part.trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+
+    const matches = !query
+      ? [...suggestions]
+      : suggestions.filter((suggestion) =>
+          suggestion.toLowerCase().includes(query),
+        );
+
+    if (!appendOnSelect) {
+      return matches;
+    }
+
+    return matches.filter(
+      (suggestion) => !selectedValues.includes(suggestion.toLowerCase()),
     );
-  }, [suggestions, value]);
+  }, [appendOnSelect, suggestions, value]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -362,6 +409,9 @@ function TypeaheadInput({
         autoComplete="off"
         className={TYPEAHEAD_INPUT_CLASS}
       />
+      {hint ? (
+        <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+      ) : null}
       {open && filteredSuggestions.length > 0 ? (
         <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950 py-1 shadow-lg">
           {filteredSuggestions.map((suggestion) => (
@@ -371,8 +421,14 @@ function TypeaheadInput({
                 className="w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
-                  onChange(suggestion);
-                  setOpen(false);
+                  onChange(
+                    appendOnSelect
+                      ? appendTypeaheadValue(value, suggestion)
+                      : suggestion,
+                  );
+                  if (!appendOnSelect) {
+                    setOpen(false);
+                  }
                 }}
               >
                 {suggestion}
@@ -1992,6 +2048,8 @@ export default function AnalyzeClient() {
                 onChange={setDiscipline}
                 placeholder="e.g. Barrel Racing, Dressage, Broodmare"
                 suggestions={DISCIPLINE_SUGGESTIONS}
+                appendOnSelect
+                hint="Select one or more disciplines."
               />
             </div>
           ) : null}
@@ -2256,6 +2314,8 @@ export default function AnalyzeClient() {
                   onChange={setDiscipline}
                   placeholder="e.g. Barrel Racing, Dressage, Broodmare"
                   suggestions={DISCIPLINE_SUGGESTIONS}
+                  appendOnSelect
+                  hint="Select one or more disciplines."
                 />
               </div>
 
