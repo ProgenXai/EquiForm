@@ -128,8 +128,18 @@ function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
   }
 }
 
-function withBreedContext(prompt: string, breed: string): string {
-  return `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+function withReportContext(
+  prompt: string,
+  breed: string,
+  discipline?: string | null,
+): string {
+  let result = `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+
+  if (discipline) {
+    result += `\n\nDISCIPLINE CONTEXT: This horse is evaluated for ${discipline}. Tailor your conformation analysis, scoring, and notes to the conformation priorities most important for this discipline.`;
+  }
+
+  return result;
 }
 
 async function generateMeshy3DModel(imageUrl: string): Promise<string | null> {
@@ -293,6 +303,11 @@ export async function POST(request: Request) {
       : null;
   const breedRaw = formData.get("breed");
   const breed = typeof breedRaw === "string" ? breedRaw.trim() : "";
+  const disciplineRaw = formData.get("discipline");
+  const discipline =
+    typeof disciplineRaw === "string" && disciplineRaw.trim()
+      ? disciplineRaw.trim()
+      : null;
   const generate3D = formData.get("generate3D") === "true";
 
   if (!breed) {
@@ -451,9 +466,10 @@ export async function POST(request: Request) {
       viewMode,
     );
     const landmarks = toConformationLandmarks(detectedLandmarks, viewMode);
-    const reportPrompt = withBreedContext(
+    const reportPrompt = withReportContext(
       getConformationReportPrompt(viewMode),
       breed,
+      discipline,
     );
 
     const reportMessage = await anthropic.messages.create({

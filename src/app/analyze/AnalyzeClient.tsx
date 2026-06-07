@@ -421,6 +421,7 @@ export default function AnalyzeClient() {
   const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
   const [breed, setBreed] = useState("");
+  const [discipline, setDiscipline] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -832,6 +833,7 @@ export default function AnalyzeClient() {
       const formData = new FormData();
       formData.append("image", fileToSend);
       formData.append("breed", breed.trim());
+      formData.append("discipline", discipline.trim());
       formData.append("horseName", horseName.trim());
       formData.append("viewMode", viewMode);
       if (generate3D) {
@@ -1141,6 +1143,7 @@ export default function AnalyzeClient() {
           frontUrl,
           hindUrl,
           breed: breed.trim(),
+          discipline: discipline.trim(),
           horseName: horseName.trim(),
         }),
       });
@@ -1248,6 +1251,7 @@ export default function AnalyzeClient() {
           frontUrl,
           hindUrl,
           breed: breed.trim(),
+          discipline: discipline.trim(),
           horseName: horseName.trim(),
           debugMode: true,
         }),
@@ -1554,6 +1558,22 @@ export default function AnalyzeClient() {
               </div>
               <div>
                 <label
+                  htmlFor="discipline"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Discipline (optional)
+                </label>
+                <input
+                  id="discipline"
+                  type="text"
+                  value={discipline}
+                  onChange={(event) => setDiscipline(event.target.value)}
+                  placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label
                   htmlFor="horse-name"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
@@ -1778,6 +1798,22 @@ export default function AnalyzeClient() {
                     onChange={(event) => setBreed(event.target.value)}
                     placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
                     required
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="full-report-discipline"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Discipline (optional)
+                  </label>
+                  <input
+                    id="full-report-discipline"
+                    type="text"
+                    value={discipline}
+                    onChange={(event) => setDiscipline(event.target.value)}
+                    placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper"
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
