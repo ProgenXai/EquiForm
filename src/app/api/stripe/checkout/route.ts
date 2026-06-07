@@ -54,8 +54,8 @@ export async function POST(request: Request) {
         userId,
         reportType: pack.reportType,
       },
-      success_url: `${appUrl}/dashboard?purchase=success`,
-      cancel_url: `${appUrl}/dashboard`,
+      success_url: "https://www.equiform.app/dashboard?purchase=success",
+      cancel_url: "https://www.equiform.app/dashboard",
     });
 
     if (!session.url) {
