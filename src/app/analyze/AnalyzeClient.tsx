@@ -364,6 +364,7 @@ export default function AnalyzeClient() {
   fullReportPhotosRef.current = fullReportPhotos;
   const [horseName, setHorseName] = useState("");
   const [breed, setBreed] = useState("");
+  const [coatColor, setCoatColor] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("");
   const [discipline, setDiscipline] = useState("");
@@ -935,6 +936,7 @@ export default function AnalyzeClient() {
           photoUrl: singleViewPhoto.supabaseUrl,
           viewMode: "left",
           breed: breed.trim(),
+          coatColor: coatColor.trim(),
           age: age.trim(),
           sex: sex.trim(),
           discipline: discipline.trim(),
@@ -1305,6 +1307,7 @@ export default function AnalyzeClient() {
           frontUrl,
           hindUrl,
           breed: breed.trim(),
+          coatColor: coatColor.trim(),
           age: age.trim(),
           sex: sex.trim(),
           discipline: discipline.trim(),
@@ -1581,7 +1584,24 @@ export default function AnalyzeClient() {
           ) : null}
 
           {singleViewPhoto?.previewUrl ? (
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="horse-name"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Horse name
+                </label>
+                <input
+                  id="horse-name"
+                  type="text"
+                  value={horseName}
+                  onChange={(event) => setHorseName(event.target.value)}
+                  placeholder="e.g. Blazin High Alibi"
+                  required
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
               <div>
                 <label
                   htmlFor="breed"
@@ -1596,6 +1616,22 @@ export default function AnalyzeClient() {
                   onChange={(event) => setBreed(event.target.value)}
                   placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
                   required
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="coat-color"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Coat Color (optional)
+                </label>
+                <input
+                  id="coat-color"
+                  type="text"
+                  value={coatColor}
+                  onChange={(event) => setCoatColor(event.target.value)}
+                  placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
@@ -1649,23 +1685,6 @@ export default function AnalyzeClient() {
                   value={discipline}
                   onChange={(event) => setDiscipline(event.target.value)}
                   placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="horse-name"
-                  className="mb-2 block text-xs font-medium text-zinc-400"
-                >
-                  Horse name
-                </label>
-                <input
-                  id="horse-name"
-                  type="text"
-                  value={horseName}
-                  onChange={(event) => setHorseName(event.target.value)}
-                  placeholder="e.g. Blazin High Alibi"
-                  required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
@@ -1850,7 +1869,24 @@ export default function AnalyzeClient() {
                 })}
               </div>
 
-              <div className="mt-6 space-y-6">
+              <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="full-report-horse-name"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Horse name
+                  </label>
+                  <input
+                    id="full-report-horse-name"
+                    type="text"
+                    value={horseName}
+                    onChange={(event) => setHorseName(event.target.value)}
+                    placeholder="e.g. Blazin High Alibi"
+                    required
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  />
+                </div>
                 <div>
                   <label
                     htmlFor="full-report-breed"
@@ -1865,6 +1901,22 @@ export default function AnalyzeClient() {
                     onChange={(event) => setBreed(event.target.value)}
                     placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
                     required
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="full-report-coat-color"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Coat Color (optional)
+                  </label>
+                  <input
+                    id="full-report-coat-color"
+                    type="text"
+                    value={coatColor}
+                    onChange={(event) => setCoatColor(event.target.value)}
+                    placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
@@ -1918,23 +1970,6 @@ export default function AnalyzeClient() {
                     value={discipline}
                     onChange={(event) => setDiscipline(event.target.value)}
                     placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper"
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="full-report-horse-name"
-                    className="mb-2 block text-xs font-medium text-zinc-400"
-                  >
-                    Horse name
-                  </label>
-                  <input
-                    id="full-report-horse-name"
-                    type="text"
-                    value={horseName}
-                    onChange={(event) => setHorseName(event.target.value)}
-                    placeholder="e.g. Blazin High Alibi"
-                    required
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>

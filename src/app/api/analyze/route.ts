@@ -78,6 +78,7 @@ type AnalyzeRequestBody = {
   viewMode?: string;
   horseName?: string;
   breed?: string;
+  coatColor?: string;
   discipline?: string;
   age?: string;
   sex?: string;
@@ -169,6 +170,7 @@ function withReportContext(
   discipline?: string | null,
   age?: string | null,
   sex?: string | null,
+  coatColor?: string | null,
 ): string {
   let result = prompt;
 
@@ -177,6 +179,10 @@ function withReportContext(
   }
 
   result += `\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+
+  if (coatColor) {
+    result += `\n\nCOAT COLOR CONTEXT: This horse's coat color is ${coatColor}. Reference this coat color in your analysis where relevant, and do not contradict it based on photo appearance alone.`;
+  }
 
   if (age) {
     result += `\n\nAGE CONTEXT: This horse is ${age} old. Consider age-appropriate conformation expectations in your analysis and scoring.`;
@@ -355,6 +361,10 @@ export async function POST(request: Request) {
       ? body.horseName.trim()
       : null;
   const breed = typeof body.breed === "string" ? body.breed.trim() : "";
+  const coatColor =
+    typeof body.coatColor === "string" && body.coatColor.trim()
+      ? body.coatColor.trim()
+      : null;
   const discipline =
     typeof body.discipline === "string" && body.discipline.trim()
       ? body.discipline.trim()
@@ -584,6 +594,7 @@ export async function POST(request: Request) {
       discipline,
       age,
       sex,
+      coatColor,
     );
 
     const reportMessage = await anthropic.messages.create({
@@ -705,6 +716,7 @@ export async function POST(request: Request) {
         user_id: user?.id ?? null,
         horse_name: horseName,
         breed: breed || null,
+        coat_color: coatColor,
         age,
         sex,
         discipline,

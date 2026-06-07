@@ -152,6 +152,7 @@ type FullReportRequestBody = {
   hindUrl?: string;
   horseName?: string;
   breed?: string;
+  coatColor?: string;
   discipline?: string;
   age?: string;
   sex?: string;
@@ -322,6 +323,7 @@ function withReportContext(
   discipline?: string | null,
   age?: string | null,
   sex?: string | null,
+  coatColor?: string | null,
 ): string {
   let result = prompt;
 
@@ -330,6 +332,10 @@ function withReportContext(
   }
 
   result += `\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+
+  if (coatColor) {
+    result += `\n\nCOAT COLOR CONTEXT: This horse's coat color is ${coatColor}. Reference this coat color in your analysis where relevant, and do not contradict it based on photo appearance alone.`;
+  }
 
   if (age) {
     result += `\n\nAGE CONTEXT: This horse is ${age} old. Consider age-appropriate conformation expectations in your analysis and scoring.`;
@@ -350,6 +356,7 @@ async function generateViewReport(
   discipline?: string | null,
   age?: string | null,
   sex?: string | null,
+  coatColor?: string | null,
 ): Promise<ConformationReport> {
   const reportMessage = await anthropic.messages.create({
     model: "claude-opus-4-5-20251101",
@@ -367,6 +374,7 @@ async function generateViewReport(
               discipline,
               age,
               sex,
+              coatColor,
             ),
           },
         ],
@@ -949,6 +957,11 @@ export async function POST(request: Request) {
         : null;
     const breedRaw = body.breed;
     const breed = typeof breedRaw === "string" ? breedRaw.trim() : "";
+    const coatColorRaw = body.coatColor;
+    const coatColor =
+      typeof coatColorRaw === "string" && coatColorRaw.trim()
+        ? coatColorRaw.trim()
+        : null;
     const disciplineRaw = body.discipline;
     const discipline =
       typeof disciplineRaw === "string" && disciplineRaw.trim()
@@ -1122,6 +1135,7 @@ export async function POST(request: Request) {
         discipline,
         age,
         sex,
+        coatColor,
       ),
       generateViewReport(
         anthropic,
@@ -1131,6 +1145,7 @@ export async function POST(request: Request) {
         discipline,
         age,
         sex,
+        coatColor,
       ),
       generateViewReport(
         anthropic,
@@ -1140,6 +1155,7 @@ export async function POST(request: Request) {
         discipline,
         age,
         sex,
+        coatColor,
       ),
       generateViewReport(
         anthropic,
@@ -1149,6 +1165,7 @@ export async function POST(request: Request) {
         discipline,
         age,
         sex,
+        coatColor,
       ),
     ]);
 
@@ -1356,6 +1373,7 @@ export async function POST(request: Request) {
         user_id: userId,
         horse_name: horseName,
         breed: breed || null,
+        coat_color: coatColor,
         age,
         sex,
         discipline,
