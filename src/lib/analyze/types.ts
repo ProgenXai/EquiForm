@@ -28,6 +28,8 @@ export type AnalyzeApiResponse = {
   overlayUrl?: string;
   report: ConformationReport;
   landmarks: Record<string, DetectedLandmarkPoint>;
+  reportId?: string | null;
+  pdfUrl?: string | null;
 };
 
 export type FullReportApiResponse = {
@@ -52,4 +54,6 @@ export type FullReportApiResponse = {
   markings?: string[];
   markingsDescription?: string;
   tripoGlbUrl?: string | null;
+  reportId?: string | null;
+  pdfUrl?: string | null;
 };

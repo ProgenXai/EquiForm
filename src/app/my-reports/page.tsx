@@ -12,6 +12,7 @@ type ReportRow = {
   created_at: string;
   overall_score: number | null;
   horse_name: string | null;
+  pdf_url: string | null;
 };
 
 function formatReportDate(isoDate: string): string {
@@ -41,7 +42,7 @@ export default function MyReportsPage() {
 
       const { data, error } = await supabase
         .from("reports")
-        .select("id, created_at, overall_score, horse_name")
+        .select("id, created_at, overall_score, horse_name, pdf_url")
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false });
 
@@ -126,12 +127,24 @@ export default function MyReportsPage() {
                     </span>
                   </p>
                 </div>
-                <Link
-                  href={`/my-reports/${report.id}`}
-                  className="inline-block rounded-lg bg-accent px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:shrink-0"
-                >
-                  View Report
-                </Link>
+                <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0">
+                  {report.pdf_url ? (
+                    <a
+                      href={report.pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-center text-sm font-semibold text-accent transition hover:bg-accent/25"
+                    >
+                      Download PDF
+                    </a>
+                  ) : null}
+                  <Link
+                    href={`/my-reports/${report.id}`}
+                    className="inline-block rounded-lg bg-accent px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+                  >
+                    View Report
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

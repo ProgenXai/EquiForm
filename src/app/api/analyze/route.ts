@@ -656,22 +656,32 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error: insertError } = await serviceClient.from("reports").insert({
-      user_id: user?.id ?? null,
-      horse_name: horseName,
-      overall_score: report.overall_score,
-      balance_score: report.balance.score,
-      shoulder_score: report.shoulder_angle.score,
-      hip_score: report.hip_angle.score,
-      topline_score: report.topline_quality.score,
-      leg_score: report.leg_alignment.score,
-      report_text: reportText,
-      overlay_url: overlayUrl,
-    });
+    let reportId: string | null = null;
+
+    const { data: savedReport, error: insertError } = await serviceClient
+      .from("reports")
+      .insert({
+        user_id: user?.id ?? null,
+        horse_name: horseName,
+        overall_score: report.overall_score,
+        balance_score: report.balance.score,
+        shoulder_score: report.shoulder_angle.score,
+        hip_score: report.hip_angle.score,
+        topline_score: report.topline_quality.score,
+        leg_score: report.leg_alignment.score,
+        report_text: reportText,
+        overlay_url: overlayUrl,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       console.error("[analyze] failed to save report:", insertError);
-    } else if (user?.email) {
+    } else {
+      reportId = savedReport.id;
+    }
+
+    if (reportId && user?.email) {
       const { count, error: countError } = await serviceClient
         .from("reports")
         .select("id", { count: "exact", head: true })
@@ -728,6 +738,7 @@ export async function POST(request: Request) {
       overlayUrl,
       report,
       landmarks: detectedLandmarks,
+      reportId,
       ...(generate3D
         ? { glbUrl, disclaimer: SINGLE_VIEW_3D_DISCLAIMER }
         : {}),

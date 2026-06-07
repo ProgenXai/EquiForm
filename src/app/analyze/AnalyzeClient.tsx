@@ -859,36 +859,48 @@ export default function AnalyzeClient() {
   async function handleDownloadPdf() {
     if (!result) return;
 
+    if (result.pdfUrl) {
+      window.open(result.pdfUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!result.reportId) {
+      setError("PDF generation failed. Report ID is missing.");
+      return;
+    }
+
     setPdfLoading(true);
     setError(null);
 
     try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentSession?.access_token ?? ""}`,
+        },
         body: JSON.stringify({
+          reportId: result.reportId,
           overlayUrl: result.overlayUrl,
           report: result.report,
           horse_name: horseName,
         }),
       });
 
-      const contentType = response.headers.get("content-type") ?? "";
-      const isPdf = contentType.includes("application/pdf");
+      const data = (await response.json()) as { pdfUrl?: string; error?: string };
 
-      if (!response.ok || !isPdf) {
-        await response.text();
-        throw new Error("PDF generation failed. Please try again.");
+      if (!response.ok || !data.pdfUrl) {
+        throw new Error(data.error ?? "PDF generation failed. Please try again.");
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const date = new Date().toISOString().slice(0, 10);
-      link.href = url;
-      link.download = `equiform-report-${date}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      setResult((current) =>
+        current ? { ...current, pdfUrl: data.pdfUrl } : current,
+      );
+      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF generation failed");
     } finally {
@@ -898,6 +910,16 @@ export default function AnalyzeClient() {
 
   async function handleDownloadFullReportPdf() {
     if (!fullReportResult) return;
+
+    if (fullReportResult.pdfUrl) {
+      window.open(fullReportResult.pdfUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!fullReportResult.reportId) {
+      setError("PDF generation failed. Report ID is missing.");
+      return;
+    }
 
     const leftImage = fullReportPhotos.left?.supabaseUrl;
     const rightImage = fullReportPhotos.right?.supabaseUrl;
@@ -913,10 +935,18 @@ export default function AnalyzeClient() {
     setError(null);
 
     try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentSession?.access_token ?? ""}`,
+        },
         body: JSON.stringify({
+          reportId: fullReportResult.reportId,
           overlayUrl:
             fullReportResult.overlayUrl ?? fullReportResult.overlayImage,
           frontOverlayUrl: fullReportResult.frontOverlayUrl,
@@ -931,22 +961,16 @@ export default function AnalyzeClient() {
         }),
       });
 
-      const contentType = response.headers.get("content-type") ?? "";
-      const isPdf = contentType.includes("application/pdf");
+      const data = (await response.json()) as { pdfUrl?: string; error?: string };
 
-      if (!response.ok || !isPdf) {
-        await response.text();
-        throw new Error("PDF generation failed. Please try again.");
+      if (!response.ok || !data.pdfUrl) {
+        throw new Error(data.error ?? "PDF generation failed. Please try again.");
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const date = new Date().toISOString().slice(0, 10);
-      link.href = url;
-      link.download = `equiform-full-report-${date}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      setFullReportResult((current) =>
+        current ? { ...current, pdfUrl: data.pdfUrl } : current,
+      );
+      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF generation failed");
     } finally {
@@ -1014,6 +1038,7 @@ export default function AnalyzeClient() {
     typeof window === "undefined" ||
     !singleViewPhoto?.supabaseUrl ||
     !breed.trim() ||
+    !horseName.trim() ||
     loading ||
     singleViewUploading ||
     (!authLoading && !hasAnalyzeAccess);
@@ -1021,6 +1046,7 @@ export default function AnalyzeClient() {
     typeof window === "undefined" ||
     !fullReportComplete ||
     !breed.trim() ||
+    !horseName.trim() ||
     loading ||
     fullReportResult !== null ||
     fullReportUploadingView !== null ||
@@ -1522,7 +1548,7 @@ export default function AnalyzeClient() {
                   htmlFor="horse-name"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Horse name (optional)
+                  Horse name
                 </label>
                 <input
                   id="horse-name"
@@ -1530,6 +1556,7 @@ export default function AnalyzeClient() {
                   value={horseName}
                   onChange={(event) => setHorseName(event.target.value)}
                   placeholder="e.g. Blazin High Alibi"
+                  required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
@@ -1804,7 +1831,7 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-horse-name"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Horse name (optional)
+                    Horse name
                   </label>
                   <input
                     id="full-report-horse-name"
@@ -1812,6 +1839,7 @@ export default function AnalyzeClient() {
                     value={horseName}
                     onChange={(event) => setHorseName(event.target.value)}
                     placeholder="e.g. Blazin High Alibi"
+                    required
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
@@ -2155,10 +2183,6 @@ export default function AnalyzeClient() {
                               ? "Generating PDF…"
                               : "Download PDF Report"}
                           </button>
-                          <p className="mt-1 text-xs text-amber-400">
-                            ⚠️ Download now — PDF is only available on this
-                            screen
-                          </p>
                         </div>
 
                         <button
@@ -2233,9 +2257,6 @@ export default function AnalyzeClient() {
                   >
                     {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
                   </button>
-                  <p className="mt-1 text-xs text-amber-400">
-                    ⚠️ Download now — PDF is only available on this screen
-                  </p>
                 </div>
               </div>
               <div className="relative mt-4 w-full">

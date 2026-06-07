@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import {
   PDFDocument,
@@ -11,6 +12,7 @@ import {
 } from "pdf-lib";
 
 import type { ConformationReport } from "@/lib/analyze/types";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const require = createRequire(import.meta.url);
 // fontkit is CJS-only; required for pdf-lib registerFontkit
@@ -28,6 +30,7 @@ export const config = {
 };
 
 type PdfRequestBody = {
+  reportId?: string;
   overlayUrl?: string;
   frontOverlayUrl?: string;
   hindOverlayUrl?: string;
@@ -58,6 +61,7 @@ const MARGIN = 50;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const FOOTER_Y = 28;
 const ACCENT_RGB = rgb(0, 212 / 255, 200 / 255);
+const PDF_STORAGE_BUCKET = "horse-photos";
 const PDF_SUBTITLE = "AI-Powered Equine Conformation Analysis Report";
 
 const SCORE_ROWS: {
@@ -361,6 +365,44 @@ function drawWrappedParagraph(
   return cursorY;
 }
 
+async function persistReportPdf(
+  pdfBytes: Uint8Array,
+  userId: string,
+  reportId: string,
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+): Promise<string> {
+  const storagePath = `reports/${userId}/${reportId}.pdf`;
+
+  const { error: uploadError } = await serviceClient.storage
+    .from(PDF_STORAGE_BUCKET)
+    .upload(storagePath, Buffer.from(pdfBytes), {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`Failed to upload PDF: ${uploadError.message}`);
+  }
+
+  const { data: publicUrlData } = serviceClient.storage
+    .from(PDF_STORAGE_BUCKET)
+    .getPublicUrl(storagePath);
+
+  const pdfUrl = publicUrlData.publicUrl;
+
+  const { error: updateError } = await serviceClient
+    .from("reports")
+    .update({ pdf_url: pdfUrl })
+    .eq("id", reportId)
+    .eq("user_id", userId);
+
+  if (updateError) {
+    throw new Error(`Failed to save PDF URL: ${updateError.message}`);
+  }
+
+  return pdfUrl;
+}
+
 export async function POST(request: Request) {
   let body: PdfRequestBody;
 
@@ -368,6 +410,57 @@ export async function POST(request: Request) {
     body = (await request.json()) as PdfRequestBody;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const reportId =
+    typeof body.reportId === "string" ? body.reportId.trim() : "";
+
+  if (!reportId) {
+    return NextResponse.json({ error: "reportId is required" }, { status: 400 });
+  }
+
+  const authHeader = request.headers.get("Authorization");
+  const token = authHeader?.replace("Bearer ", "") ?? "";
+
+  const supabaseAuth = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser(token);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
+  }
+
+  const serviceClient = createServiceRoleClient();
+
+  const { data: existingReport, error: existingReportError } =
+    await serviceClient
+      .from("reports")
+      .select("pdf_url")
+      .eq("id", reportId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+  if (existingReportError) {
+    return NextResponse.json(
+      { error: "Failed to load report" },
+      { status: 500 },
+    );
+  }
+
+  if (!existingReport) {
+    return NextResponse.json({ error: "Report not found" }, { status: 404 });
+  }
+
+  if (existingReport.pdf_url) {
+    return NextResponse.json({ pdfUrl: existingReport.pdf_url });
   }
 
   if (!body.report) {
@@ -668,16 +761,14 @@ export async function POST(request: Request) {
     }
 
     const pdfBytes = await pdfDoc.save();
-    const filename = `equiform-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+    const pdfUrl = await persistReportPdf(
+      pdfBytes,
+      user.id,
+      reportId,
+      serviceClient,
+    );
 
-    return new NextResponse(Buffer.from(pdfBytes), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store",
-      },
-    });
+    return NextResponse.json({ pdfUrl });
   } catch (error) {
     console.error("[analyze/pdf] PDF generation failed:", {
       isFullReport,

@@ -1337,22 +1337,26 @@ export async function POST(request: Request) {
     console.log("Attempting report save for user:", userId, userEmail);
     console.log("userId at save:", userId, "userEmail at save:", userEmail);
 
-    const { data, error } = await serviceClient.from("reports").insert({
-      user_id: userId,
-      horse_name: horseName,
-      overall_score: combinedScore,
-      balance_score: betterSideReport.balance.score,
-      shoulder_score: betterSideReport.shoulder_angle.score,
-      hip_score: betterSideReport.hip_angle.score,
-      topline_score: betterSideReport.topline_quality.score,
-      leg_score: betterSideReport.leg_alignment.score,
-      report_text: reportText,
-      overlay_url: overlayUrl,
-    });
+    const { data: savedReport, error } = await serviceClient
+      .from("reports")
+      .insert({
+        user_id: userId,
+        horse_name: horseName,
+        overall_score: combinedScore,
+        balance_score: betterSideReport.balance.score,
+        shoulder_score: betterSideReport.shoulder_angle.score,
+        hip_score: betterSideReport.hip_angle.score,
+        topline_score: betterSideReport.topline_quality.score,
+        leg_score: betterSideReport.leg_alignment.score,
+        report_text: reportText,
+        overlay_url: overlayUrl,
+      })
+      .select("id")
+      .single();
 
     console.log(
       "Report save result:",
-      JSON.stringify(data),
+      JSON.stringify(savedReport),
       JSON.stringify(error),
     );
 
@@ -1481,6 +1485,7 @@ export async function POST(request: Request) {
       meshyTaskId,
       tripoGlbUrl: null,
       glbUrl: null,
+      reportId: savedReport?.id ?? null,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);
