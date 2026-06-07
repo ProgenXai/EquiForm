@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import type { ConformationReport } from "@/lib/analyze/types";
 import { createClient } from "@/lib/supabase/client";
 
 type ReportRow = {
@@ -17,7 +18,20 @@ type ReportRow = {
   sex: string | null;
   discipline: string | null;
   pdf_url: string | null;
+  report_text: string | null;
+  overlay_url: string | null;
+  glb_url: string | null;
+  balance_score: number | null;
+  shoulder_score: number | null;
+  hip_score: number | null;
+  topline_score: number | null;
+  leg_score: number | null;
 };
+
+type ReportSectionKey = keyof Omit<
+  ConformationReport,
+  "overall_score" | "summary"
+>;
 
 function formatHorseDetailLines(report: {
   breed: string | null;
@@ -43,6 +57,124 @@ function formatReportDate(isoDate: string): string {
   });
 }
 
+function isConformationReport(value: unknown): value is ConformationReport {
+  if (typeof value !== "object" || value === null) return false;
+  const report = value as ConformationReport;
+  return (
+    typeof report.summary === "string" &&
+    typeof report.overall_score === "number" &&
+    typeof report.balance?.score === "number" &&
+    typeof report.balance?.notes === "string"
+  );
+}
+
+function buildFullReportPdfReport(data: {
+  combinedScore: number;
+  leftReport: ConformationReport;
+  rightReport: ConformationReport;
+  frontReport: ConformationReport;
+  hindReport: ConformationReport;
+}): ConformationReport {
+  const viewReports = [
+    { label: "Left Side", report: data.leftReport },
+    { label: "Right Side", report: data.rightReport },
+    { label: "Front View", report: data.frontReport },
+    { label: "Hind View", report: data.hindReport },
+  ];
+  const sectionKeys: ReportSectionKey[] = [
+    "balance",
+    "shoulder_angle",
+    "hip_angle",
+    "topline_quality",
+    "leg_alignment",
+  ];
+
+  const sections = Object.fromEntries(
+    sectionKeys.map((key) => {
+      const avgScore = Math.round(
+        viewReports.reduce((sum, view) => sum + view.report[key].score, 0) /
+          viewReports.length,
+      );
+      const notes = viewReports
+        .map(
+          (view) =>
+            `${view.label} (${view.report[key].score}/100): ${view.report[key].notes}`,
+        )
+        .join("\n\n");
+
+      return [key, { score: avgScore, notes }];
+    }),
+  ) as Pick<
+    ConformationReport,
+    | "balance"
+    | "shoulder_angle"
+    | "hip_angle"
+    | "topline_quality"
+    | "leg_alignment"
+  >;
+
+  const summary = viewReports
+    .map(
+      (view) =>
+        `${view.label} — ${view.report.overall_score}/100\n${view.report.summary}`,
+    )
+    .join("\n\n");
+
+  return {
+    ...sections,
+    overall_score: data.combinedScore,
+    summary: `Full Report combined score: ${data.combinedScore}/100 (weighted: best side 40%, other side 20%, front 20%, hind 20%).\n\n${summary}`,
+  };
+}
+
+function buildReportForPdf(report: ReportRow): ConformationReport | null {
+  if (!report.report_text) return null;
+
+  try {
+    let parsed: unknown = JSON.parse(report.report_text);
+    if (typeof parsed === "string") {
+      parsed = JSON.parse(parsed);
+    }
+    if (typeof parsed !== "object" || parsed === null) return null;
+
+    const data = parsed as Record<string, unknown>;
+
+    if (data.type === "full") {
+      const leftReport = data.leftReport;
+      const rightReport = data.rightReport;
+      const frontReport = data.frontReport;
+      const hindReport = data.hindReport;
+
+      if (
+        isConformationReport(leftReport) &&
+        isConformationReport(rightReport) &&
+        isConformationReport(frontReport) &&
+        isConformationReport(hindReport)
+      ) {
+        return buildFullReportPdfReport({
+          combinedScore:
+            typeof data.combinedScore === "number"
+              ? data.combinedScore
+              : leftReport.overall_score,
+          leftReport,
+          rightReport,
+          frontReport,
+          hindReport,
+        });
+      }
+    }
+
+    const nestedReport = data.report;
+    if (isConformationReport(nestedReport)) {
+      return nestedReport;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 const PAGE_SIZE = 10;
 
 export default function MyReportsPage() {
@@ -51,6 +183,71 @@ export default function MyReportsPage() {
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function handleDownloadPdf(report: ReportRow) {
+    if (report.pdf_url) {
+      window.open(report.pdf_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const overlayUrl = report.overlay_url?.trim();
+    const pdfReport = buildReportForPdf(report);
+
+    if (!overlayUrl || !pdfReport) {
+      setDownloadError("Unable to generate PDF for this report.");
+      return;
+    }
+
+    setDownloadingId(report.id);
+    setDownloadError(null);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch("/api/analyze/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({
+          reportId: report.id,
+          overlayUrl,
+          report: pdfReport,
+          horse_name: report.horse_name ?? undefined,
+          breed: report.breed ?? undefined,
+          age: report.age ?? undefined,
+          sex: report.sex ?? undefined,
+          discipline: report.discipline ?? undefined,
+          glb_url: report.glb_url ?? undefined,
+        }),
+      });
+
+      const data = (await response.json()) as { pdfUrl?: string; error?: string };
+
+      if (!response.ok || !data.pdfUrl) {
+        throw new Error(data.error ?? "PDF generation failed. Please try again.");
+      }
+
+      setReports((current) =>
+        current.map((row) =>
+          row.id === report.id ? { ...row, pdf_url: data.pdfUrl ?? null } : row,
+        ),
+      );
+      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setDownloadError(
+        err instanceof Error ? err.message : "PDF generation failed",
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   useEffect(() => {
     async function loadReports() {
@@ -72,7 +269,7 @@ export default function MyReportsPage() {
       const { data, error, count } = await supabase
         .from("reports")
         .select(
-          "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url",
+          "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
           { count: "exact" },
         )
         .eq("user_id", session.user.id)
@@ -142,6 +339,11 @@ export default function MyReportsPage() {
           </div>
         ) : (
           <>
+            {downloadError ? (
+              <p className="mb-4 text-center text-sm text-red-400" role="alert">
+                {downloadError}
+              </p>
+            ) : null}
             <ul className="space-y-4">
               {reports.map((report) => (
                 <li
@@ -168,16 +370,16 @@ export default function MyReportsPage() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0">
-                    {report.pdf_url ? (
-                      <a
-                        href={report.pdf_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-center text-sm font-semibold text-accent transition hover:bg-accent/25"
-                      >
-                        Download PDF
-                      </a>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void handleDownloadPdf(report)}
+                      disabled={downloadingId === report.id}
+                      className="inline-block rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-center text-sm font-semibold text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {downloadingId === report.id
+                        ? "Generating PDF…"
+                        : "Download PDF"}
+                    </button>
                     <Link
                       href={`/my-reports/${report.id}`}
                       className="inline-block rounded-lg bg-accent px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"

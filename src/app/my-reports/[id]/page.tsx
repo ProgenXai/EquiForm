@@ -4,10 +4,11 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ConformationReport } from "@/lib/analyze/types";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
+import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import { createClient } from "@/lib/supabase/client";
 
 const HorseViewer3D = dynamic(
@@ -58,6 +59,7 @@ type ReportDetail = {
   report_text: string | null;
   overlay_url: string | null;
   glb_url: string | null;
+  pdf_url: string | null;
 };
 
 const SIDE_REPORT_SECTIONS: { key: ReportSectionKey; label: string }[] = [
@@ -241,6 +243,114 @@ function getBetterSideReport(data: StoredFullReport): ConformationReport {
   return data.betterSide === "left" ? data.leftReport : data.rightReport;
 }
 
+function buildFullReportPdfReport(data: StoredFullReport): ConformationReport {
+  const viewReports = [
+    { label: "Left Side", report: data.leftReport },
+    { label: "Right Side", report: data.rightReport },
+    { label: "Front View", report: data.frontReport },
+    { label: "Hind View", report: data.hindReport },
+  ];
+  const sectionKeys: ReportSectionKey[] = [
+    "balance",
+    "shoulder_angle",
+    "hip_angle",
+    "topline_quality",
+    "leg_alignment",
+  ];
+
+  const sections = Object.fromEntries(
+    sectionKeys.map((key) => {
+      const avgScore = Math.round(
+        viewReports.reduce((sum, view) => sum + view.report[key].score, 0) /
+          viewReports.length,
+      );
+      const notes = viewReports
+        .map(
+          (view) =>
+            `${view.label} (${view.report[key].score}/100): ${view.report[key].notes}`,
+        )
+        .join("\n\n");
+
+      return [key, { score: avgScore, notes }];
+    }),
+  ) as Pick<
+    ConformationReport,
+    | "balance"
+    | "shoulder_angle"
+    | "hip_angle"
+    | "topline_quality"
+    | "leg_alignment"
+  >;
+
+  const summary = viewReports
+    .map(
+      (view) =>
+        `${view.label} — ${view.report.overall_score}/100\n${view.report.summary}`,
+    )
+    .join("\n\n");
+
+  return {
+    ...sections,
+    overall_score: data.combinedScore,
+    summary: `Full Report combined score: ${data.combinedScore}/100 (weighted: best side 40%, other side 20%, front 20%, hind 20%).\n\n${summary}`,
+  };
+}
+
+function buildReportForPdf(
+  report: ReportDetail,
+  parsed: ParsedStoredReport | null,
+): ConformationReport | null {
+  if (!report.report_text || !parsed) return null;
+
+  if (parsed.kind === "full") {
+    return buildFullReportPdfReport(parsed.data);
+  }
+
+  if (parsed.kind === "single") {
+    try {
+      let data: unknown = JSON.parse(report.report_text);
+      if (typeof data === "string") {
+        data = JSON.parse(data);
+      }
+      const nestedReport = (data as { report?: unknown }).report;
+      if (isConformationReport(nestedReport)) {
+        return nestedReport;
+      }
+    } catch {
+      // fall through to DB-backed build
+    }
+
+    if (report.overall_score == null) return null;
+
+    return {
+      balance: {
+        score: report.balance_score ?? 0,
+        notes: parsed.notes.balance ?? "",
+      },
+      shoulder_angle: {
+        score: report.shoulder_score ?? 0,
+        notes: parsed.notes.shoulder_angle ?? "",
+      },
+      hip_angle: {
+        score: report.hip_score ?? 0,
+        notes: parsed.notes.hip_angle ?? "",
+      },
+      topline_quality: {
+        score: report.topline_score ?? 0,
+        notes: parsed.notes.topline_quality ?? "",
+      },
+      leg_alignment: {
+        score: report.leg_score ?? 0,
+        notes: parsed.notes.leg_alignment ?? "",
+      },
+      overall_score: report.overall_score,
+      summary: parsed.summary,
+    };
+  }
+
+  return null;
+}
+
 function formatReportDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString(undefined, {
     year: "numeric",
@@ -257,6 +367,9 @@ export default function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const viewerRef = useRef<HorseViewer3DHandle>(null);
 
   useEffect(() => {
     if (!reportId) {
@@ -279,7 +392,7 @@ export default function ReportDetailPage() {
       const { data, error } = await supabase
         .from("reports")
         .select(
-          "id, created_at, horse_name, breed, age, sex, discipline, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text, overlay_url, glb_url",
+          "id, created_at, horse_name, breed, age, sex, discipline, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text, overlay_url, glb_url, pdf_url",
         )
         .eq("id", reportId)
         .eq("user_id", session.user.id)
@@ -313,6 +426,74 @@ export default function ReportDetailPage() {
   const betterSideReport = fullReportData
     ? getBetterSideReport(fullReportData)
     : null;
+
+  async function handleDownloadPdf() {
+    if (!report) return;
+
+    if (report.pdf_url) {
+      window.open(report.pdf_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const overlayUrl = report.overlay_url?.trim();
+    const pdfReport = buildReportForPdf(report, parsedReport);
+
+    if (!overlayUrl || !pdfReport) {
+      setPdfError("Unable to generate PDF for this report.");
+      return;
+    }
+
+    setPdfLoading(true);
+    setPdfError(null);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const model3dSnapshot = glbUrl
+        ? viewerRef.current?.captureSnapshot() ?? undefined
+        : undefined;
+
+      const response = await fetch("/api/analyze/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({
+          reportId: report.id,
+          overlayUrl,
+          report: pdfReport,
+          horse_name: report.horse_name ?? undefined,
+          breed: report.breed ?? undefined,
+          age: report.age ?? undefined,
+          sex: report.sex ?? undefined,
+          discipline: report.discipline ?? undefined,
+          glb_url: report.glb_url ?? undefined,
+          ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
+        }),
+      });
+
+      const data = (await response.json()) as { pdfUrl?: string; error?: string };
+
+      if (!response.ok || !data.pdfUrl) {
+        throw new Error(data.error ?? "PDF generation failed. Please try again.");
+      }
+
+      setReport((current) =>
+        current ? { ...current, pdf_url: data.pdfUrl ?? null } : current,
+      );
+      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setPdfError(
+        err instanceof Error ? err.message : "PDF generation failed",
+      );
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -386,6 +567,21 @@ export default function ReportDetailPage() {
                   Weighted: best side 40%, other side 20%, front 20%, hind 20%
                 </p>
               ) : null}
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadPdf()}
+                  disabled={pdfLoading}
+                  className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
+                </button>
+                {pdfError ? (
+                  <p className="mt-2 text-sm text-red-400" role="alert">
+                    {pdfError}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             {overlayUrl ? (
@@ -411,6 +607,7 @@ export default function ReportDetailPage() {
             {glbUrl ? (
               <>
                 <HorseViewer3D
+                  ref={viewerRef}
                   className="mt-8"
                   landmarks={{ left: {}, front: {}, hind: {} }}
                   coatColor={fullReportData?.coatColor}
