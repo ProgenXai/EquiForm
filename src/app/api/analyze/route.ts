@@ -374,7 +374,7 @@ export async function POST(request: Request) {
     typeof body.age === "string" && body.age.trim() ? body.age.trim() : null;
   const sex =
     typeof body.sex === "string" && body.sex.trim() ? body.sex.trim() : null;
-  const generate3D = body.generate3D === true;
+  let generate3D = body.generate3D === true;
 
   if (!breed) {
     return NextResponse.json({ error: "Breed is required" }, { status: 400 });
@@ -416,6 +416,10 @@ export async function POST(request: Request) {
     .single();
 
   isAdmin = roleData?.is_admin === true;
+
+  if (isAdmin) {
+    generate3D = true;
+  }
 
   const balanceColumn = generate3D
     ? "single_view_3d_balance"
