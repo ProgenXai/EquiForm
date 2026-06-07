@@ -1745,7 +1745,7 @@ export default function AnalyzeClient() {
               {loading ? (
                 <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
                   <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
-                  Analyzing all four views — this may take a minute…
+                  Analyzing your horse and generating 3D model — this may take 3–5 minutes. Please don&apos;t close this tab.
                 </div>
               ) : null}
 
