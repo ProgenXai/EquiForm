@@ -427,6 +427,32 @@ export default function ReportDetailPage() {
     ? getBetterSideReport(fullReportData)
     : null;
 
+  async function handleShareScore() {
+    if (!report || report.overall_score == null) return;
+
+    const name = report.horse_name?.trim() || "my horse";
+    const score = report.overall_score;
+    const message = `I just analyzed ${name} on EquiForm! ${name} scored ${score}/100 on conformation analysis. Try it at equiform.app 🐴 #EquiForm #HorseConformation`;
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://equiform.app")}&quote=${encodeURIComponent(message)}`;
+
+    const supabase = createClient();
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+
+    if (currentSession?.user) {
+      await supabase.from("share_events").insert({
+        user_id: currentSession.user.id,
+        horse_name: name,
+        score,
+        shared_own_page: true,
+        shared_equiform_page: false,
+      });
+    }
+
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+  }
+
   async function handleDownloadPdf() {
     if (!report) return;
 
@@ -562,6 +588,15 @@ export default function ReportDetailPage() {
                 {report.overall_score ?? "—"}
                 <span className="text-2xl font-normal text-zinc-500">/100</span>
               </p>
+              {report.overall_score != null ? (
+                <button
+                  type="button"
+                  onClick={() => void handleShareScore()}
+                  className="mt-4 w-full rounded-lg border border-accent bg-transparent px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent/10"
+                >
+                  Share Your Score
+                </button>
+              ) : null}
               {fullReportData ? (
                 <p className="mt-2 text-xs text-zinc-500">
                   Weighted: best side 40%, other side 20%, front 20%, hind 20%
