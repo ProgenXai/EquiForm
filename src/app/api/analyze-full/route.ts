@@ -745,6 +745,112 @@ async function generateTripo3DModel(
 
 export async function POST(request: Request) {
   console.log("[analyze-full] POST handler entered");
+
+  let body: FullReportRequestBody & { debugMode?: boolean };
+  try {
+    body = (await request.json()) as FullReportRequestBody & { debugMode?: boolean };
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  if (body.debugMode === true) {
+    console.log("[analyze-full] debugMode enabled — skipping analysis pipeline");
+
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "") ?? "";
+
+    const supabaseAuth = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser(token);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required for full report analysis" },
+        { status: 401 },
+      );
+    }
+
+    const imageUrls = {} as Record<FullReportViewKey, string>;
+
+    for (const view of FULL_REPORT_VIEW_KEYS) {
+      const urlField = FULL_REPORT_URL_FIELDS[view];
+      const rawUrl = body[urlField];
+      if (typeof rawUrl !== "string" || !rawUrl.trim()) {
+        return NextResponse.json(
+          { error: `Missing ${view} view photo URL` },
+          { status: 400 },
+        );
+      }
+
+      const trimmedUrl = rawUrl.trim();
+      const storagePath = validateTempImageUrl(trimmedUrl, user.id);
+      if (!storagePath) {
+        return NextResponse.json(
+          { error: `Invalid ${view} view photo URL` },
+          { status: 400 },
+        );
+      }
+
+      imageUrls[view] = trimmedUrl;
+    }
+
+    const glbUrl = await generateMeshy3DModel(
+      imageUrls.front,
+      imageUrls.left,
+      imageUrls.hind,
+      imageUrls.right,
+    );
+
+    const placeholderSection = {
+      score: 85,
+      notes: "Debug mode placeholder — analysis skipped.",
+    };
+    const placeholderReport: ConformationReport = {
+      balance: placeholderSection,
+      shoulder_angle: placeholderSection,
+      hip_angle: placeholderSection,
+      topline_quality: placeholderSection,
+      leg_alignment: placeholderSection,
+      overall_score: 85,
+      summary: "Debug mode placeholder report — conformation analysis was skipped.",
+    };
+
+    console.log("[analyze-full] glbUrl:", glbUrl);
+
+    return NextResponse.json({
+      overlayUrl: "",
+      overlayImage: "",
+      frontOverlayUrl: "",
+      hindOverlayUrl: "",
+      leftReport: placeholderReport,
+      rightReport: placeholderReport,
+      frontReport: placeholderReport,
+      hindReport: placeholderReport,
+      combinedScore: 85,
+      betterSide: "left",
+      landmarks: {
+        left: {},
+        right: {},
+        front: {},
+        hind: {},
+      },
+      horseName:
+        typeof body.horseName === "string" && body.horseName.trim()
+          ? body.horseName.trim()
+          : null,
+      coatColor: "bay",
+      markings: ["none"],
+      markingsDescription: "Debug mode placeholder.",
+      tripoGlbUrl: glbUrl,
+      glbUrl,
+    });
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: "Anthropic API key is not configured" },
@@ -824,7 +930,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as FullReportRequestBody;
     const horseNameRaw = body.horseName;
     const horseName =
       typeof horseNameRaw === "string" && horseNameRaw.trim()
