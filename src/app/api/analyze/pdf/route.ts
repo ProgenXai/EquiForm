@@ -41,6 +41,10 @@ type PdfRequestBody = {
   hindImage?: string;
   report?: ConformationReport;
   horse_name?: string;
+  breed?: string;
+  age?: string;
+  sex?: string;
+  discipline?: string;
 };
 
 const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
@@ -343,6 +347,57 @@ function drawFooter(page: PDFPage, font: PDFFont) {
   });
 }
 
+function drawReportHorseDetailsHeader(
+  page: PDFPage,
+  y: number,
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+  body: PdfRequestBody,
+): number {
+  let cursorY = y;
+  const horseName =
+    typeof body.horse_name === "string" ? body.horse_name.trim() : "";
+
+  if (horseName) {
+    page.drawText(horseName, {
+      x: MARGIN,
+      y: cursorY,
+      size: 18,
+      font: fontBold,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+    cursorY -= 22;
+  }
+
+  const detailLines = [
+    typeof body.breed === "string" && body.breed.trim()
+      ? `Breed: ${body.breed.trim()}`
+      : null,
+    typeof body.age === "string" && body.age.trim()
+      ? `Age: ${body.age.trim()}`
+      : null,
+    typeof body.sex === "string" && body.sex.trim()
+      ? `Sex: ${body.sex.trim()}`
+      : null,
+    typeof body.discipline === "string" && body.discipline.trim()
+      ? `Discipline: ${body.discipline.trim()}`
+      : null,
+  ].filter((line): line is string => Boolean(line));
+
+  for (const line of detailLines) {
+    page.drawText(line, {
+      x: MARGIN,
+      y: cursorY,
+      size: 10,
+      font: fontRegular,
+      color: rgb(0.35, 0.35, 0.35),
+    });
+    cursorY -= 14;
+  }
+
+  return cursorY - 6;
+}
+
 function drawWrappedParagraph(
   page: PDFPage,
   text: string,
@@ -541,18 +596,7 @@ export async function POST(request: Request) {
     );
     y -= 20;
 
-    const horseName =
-      typeof body.horse_name === "string" ? body.horse_name.trim() : "";
-    if (horseName) {
-      page.drawText(`Horse: ${horseName}`, {
-        x: MARGIN,
-        y,
-        size: 11,
-        font: fontRegular,
-        color: rgb(0.2, 0.2, 0.2),
-      });
-      y -= 18;
-    }
+    y = drawReportHorseDetailsHeader(page, y, fontBold, fontRegular, body);
 
     page.drawText(`Generated: ${generatedAt}`, {
       x: MARGIN,

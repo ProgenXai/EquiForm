@@ -309,6 +309,41 @@ function getFullReportViewReport(
   }
 }
 
+type ReportHorseDetails = {
+  horseName: string;
+  breed: string;
+  age: string;
+  sex: string;
+  discipline: string;
+};
+
+function ReportHorseDetailsHeader({ details }: { details: ReportHorseDetails }) {
+  const displayName = details.horseName.trim() || "Unnamed Horse";
+  const detailItems = [
+    details.breed.trim() ? { label: "Breed", value: details.breed.trim() } : null,
+    details.age.trim() ? { label: "Age", value: details.age.trim() } : null,
+    details.sex.trim() ? { label: "Sex", value: details.sex.trim() } : null,
+    details.discipline.trim()
+      ? { label: "Discipline", value: details.discipline.trim() }
+      : null,
+  ].filter((item): item is { label: string; value: string } => item !== null);
+
+  return (
+    <div className="border-b border-zinc-800 pb-4">
+      <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
+      {detailItems.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          {detailItems.map((item) => (
+            <p key={item.label} className="text-sm text-zinc-400">
+              {item.label}: {item.value}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AnalyzeClient() {
   const router = useRouter();
   const supabase = createClient();
@@ -972,6 +1007,10 @@ export default function AnalyzeClient() {
           overlayUrl: result.overlayUrl,
           report: result.report,
           horse_name: horseName,
+          breed,
+          age,
+          sex,
+          discipline,
         }),
       });
 
@@ -1042,6 +1081,10 @@ export default function AnalyzeClient() {
           hindImage,
           report: buildFullReportPdfReport(fullReportResult),
           horse_name: fullReportResult.horseName ?? horseName,
+          breed,
+          age,
+          sex,
+          discipline,
         }),
       });
 
@@ -1943,17 +1986,20 @@ export default function AnalyzeClient() {
 
                     return (
                       <>
-                        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
-                          <div>
-                            <h2 className="text-lg font-semibold text-white">
-                              Full Report
-                            </h2>
-                            {fullReportResult.horseName ? (
-                              <p className="mt-1 text-sm text-zinc-400">
-                                {fullReportResult.horseName}
-                              </p>
-                            ) : null}
-                          </div>
+                        <ReportHorseDetailsHeader
+                          details={{
+                            horseName: fullReportResult.horseName ?? horseName,
+                            breed,
+                            age,
+                            sex,
+                            discipline,
+                          }}
+                        />
+
+                        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-4">
+                          <h3 className="text-lg font-semibold text-white">
+                            Full Report
+                          </h3>
                           <p className="text-2xl font-bold text-accent">
                             {fullReportResult.combinedScore}
                             <span className="text-sm font-normal text-zinc-500">
@@ -2264,10 +2310,20 @@ export default function AnalyzeClient() {
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-              <div className="flex items-baseline justify-between gap-4 border-b border-zinc-800 pb-4">
-                <h2 className="text-lg font-semibold text-white">
+              <ReportHorseDetailsHeader
+                details={{
+                  horseName,
+                  breed,
+                  age,
+                  sex,
+                  discipline,
+                }}
+              />
+
+              <div className="mt-4 flex items-baseline justify-between gap-4">
+                <h3 className="text-lg font-semibold text-white">
                   Conformation report
-                </h2>
+                </h3>
                 <p className="text-2xl font-bold text-accent">
                   {result.report.overall_score}
                   <span className="text-sm font-normal text-zinc-500">/100</span>
