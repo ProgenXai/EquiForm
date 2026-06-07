@@ -54,7 +54,7 @@ export default function Home() {
     }
 
     if (mode === "login") {
-      router.push("/examples");
+      router.push("/dashboard");
     }
   }
 

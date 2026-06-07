@@ -53,7 +53,7 @@ export default function AuthPage() {
     }
 
     if (mode === "login") {
-      router.push("/examples");
+      router.push("/dashboard");
     }
   }
 
