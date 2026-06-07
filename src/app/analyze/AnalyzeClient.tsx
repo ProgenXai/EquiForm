@@ -448,31 +448,32 @@ type ReportHorseDetails = {
   breed: string;
   age: string;
   sex: string;
+  coatColor: string;
   discipline: string;
 };
 
 function ReportHorseDetailsHeader({ details }: { details: ReportHorseDetails }) {
   const displayName = details.horseName.trim() || "Unnamed Horse";
-  const detailItems = [
-    details.breed.trim() ? { label: "Breed", value: details.breed.trim() } : null,
-    details.age.trim() ? { label: "Age", value: details.age.trim() } : null,
-    details.sex.trim() ? { label: "Sex", value: details.sex.trim() } : null,
-    details.discipline.trim()
-      ? { label: "Discipline", value: details.discipline.trim() }
-      : null,
-  ].filter((item): item is { label: string; value: string } => item !== null);
+  const breedLine = details.breed.trim()
+    ? `Breed: ${details.breed.trim()}`
+    : null;
+  const metaParts = [
+    details.age.trim() ? `Age: ${details.age.trim()}` : null,
+    details.sex.trim() ? `Sex: ${details.sex.trim()}` : null,
+    details.coatColor.trim() ? `Coat Color: ${details.coatColor.trim()}` : null,
+  ].filter((part): part is string => part !== null);
+  const metaLine = metaParts.length > 0 ? metaParts.join(" · ") : null;
+  const disciplineLine = details.discipline.trim()
+    ? `Discipline: ${details.discipline.trim()}`
+    : null;
 
   return (
     <div className="border-b border-zinc-800 pb-4">
-      <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
-      {detailItems.length > 0 ? (
-        <div className="mt-2 space-y-1">
-          {detailItems.map((item) => (
-            <p key={item.label} className="text-sm text-zinc-400">
-              {item.label}: {item.value}
-            </p>
-          ))}
-        </div>
+      <h2 className="text-2xl font-bold text-white">{displayName}</h2>
+      {breedLine ? <p className="mt-2 text-sm text-zinc-400">{breedLine}</p> : null}
+      {metaLine ? <p className="mt-1 text-sm text-zinc-400">{metaLine}</p> : null}
+      {disciplineLine ? (
+        <p className="mt-1 text-sm text-zinc-400">{disciplineLine}</p>
       ) : null}
     </div>
   );
@@ -1160,6 +1161,7 @@ export default function AnalyzeClient() {
           breed,
           age,
           sex,
+          coat_color: coatColor,
           discipline,
           ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
         }),
@@ -1272,6 +1274,7 @@ export default function AnalyzeClient() {
           breed,
           age,
           sex,
+          coat_color: coatColor,
           discipline,
           ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
         }),
@@ -2217,20 +2220,15 @@ export default function AnalyzeClient() {
                             breed,
                             age,
                             sex,
+                            coatColor,
                             discipline,
                           }}
                         />
 
-                        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-4">
+                        <div className="mt-4">
                           <h3 className="text-lg font-semibold text-white">
                             Full Report
                           </h3>
-                          <p className="text-2xl font-bold text-accent">
-                            {fullReportResult.combinedScore}
-                            <span className="text-sm font-normal text-zinc-500">
-                              /100
-                            </span>
-                          </p>
                         </div>
 
                         <p className="mt-4 text-xs text-zinc-500">
@@ -2274,7 +2272,13 @@ export default function AnalyzeClient() {
                         </div>
 
                         <div className="mt-8">
-                          <h3 className="text-sm font-semibold text-white">
+                          <p className="text-center text-3xl font-bold text-accent">
+                            {fullReportResult.combinedScore}
+                            <span className="text-lg font-normal text-zinc-500">
+                              /100
+                            </span>
+                          </p>
+                          <h3 className="mt-4 text-sm font-semibold text-white">
                             Conformation Overlays
                           </h3>
                           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -2496,21 +2500,30 @@ export default function AnalyzeClient() {
         {result && emailSubmitted ? (
           <section className="mt-8 space-y-8">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-white">
-                  Overlay analysis
-                </h2>
-                <div className="flex flex-col items-end">
-                  <button
-                    type="button"
-                    onClick={() => void handleDownloadPdf()}
-                    disabled={pdfLoading}
-                    className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
-                  </button>
-                </div>
+              <ReportHorseDetailsHeader
+                details={{
+                  horseName,
+                  breed,
+                  age,
+                  sex,
+                  coatColor,
+                  discipline,
+                }}
+              />
+              <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadPdf()}
+                  disabled={pdfLoading}
+                  className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
+                </button>
               </div>
+              <p className="mt-4 text-center text-3xl font-bold text-accent">
+                {result.report.overall_score}
+                <span className="text-lg font-normal text-zinc-500">/100</span>
+              </p>
               <div className="relative mt-4 w-full">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -2544,25 +2557,9 @@ export default function AnalyzeClient() {
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-              <ReportHorseDetailsHeader
-                details={{
-                  horseName,
-                  breed,
-                  age,
-                  sex,
-                  discipline,
-                }}
-              />
-
-              <div className="mt-4 flex items-baseline justify-between gap-4">
-                <h3 className="text-lg font-semibold text-white">
-                  Conformation report
-                </h3>
-                <p className="text-2xl font-bold text-accent">
-                  {result.report.overall_score}
-                  <span className="text-sm font-normal text-zinc-500">/100</span>
-                </p>
-              </div>
+              <h3 className="text-lg font-semibold text-white">
+                Conformation report
+              </h3>
 
               <p className="mt-4 text-sm leading-relaxed text-zinc-300">
                 {result.report.summary}
