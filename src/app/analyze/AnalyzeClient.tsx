@@ -404,6 +404,7 @@ export default function AnalyzeClient() {
   const shareEventIdRef = useRef<string | null>(null);
   const singleViewViewerRef = useRef<HorseViewer3DHandle>(null);
   const fullReportViewerRef = useRef<HorseViewer3DHandle>(null);
+  const fullReport3DSectionRef = useRef<HTMLDivElement>(null);
 
   function applyBalanceData(data: BalanceResponse) {
     setSingleViewBalance(data.single_view_balance ?? 0);
@@ -556,6 +557,15 @@ export default function AnalyzeClient() {
       window.clearInterval(intervalId);
     };
   }, [meshyTaskId]);
+
+  useEffect(() => {
+    if (!fullReportGlbUrl) return;
+
+    fullReport3DSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [fullReportGlbUrl]);
 
   useEffect(() => {
     const {
@@ -1241,6 +1251,8 @@ export default function AnalyzeClient() {
     fullReportResult !== null ||
     fullReportUploadingView !== null ||
     (!authLoading && !hasFullReportAccess);
+
+  const is3DGenerating = Boolean(meshyTaskId && !fullReportGlbUrl);
 
   async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
@@ -2034,6 +2046,12 @@ export default function AnalyzeClient() {
 
               {fullReportResult ? (
                 <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                  {is3DGenerating ? (
+                    <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b border-accent/30 bg-zinc-900/95 px-6 py-3 text-sm text-zinc-200 backdrop-blur">
+                      ⏳ Your 3D model is being generated. The Download PDF button
+                      will unlock when it&apos;s ready.
+                    </div>
+                  ) : null}
                   {(() => {
                     const betterSideReport =
                       getBetterSideReport(fullReportResult);
@@ -2156,6 +2174,7 @@ export default function AnalyzeClient() {
                           </div>
                         </div>
 
+                        <div ref={fullReport3DSectionRef}>
                         {meshyTaskId && !fullReportGlbUrl ? (
                           <div className="mt-8 flex items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-6 py-10 text-sm text-zinc-400">
                             <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
@@ -2190,6 +2209,7 @@ export default function AnalyzeClient() {
                             </p>
                           </>
                         ) : null}
+                        </div>
 
                         <p className="mt-4 text-sm leading-relaxed text-zinc-300">
                           {betterSideReport.summary}
@@ -2253,13 +2273,19 @@ export default function AnalyzeClient() {
                           <button
                             type="button"
                             onClick={() => void handleDownloadFullReportPdf()}
-                            disabled={pdfLoading}
+                            disabled={pdfLoading || is3DGenerating}
                             className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             {pdfLoading
                               ? "Generating PDF…"
                               : "Download PDF Report"}
                           </button>
+                          {is3DGenerating ? (
+                            <p className="mt-2 text-xs text-zinc-500">
+                              3D model still generating — PDF will be available when
+                              complete
+                            </p>
+                          ) : null}
                         </div>
 
                         <button
