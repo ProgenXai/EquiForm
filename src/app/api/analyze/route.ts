@@ -65,7 +65,7 @@ const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
 const SINGLE_VIEW_3D_DISCLAIMER =
   "3D model generated from a single photo. This is an estimated representation only — a four-view report will produce a more accurate 3D model.";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
   if (fileType === "image/png") return "image/png";
