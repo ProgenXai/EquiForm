@@ -61,6 +61,9 @@ const LANDMARK_DETECTION_USER_ERROR =
 
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
 
+const SINGLE_VIEW_3D_DISCLAIMER =
+  "3D model generated from a single photo. This is an estimated representation only — a four-view report will produce a more accurate 3D model.";
+
 export const maxDuration = 120;
 
 function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
@@ -632,7 +635,9 @@ export async function POST(request: Request) {
       overlayUrl,
       report,
       landmarks: detectedLandmarks,
-      ...(generate3D ? { glbUrl } : {}),
+      ...(generate3D
+        ? { glbUrl, disclaimer: SINGLE_VIEW_3D_DISCLAIMER }
+        : {}),
     });
   } catch (error) {
     console.error("[analyze] failed:", error);
