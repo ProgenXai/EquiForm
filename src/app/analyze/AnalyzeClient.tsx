@@ -244,6 +244,7 @@ const FRONT_VIEW_TIPS = [
   "All four feet visible on level ground",
   "Camera at chest height — not from above or below",
   "Horse standing square with a natural, still stance",
+  "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
 ];
 
 const HIND_VIEW_TIPS = [
@@ -253,6 +254,7 @@ const HIND_VIEW_TIPS = [
   "All four feet visible on level ground",
   "Camera at hip height — not from above or below",
   "Horse standing square with a natural, still stance",
+  "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
 ];
 
 const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {

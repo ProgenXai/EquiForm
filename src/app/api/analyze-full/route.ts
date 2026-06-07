@@ -476,51 +476,11 @@ async function generateTripo3DModel(
   bestSideUrl: string,
   frontUrl: string,
   hindUrl: string,
-  coatColor: string,
-  markings: string[],
-  betterSide: "left" | "right",
 ): Promise<string | null> {
   const apiKey = process.env.TRIPO_API_KEY?.trim();
   if (!apiKey) return null;
 
   try {
-    const coatLabel: Record<string, string> = {
-      black: "black", bay: "bay", dark_bay: "dark bay", chestnut: "chestnut",
-      sorrel: "sorrel", gray: "gray", dun: "dun", buckskin: "buckskin",
-      palomino: "palomino", roan: "roan", cremello: "cremello", pinto: "pinto",
-    };
-
-    const markingDescriptions: string[] = [];
-    const activeMarkings = markings.filter((m) => m !== "none");
-
-    if (activeMarkings.includes("blaze")) markingDescriptions.push("a blaze on the face");
-    if (activeMarkings.includes("stripe")) markingDescriptions.push("a narrow stripe down the face");
-    if (activeMarkings.includes("star")) markingDescriptions.push("a star on the forehead");
-    if (activeMarkings.includes("snip")) markingDescriptions.push("a snip on the muzzle");
-    if (activeMarkings.includes("left_sock")) markingDescriptions.push("a white sock on the left front leg");
-    if (activeMarkings.includes("right_sock")) markingDescriptions.push("a white sock on the right front leg");
-    if (activeMarkings.includes("left_stocking")) markingDescriptions.push("a white stocking on the left front leg");
-    if (activeMarkings.includes("right_stocking")) markingDescriptions.push("a white stocking on the right front leg");
-    if (activeMarkings.includes("left_hind_sock")) markingDescriptions.push("a white sock on the left hind leg");
-    if (activeMarkings.includes("right_hind_sock")) markingDescriptions.push("a white sock on the right hind leg");
-
-    const noMarkingLegs: string[] = [];
-    if (!activeMarkings.includes("left_sock") && !activeMarkings.includes("left_stocking")) noMarkingLegs.push("left front leg");
-    if (!activeMarkings.includes("right_sock") && !activeMarkings.includes("right_stocking")) noMarkingLegs.push("right front leg");
-    if (!activeMarkings.includes("left_hind_sock")) noMarkingLegs.push("left hind leg");
-    if (!activeMarkings.includes("right_hind_sock")) noMarkingLegs.push("right hind leg");
-
-    const coatName = coatLabel[coatColor] ?? coatColor;
-    const markingText = markingDescriptions.length > 0
-      ? `The horse has ${markingDescriptions.join(", ")}. `
-      : "The horse has no white markings on the face or legs. ";
-    const noMarkingText = noMarkingLegs.length > 0
-      ? `No white markings on the ${noMarkingLegs.join(", ")}. `
-      : "";
-    const sideText = `Any brand or mark visible is only on the ${betterSide} side. `;
-
-    const prompt = `A ${coatName} horse standing square on level ground, all four legs correctly placed with hooves on the ground, natural conformation stance, photorealistic. ${markingText}${noMarkingText}${sideText}No extra limbs, no floating body parts, correct equine anatomy throughout.`;
-
     const submitResponse = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
       method: "POST",
       headers: {
@@ -534,12 +494,13 @@ async function generateTripo3DModel(
           { type: "jpg", url: hindUrl },
           { type: "jpg", url: bestSideUrl },
         ],
-        model_version: "v2.0-20240919",
+        model_version: "v2.5-20250123",
       }),
     });
 
     if (!submitResponse.ok) {
-      console.error("[tripo3d] submit failed:", await submitResponse.text());
+      const text = await submitResponse.text();
+      console.error("[tripo3d] submit failed:", text);
       return null;
     }
 
@@ -549,7 +510,7 @@ async function generateTripo3DModel(
     };
 
     if (submitData.code !== 0 || !submitData.data?.task_id) {
-      console.error("[tripo3d] submit error:", submitData);
+      console.error("[tripo3d] submit error:", JSON.stringify(submitData));
       return null;
     }
 
@@ -588,7 +549,7 @@ async function generateTripo3DModel(
       };
 
       if (statusData.code !== 0) {
-        console.error("[tripo3d] poll error:", statusData);
+        console.error("[tripo3d] poll error:", JSON.stringify(statusData));
         return null;
       }
 
@@ -610,7 +571,7 @@ async function generateTripo3DModel(
       }
     }
 
-    console.error("[tripo3d] timed out waiting for model");
+    console.error("[tripo3d] timed out");
     return null;
   } catch (error) {
     console.error("[tripo3d] unexpected error:", error);
@@ -914,9 +875,6 @@ export async function POST(request: Request) {
       imageUrls[betterSide],
       imageUrls.front,
       imageUrls.hind,
-      coatColor,
-      allMarkings,
-      betterSide,
     );
 
     const combinedScore = calculateCombinedScore(
