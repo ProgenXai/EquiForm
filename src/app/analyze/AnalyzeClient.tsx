@@ -182,7 +182,7 @@ const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
 };
 
 const SIDE_VIEW_UPLOAD_HINT =
-  "JPG, PNG, or WEBP · max 10MB · side profile recommended";
+  "JPG, PNG, or WEBP · side profile recommended";
 
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
