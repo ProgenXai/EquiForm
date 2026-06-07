@@ -663,7 +663,7 @@ export default function HorseViewer3D({
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.toneMappingExposure = 1.05;
     container.appendChild(renderer.domElement);
     renderer.domElement.style.display = "block";
@@ -732,6 +732,14 @@ export default function HorseViewer3D({
     blueRimLight.position.set(0, 2, -3);
     scene.add(blueRimLight);
 
+    const leftFillLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    leftFillLight.position.set(-5, 3, 2);
+    scene.add(leftFillLight);
+
+    const rightFillLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    rightFillLight.position.set(5, 3, 2);
+    scene.add(rightFillLight);
+
     const resize = () => {
       const width = container.clientWidth;
       const height = container.clientHeight;
@@ -769,6 +777,16 @@ export default function HorseViewer3D({
 
         const model = gltf.scene;
         scene.add(model);
+
+        model.traverse((child) => {
+          if (!(child instanceof THREE.Mesh)) return;
+          const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
+          for (const material of materials) {
+            material.needsUpdate = true;
+          }
+        });
 
         scene.traverse((obj) => {
           if ((obj as THREE.Mesh).isMesh) {
@@ -925,17 +943,19 @@ export default function HorseViewer3D({
 
         model.updateMatrixWorld(true);
         console.log("IK targets:", ikTargets);
-        coatTexture = await applyCoatColor(
-          model,
-          coatColor,
-          markings,
-          leftPhotoUrl,
-          frontPhotoUrl,
-          hindPhotoUrl,
-          landmarks.left,
-          landmarks.front,
-          landmarks.hind,
-        );
+        if (!tripoGlbUrl) {
+          coatTexture = await applyCoatColor(
+            model,
+            coatColor,
+            markings,
+            leftPhotoUrl,
+            frontPhotoUrl,
+            hindPhotoUrl,
+            landmarks.left,
+            landmarks.front,
+            landmarks.hind,
+          );
+        }
 
         scene.traverse((obj) => {
           if (obj.type === "Bone") {
