@@ -520,7 +520,7 @@ async function generateMeshy3DModel(
     const taskId = submitData.result;
     console.log("[meshy] task submitted:", taskId);
 
-    const maxAttempts = 30;
+    const maxAttempts = 60;
     const pollInterval = 5000;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
