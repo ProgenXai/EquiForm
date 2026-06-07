@@ -178,6 +178,7 @@ type BalanceResponse = {
   single_view_balance?: number;
   single_view_3d_balance?: number;
   full_report_balance?: number;
+  full_report_3d_balance?: number;
 };
 
 type AnalysisMode = "quick" | "full";
@@ -347,6 +348,9 @@ export default function AnalyzeClient() {
     null,
   );
   const [fullReportBalance, setFullReportBalance] = useState<number | null>(null);
+  const [fullReport3DBalance, setFullReport3DBalance] = useState<number | null>(
+    null,
+  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -362,6 +366,7 @@ export default function AnalyzeClient() {
     setSingleViewBalance(data.single_view_balance ?? 0);
     setSingleView3DBalance(data.single_view_3d_balance ?? 0);
     setFullReportBalance(data.full_report_balance ?? 0);
+    setFullReport3DBalance(data.full_report_3d_balance ?? 0);
   }
 
   async function refreshSingleView3DBalance(userId: string) {
@@ -372,6 +377,16 @@ export default function AnalyzeClient() {
       .maybeSingle();
 
     setSingleView3DBalance(tokenRow?.single_view_3d_balance ?? 0);
+  }
+
+  async function refreshFullReport3DBalance(userId: string) {
+    const { data: tokenRow } = await supabase
+      .from("user_tokens")
+      .select("full_report_3d_balance")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    setFullReport3DBalance(tokenRow?.full_report_3d_balance ?? 0);
   }
 
   useEffect(() => {
@@ -517,6 +532,7 @@ export default function AnalyzeClient() {
         const balanceData = (await balanceResponse.json()) as BalanceResponse;
         applyBalanceData(balanceData);
         await refreshSingleView3DBalance(session.user.id);
+        await refreshFullReport3DBalance(session.user.id);
 
         const adminResponse = await fetch("/api/check-admin", {
           headers: {
@@ -531,6 +547,7 @@ export default function AnalyzeClient() {
         setSingleViewBalance(0);
         setSingleView3DBalance(0);
         setFullReportBalance(0);
+        setFullReport3DBalance(0);
         setIsAdmin(false);
         console.log("isAdmin:", false);
       }
@@ -1055,7 +1072,9 @@ export default function AnalyzeClient() {
     isAdmin ||
     (isLoggedIn &&
       fullReportBalance !== null &&
-      fullReportBalance >= FULL_REPORT_CREDIT_COST);
+      fullReport3DBalance !== null &&
+      (fullReportBalance >= FULL_REPORT_CREDIT_COST ||
+        fullReport3DBalance >= FULL_REPORT_CREDIT_COST));
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !singleViewPhoto?.supabaseUrl ||
@@ -1108,6 +1127,8 @@ export default function AnalyzeClient() {
         data: { session },
       } = await supabase.auth.getSession();
 
+      const shouldGenerate3D = (fullReport3DBalance ?? 0) > 0;
+
       const response = await fetch("/api/analyze-full", {
         method: "POST",
         headers: {
@@ -1124,6 +1145,7 @@ export default function AnalyzeClient() {
           sex: sex.trim(),
           discipline: discipline.trim(),
           horseName: horseName.trim(),
+          ...(shouldGenerate3D ? { generate3D: true } : {}),
         }),
       });
 
@@ -1167,7 +1189,7 @@ export default function AnalyzeClient() {
         setMeshyTaskId(apiResult.meshyTaskId);
       }
 
-      if (session?.access_token) {
+      if (session?.access_token && session.user) {
         const balanceResponse = await fetch("/api/get-balance", {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -1176,110 +1198,11 @@ export default function AnalyzeClient() {
 
         const balanceData = (await balanceResponse.json()) as BalanceResponse;
         applyBalanceData(balanceData);
+        await refreshFullReport3DBalance(session.user.id);
       }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Full report analysis failed",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDebug3DSubmit() {
-    if (
-      !isAdmin ||
-      !fullReportComplete ||
-      loading ||
-      fullReportUploadingView !== null
-    ) {
-      return;
-    }
-
-    const leftUrl = fullReportPhotos.left?.supabaseUrl;
-    const rightUrl = fullReportPhotos.right?.supabaseUrl;
-    const frontUrl = fullReportPhotos.front?.supabaseUrl;
-    const hindUrl = fullReportPhotos.hind?.supabaseUrl;
-
-    if (!leftUrl || !rightUrl || !frontUrl || !hindUrl) {
-      setError("Upload all four photos before submitting.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setFullReportResult(null);
-    setMeshyTaskId(null);
-    setFullReportGlbUrl(null);
-    setMeshy3DError(null);
-
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const response = await fetch("/api/analyze-full", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session?.access_token ?? ""}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          leftUrl,
-          rightUrl,
-          frontUrl,
-          hindUrl,
-          breed: breed.trim(),
-          age: age.trim(),
-          sex: sex.trim(),
-          discipline: discipline.trim(),
-          horseName: horseName.trim(),
-          debugMode: true,
-        }),
-      });
-
-      const contentType = response.headers.get("content-type") ?? "";
-      const isJson = contentType.includes("application/json");
-
-      let apiResult: FullReportApiResponse & {
-        error?: string;
-        meshyTaskId?: string | null;
-      };
-
-      try {
-        if (!isJson) {
-          await response.text();
-          throw new Error("Debug 3D generation failed");
-        }
-
-        apiResult = (await response.json()) as FullReportApiResponse & {
-          error?: string;
-          meshyTaskId?: string | null;
-        };
-      } catch (parseError) {
-        if (parseError instanceof Error && parseError.message) {
-          throw parseError;
-        }
-
-        throw new Error("Debug 3D generation failed");
-      }
-
-      if (!response.ok) {
-        throw new Error(apiResult.error ?? "Debug 3D generation failed");
-      }
-
-      setFullReportResult({
-        ...apiResult,
-        frontOverlayUrl: apiResult.frontOverlayUrl,
-        hindOverlayUrl: apiResult.hindOverlayUrl,
-      });
-
-      if (apiResult.meshyTaskId) {
-        setMeshyTaskId(apiResult.meshyTaskId);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Debug 3D generation failed",
       );
     } finally {
       setLoading(false);
@@ -1915,22 +1838,6 @@ export default function AnalyzeClient() {
                     : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credit`}
                 </button>
 
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleDebug3DSubmit()}
-                    disabled={
-                      !fullReportComplete ||
-                      !breed.trim() ||
-                      loading ||
-                      fullReportUploadingView !== null
-                    }
-                    className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {loading ? "Debug 3D…" : "Debug 3D"}
-                  </button>
-                ) : null}
-
                 {error ? (
                   <div className="mt-4">
                     <p className="text-sm text-red-400" role="alert">
@@ -1952,7 +1859,9 @@ export default function AnalyzeClient() {
                 !isAdmin &&
                 isLoggedIn &&
                 (fullReportBalance === null ||
-                  fullReportBalance < FULL_REPORT_CREDIT_COST) ? (
+                  fullReportBalance < FULL_REPORT_CREDIT_COST) &&
+                (fullReport3DBalance === null ||
+                  fullReport3DBalance < FULL_REPORT_CREDIT_COST) ? (
                   <Link
                     href="/buy-rosettes"
                     className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
