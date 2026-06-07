@@ -421,14 +421,17 @@ function TypeaheadInput({
                 className="w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
-                  onChange(
-                    appendOnSelect
-                      ? appendTypeaheadValue(value, suggestion)
-                      : suggestion,
-                  );
-                  if (!appendOnSelect) {
-                    setOpen(false);
+                  if (appendOnSelect) {
+                    const nextValue = appendTypeaheadValue(value, suggestion);
+                    if (nextValue !== value.trim()) {
+                      onChange(`${nextValue}, `);
+                    }
+                    setOpen(true);
+                    return;
                   }
+
+                  onChange(suggestion);
+                  setOpen(false);
                 }}
               >
                 {suggestion}
