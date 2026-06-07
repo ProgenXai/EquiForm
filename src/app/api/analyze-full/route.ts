@@ -472,6 +472,103 @@ function flipBufferHorizontally(
   return flipped;
 }
 
+async function generateMeshy3DModel(
+  frontUrl: string,
+  leftUrl: string,
+  hindUrl: string,
+  rightUrl: string,
+): Promise<string | null> {
+  const apiKey = process.env.MESHY_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  try {
+    const meshyPayload = {
+      image_urls: [frontUrl, leftUrl, hindUrl, rightUrl],
+      ai_model: "meshy-6",
+      output_format: ["glb"],
+    };
+
+    console.log('[meshy] request payload:', JSON.stringify(meshyPayload, null, 2));
+
+    const submitResponse = await fetch(
+      "https://api.meshy.ai/openapi/v1/multiimage-to-3d",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(meshyPayload),
+      },
+    );
+
+    if (!submitResponse.ok) {
+      const text = await submitResponse.text();
+      console.error("[meshy] submit failed:", text);
+      return null;
+    }
+
+    const submitData = (await submitResponse.json()) as {
+      result?: string;
+    };
+
+    if (!submitData.result) {
+      console.error("[meshy] submit error:", JSON.stringify(submitData));
+      return null;
+    }
+
+    const taskId = submitData.result;
+    console.log("[meshy] task submitted:", taskId);
+
+    const maxAttempts = 30;
+    const pollInterval = 5000;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      const statusResponse = await fetch(
+        `https://api.meshy.ai/openapi/v1/multiimage-to-3d/${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      if (!statusResponse.ok) {
+        console.error("[meshy] poll failed:", await statusResponse.text());
+        continue;
+      }
+
+      const taskData = (await statusResponse.json()) as {
+        status?: string;
+        model_urls?: { glb?: string };
+      };
+
+      const status = taskData.status;
+      console.log(`[meshy] attempt ${attempt + 1} status:`, status);
+
+      if (status === "SUCCEEDED") {
+        const glbUrl = taskData.model_urls?.glb ?? null;
+        console.log("[meshy] model ready:", glbUrl);
+        return glbUrl;
+      }
+
+      if (status === "FAILED") {
+        console.log('[meshy] failure detail:', JSON.stringify(taskData, null, 2));
+        console.error("[meshy] task failed with status:", status);
+        return null;
+      }
+    }
+
+    console.error("[meshy] timed out");
+    return null;
+  } catch (error) {
+    console.error("[meshy] unexpected error:", error);
+    return null;
+  }
+}
+
 async function generateTripo3DModel(
   frontUrl: string,
   leftUrl: string,
@@ -938,46 +1035,11 @@ export async function POST(request: Request) {
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
-    const tripoTimestamp = Date.now();
-    const tripoPhotoUrls = {
-      front: "",
-      left: "",
-      hind: "",
-      right: "",
-    };
-
-    await Promise.all(
-      (["front", "left", "hind", "right"] as const).map(async (view) => {
-        const imageResponse = await fetch(imageUrls[view]);
-        if (!imageResponse.ok) {
-          throw new Error(`Failed to fetch ${view} photo for Tripo3D upload`);
-        }
-
-        const buffer = Buffer.from(await imageResponse.arrayBuffer());
-        const storagePath = `tripo-input/${user.id}/${tripoTimestamp}-${view}.jpg`;
-        const { error: uploadError } = await serviceClient.storage
-          .from("horse-photos")
-          .upload(storagePath, buffer, {
-            contentType: "image/jpeg",
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(`Failed to upload ${view} photo for Tripo3D`);
-        }
-
-        const { data: publicUrlData } = serviceClient.storage
-          .from("horse-photos")
-          .getPublicUrl(storagePath);
-        tripoPhotoUrls[view] = publicUrlData.publicUrl;
-      }),
-    );
-
-    const tripoGlbUrl = await generateTripo3DModel(
-      tripoPhotoUrls.front,
-      tripoPhotoUrls.left,
-      tripoPhotoUrls.hind,
-      tripoPhotoUrls.right,
+    const tripoGlbUrl = await generateMeshy3DModel(
+      imageUrls.front,
+      imageUrls.left,
+      imageUrls.hind,
+      imageUrls.right,
     );
 
     const combinedScore = calculateCombinedScore(
