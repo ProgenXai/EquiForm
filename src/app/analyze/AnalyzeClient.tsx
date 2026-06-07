@@ -356,11 +356,12 @@ export default function AnalyzeClient() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
   const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
   const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
   const [meshy3DError, setMeshy3DError] = useState<string | null>(null);
+  const [showCommunitySharePrompt, setShowCommunitySharePrompt] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const shareEventIdRef = useRef<string | null>(null);
 
   function applyBalanceData(data: BalanceResponse) {
     setSingleViewBalance(data.single_view_balance ?? 0);
@@ -564,20 +565,67 @@ export default function AnalyzeClient() {
     setEmail("");
     setEmailSubmitted(false);
     setEmailError(null);
+    setShowCommunitySharePrompt(false);
+    shareEventIdRef.current = null;
+  }
+
+  async function updateShareEventEquiformPage(sharedEquiformPage: boolean) {
+    const eventId = shareEventIdRef.current;
+    if (!eventId) return;
+
+    await supabase
+      .from("share_events")
+      .update({ shared_equiform_page: sharedEquiformPage })
+      .eq("id", eventId);
   }
 
   async function handleShareScore() {
     if (!result) return;
 
-    const text = `My horse scored ${result.report.overall_score}/100 on EquiForm! How does your horse measure up? equi-form-pied.vercel.app`;
+    const name = horseName.trim() || "my horse";
+    const score = result.report.overall_score;
+    const message = `I just analyzed ${name} on EquiForm! ${name} scored ${score}/100 on conformation analysis. Try it at equiform.app 🐴 #EquiForm #HorseConformation`;
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://equiform.app")}&quote=${encodeURIComponent(message)}`;
 
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
-    } catch {
-      // Ignore clipboard errors
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+
+    if (currentSession?.user) {
+      const { data, error } = await supabase
+        .from("share_events")
+        .insert({
+          user_id: currentSession.user.id,
+          horse_name: name,
+          score,
+          shared_own_page: true,
+          shared_equiform_page: false,
+        })
+        .select("id")
+        .single();
+
+      if (!error && data) {
+        shareEventIdRef.current = data.id;
+      }
     }
+
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    setShowCommunitySharePrompt(true);
+  }
+
+  async function handleShareToCommunityPage() {
+    await updateShareEventEquiformPage(true);
+    window.open(
+      "https://www.facebook.com/profile.php?id=61590285407751",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    setShowCommunitySharePrompt(false);
+  }
+
+  async function handleDismissCommunitySharePrompt() {
+    await updateShareEventEquiformPage(false);
+    setShowCommunitySharePrompt(false);
   }
 
   async function clearSingleViewPhoto() {
@@ -2274,7 +2322,7 @@ export default function AnalyzeClient() {
                 onClick={() => void handleShareScore()}
                 className="mt-6 w-full rounded-lg border border-accent bg-transparent px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent/10"
               >
-                {shareCopied ? "Copied! 🎉" : "Share Your Score"}
+                Share Your Score
               </button>
               <button
                 type="button"
@@ -2308,6 +2356,32 @@ export default function AnalyzeClient() {
         ) : null}
       </main>
       </div>
+
+      {showCommunitySharePrompt ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6 text-center shadow-xl">
+            <p className="text-base text-zinc-100">
+              Want to also share to the EquiForm community page?
+            </p>
+            <div className="mt-5 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => void handleShareToCommunityPage()}
+                className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+              >
+                Yes, share to EquiForm page
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDismissCommunitySharePrompt()}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800"
+              >
+                No thanks
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
