@@ -653,6 +653,7 @@ export default function AnalyzeClient() {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fullReportDisplayError, setFullReportDisplayError] = useState(false);
   const [result, setResult] = useState<
     (AnalyzeApiResponse & { glbUrl?: string | null; disclaimer?: string }) | null
   >(null);
@@ -1571,6 +1572,7 @@ export default function AnalyzeClient() {
 
     setLoading(true);
     setError(null);
+    setFullReportDisplayError(false);
     setFullReportResult(null);
     setMeshyTaskId(null);
     setFullReportGlbUrl(null);
@@ -1634,7 +1636,20 @@ export default function AnalyzeClient() {
         throw new Error(apiResult.error ?? "Full report analysis failed");
       }
 
-      setFullReportResult(parseFullReportApiResponse(apiResult));
+      const savedReportId =
+        typeof apiResult.reportId === "string" ? apiResult.reportId.trim() : "";
+
+      try {
+        setFullReportResult(parseFullReportApiResponse(apiResult));
+      } catch (displayError) {
+        if (savedReportId) {
+          setFullReportDisplayError(true);
+        } else {
+          throw displayError instanceof Error
+            ? displayError
+            : new Error("Full report analysis failed");
+        }
+      }
 
       if (apiResult.meshyTaskId) {
         setMeshyTaskId(apiResult.meshyTaskId);
@@ -2302,7 +2317,21 @@ export default function AnalyzeClient() {
                     : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credit`}
                 </button>
 
-                {error ? (
+                {fullReportDisplayError ? (
+                  <div className="mt-4">
+                    <p className="text-sm text-red-400" role="alert">
+                      Your report was generated successfully but couldn&apos;t be
+                      displayed.{" "}
+                      <Link
+                        href="/my-reports"
+                        className="font-medium text-accent underline transition hover:text-accent-hover"
+                      >
+                        View it in My Reports
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                ) : error ? (
                   <div className="mt-4">
                     <p className="text-sm text-red-400" role="alert">
                       {error}
