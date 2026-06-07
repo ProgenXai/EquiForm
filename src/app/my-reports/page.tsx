@@ -23,13 +23,19 @@ function formatReportDate(isoDate: string): string {
   });
 }
 
+const PAGE_SIZE = 10;
+
 export default function MyReportsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<ReportRow[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     async function loadReports() {
+      setLoading(true);
+
       const supabase = createClient();
       const {
         data: { session },
@@ -40,21 +46,28 @@ export default function MyReportsPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error, count } = await supabase
         .from("reports")
-        .select("id, created_at, overall_score, horse_name, pdf_url")
+        .select("id, created_at, overall_score, horse_name, pdf_url", {
+          count: "exact",
+        })
         .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (!error && data) {
         setReports(data as ReportRow[]);
+        setTotalCount(count ?? 0);
       }
 
       setLoading(false);
     }
 
     void loadReports();
-  }, [router]);
+  }, [router, page]);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -107,47 +120,70 @@ export default function MyReportsPage() {
             </Link>
           </div>
         ) : (
-          <ul className="space-y-4">
-            {reports.map((report) => (
-              <li
-                key={report.id}
-                className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-medium text-white">
-                    {report.horse_name?.trim() || "Unnamed Horse"}
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-400">
-                    {formatReportDate(report.created_at)}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Overall score:{" "}
-                    <span className="font-semibold text-accent">
-                      {report.overall_score ?? "—"}
-                    </span>
-                  </p>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0">
-                  {report.pdf_url ? (
-                    <a
-                      href={report.pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-center text-sm font-semibold text-accent transition hover:bg-accent/25"
+          <>
+            <ul className="space-y-4">
+              {reports.map((report) => (
+                <li
+                  key={report.id}
+                  className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {report.horse_name?.trim() || "Unnamed Horse"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      {formatReportDate(report.created_at)}
+                    </p>
+                    <p className="mt-1 text-sm text-zinc-400">
+                      Overall score:{" "}
+                      <span className="font-semibold text-accent">
+                        {report.overall_score ?? "—"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0">
+                    {report.pdf_url ? (
+                      <a
+                        href={report.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-center text-sm font-semibold text-accent transition hover:bg-accent/25"
+                      >
+                        Download PDF
+                      </a>
+                    ) : null}
+                    <Link
+                      href={`/my-reports/${report.id}`}
+                      className="inline-block rounded-lg bg-accent px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
                     >
-                      Download PDF
-                    </a>
-                  ) : null}
-                  <Link
-                    href={`/my-reports/${report.id}`}
-                    className="inline-block rounded-lg bg-accent px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
-                  >
-                    View Report
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+                      View Report
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {totalCount > PAGE_SIZE ? (
+              <div className="mt-8 flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={page === 0 || loading}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-accent/60 hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => current + 1)}
+                  disabled={loading || (page + 1) * PAGE_SIZE >= totalCount}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-accent/60 hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </main>
     </div>
