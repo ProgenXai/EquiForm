@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { ConformationReport } from "@/lib/analyze/types";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
 
 type ReportRow = {
@@ -289,6 +290,7 @@ export default function MyReportsPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <Link
         href="/analyze"
         className="inline-block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ConformationReport } from "@/lib/analyze/types";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
 
 const HorseViewer3D = dynamic(
@@ -523,6 +524,7 @@ export default function ReportDetailPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <Link
         href="/my-reports"
         className="inline-block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"

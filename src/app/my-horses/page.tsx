@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
 type HorseRow = {
   id: string;
@@ -64,6 +65,7 @@ export default function MyHorsesPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <Link
         href="/analyze"
         className="inline-block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
