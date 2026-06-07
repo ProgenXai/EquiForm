@@ -441,6 +441,9 @@ export default function AnalyzeClient() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [generate3D, setGenerate3D] = useState(false);
+  const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
+  const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
+  const [meshy3DError, setMeshy3DError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   function applyBalanceData(data: BalanceResponse) {
@@ -498,6 +501,9 @@ export default function AnalyzeClient() {
     if (analysisMode !== "full") {
       void clearFullReportPhotos();
       setFullReportResult(null);
+      setMeshyTaskId(null);
+      setFullReportGlbUrl(null);
+      setMeshy3DError(null);
     }
   }, [analysisMode]);
 
@@ -506,6 +512,65 @@ export default function AnalyzeClient() {
       revokeFullReportPreviewUrls(fullReportPhotosRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!meshyTaskId) return;
+
+    const taskId = meshyTaskId;
+    let cancelled = false;
+
+    async function pollMeshyStatus() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      try {
+        const response = await fetch(
+          `/api/meshy-status?taskId=${encodeURIComponent(taskId)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session?.access_token ?? ""}`,
+            },
+          },
+        );
+
+        const data = (await response.json()) as {
+          status?: string;
+          glbUrl?: string;
+          error?: string;
+        };
+
+        if (cancelled) return;
+
+        if (data.glbUrl) {
+          setFullReportGlbUrl(data.glbUrl);
+          setMeshyTaskId(null);
+          setMeshy3DError(null);
+          return;
+        }
+
+        if (!response.ok || data.status === "FAILED") {
+          setMeshy3DError(data.error ?? "3D model generation failed");
+          setMeshyTaskId(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setMeshy3DError("Failed to check 3D model status");
+          setMeshyTaskId(null);
+        }
+      }
+    }
+
+    void pollMeshyStatus();
+    const intervalId = window.setInterval(() => {
+      void pollMeshyStatus();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [meshyTaskId]);
 
   useEffect(() => {
     const {
@@ -1041,6 +1106,9 @@ export default function AnalyzeClient() {
     setLoading(true);
     setError(null);
     setFullReportResult(null);
+    setMeshyTaskId(null);
+    setFullReportGlbUrl(null);
+    setMeshy3DError(null);
 
     try {
       const {
@@ -1065,7 +1133,10 @@ export default function AnalyzeClient() {
       const contentType = response.headers.get("content-type") ?? "";
       const isJson = contentType.includes("application/json");
 
-      let apiResult: FullReportApiResponse & { error?: string };
+      let apiResult: FullReportApiResponse & {
+        error?: string;
+        meshyTaskId?: string | null;
+      };
 
       try {
         if (!isJson) {
@@ -1075,6 +1146,7 @@ export default function AnalyzeClient() {
 
         apiResult = (await response.json()) as FullReportApiResponse & {
           error?: string;
+          meshyTaskId?: string | null;
         };
       } catch (parseError) {
         if (parseError instanceof Error && parseError.message) {
@@ -1093,6 +1165,10 @@ export default function AnalyzeClient() {
         frontOverlayUrl: apiResult.frontOverlayUrl,
         hindOverlayUrl: apiResult.hindOverlayUrl,
       });
+
+      if (apiResult.meshyTaskId) {
+        setMeshyTaskId(apiResult.meshyTaskId);
+      }
 
       if (session?.access_token) {
         const balanceResponse = await fetch("/api/get-balance", {
@@ -1136,6 +1212,9 @@ export default function AnalyzeClient() {
     setLoading(true);
     setError(null);
     setFullReportResult(null);
+    setMeshyTaskId(null);
+    setFullReportGlbUrl(null);
+    setMeshy3DError(null);
 
     try {
       const {
@@ -1161,7 +1240,10 @@ export default function AnalyzeClient() {
       const contentType = response.headers.get("content-type") ?? "";
       const isJson = contentType.includes("application/json");
 
-      let apiResult: FullReportApiResponse & { error?: string; glbUrl?: string | null };
+      let apiResult: FullReportApiResponse & {
+        error?: string;
+        meshyTaskId?: string | null;
+      };
 
       try {
         if (!isJson) {
@@ -1171,7 +1253,7 @@ export default function AnalyzeClient() {
 
         apiResult = (await response.json()) as FullReportApiResponse & {
           error?: string;
-          glbUrl?: string | null;
+          meshyTaskId?: string | null;
         };
       } catch (parseError) {
         if (parseError instanceof Error && parseError.message) {
@@ -1187,10 +1269,13 @@ export default function AnalyzeClient() {
 
       setFullReportResult({
         ...apiResult,
-        tripoGlbUrl: apiResult.glbUrl ?? apiResult.tripoGlbUrl ?? null,
         frontOverlayUrl: apiResult.frontOverlayUrl,
         hindOverlayUrl: apiResult.hindOverlayUrl,
       });
+
+      if (apiResult.meshyTaskId) {
+        setMeshyTaskId(apiResult.meshyTaskId);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Debug 3D generation failed",
@@ -1901,17 +1986,32 @@ export default function AnalyzeClient() {
                           </div>
                         </div>
 
-                        <HorseViewer3D
-                          className="mt-8"
-                          landmarks={fullReportResult.landmarks}
-                          coatColor={fullReportResult.coatColor}
-                          markings={fullReportResult.markings}
-                          tripoGlbUrl={fullReportResult.tripoGlbUrl}
-                          leftPhotoUrl={fullReportPhotos.left?.supabaseUrl}
-                          rightPhotoUrl={fullReportPhotos.right?.supabaseUrl}
-                          frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}
-                          hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
-                        />
+                        {meshyTaskId && !fullReportGlbUrl ? (
+                          <div className="mt-8 flex items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-6 py-10 text-sm text-zinc-400">
+                            <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
+                            Generating 3D model...
+                          </div>
+                        ) : null}
+
+                        {meshy3DError ? (
+                          <p className="mt-4 text-sm text-red-400" role="alert">
+                            {meshy3DError}
+                          </p>
+                        ) : null}
+
+                        {fullReportGlbUrl ? (
+                          <HorseViewer3D
+                            className="mt-8"
+                            landmarks={fullReportResult.landmarks}
+                            coatColor={fullReportResult.coatColor}
+                            markings={fullReportResult.markings}
+                            tripoGlbUrl={fullReportGlbUrl}
+                            leftPhotoUrl={fullReportPhotos.left?.supabaseUrl}
+                            rightPhotoUrl={fullReportPhotos.right?.supabaseUrl}
+                            frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}
+                            hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
+                          />
+                        ) : null}
 
                         <p className="mt-4 text-sm leading-relaxed text-zinc-300">
                           {betterSideReport.summary}

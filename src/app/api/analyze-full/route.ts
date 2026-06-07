@@ -472,7 +472,7 @@ function flipBufferHorizontally(
   return flipped;
 }
 
-async function generateMeshy3DModel(
+async function submitMeshy3DTask(
   frontUrl: string,
   leftUrl: string,
   hindUrl: string,
@@ -519,93 +519,9 @@ async function generateMeshy3DModel(
 
     const taskId = submitData.result;
     console.log("[meshy] task submitted:", taskId);
-
-    const maxAttempts = 60;
-    const pollInterval = 5000;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-      const statusResponse = await fetch(
-        `https://api.meshy.ai/openapi/v1/multi-image-to-3d/${taskId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-        },
-      );
-
-      if (!statusResponse.ok) {
-        console.error("[meshy] poll failed:", await statusResponse.text());
-        continue;
-      }
-
-      const taskData = (await statusResponse.json()) as {
-        status?: string;
-        model_urls?: { glb?: string };
-      };
-
-      const status = taskData.status;
-      console.log(`[meshy] attempt ${attempt + 1} status:`, status);
-
-      if (status === "SUCCEEDED") {
-        const glbUrl = taskData.model_urls?.glb ?? null;
-        console.log("[meshy] model ready:", glbUrl);
-        return glbUrl;
-      }
-
-      if (status === "FAILED") {
-        console.log('[meshy] failure detail:', JSON.stringify(taskData, null, 2));
-        console.error("[meshy] task failed with status:", status);
-        return null;
-      }
-    }
-
-    console.error("[meshy] timed out");
-    return null;
+    return taskId;
   } catch (error) {
     console.error("[meshy] unexpected error:", error);
-    return null;
-  }
-}
-
-async function persistMeshyGlbToSupabase(
-  meshyGlbUrl: string,
-  userId: string,
-  serviceClient: ReturnType<typeof createServiceRoleClient>,
-): Promise<string | null> {
-  try {
-    const glbResponse = await fetch(meshyGlbUrl);
-    if (!glbResponse.ok) {
-      console.error(
-        "[analyze-full] failed to download GLB from Meshy:",
-        meshyGlbUrl,
-      );
-      return null;
-    }
-
-    const glbBuffer = Buffer.from(await glbResponse.arrayBuffer());
-    const storagePath = `3d-models/${userId}/${Date.now()}.glb`;
-
-    const { error: uploadError } = await serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .upload(storagePath, glbBuffer, {
-        contentType: "model/gltf-binary",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("[analyze-full] GLB upload failed:", uploadError);
-      return null;
-    }
-
-    const { data: publicUrlData } = serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .getPublicUrl(storagePath);
-
-    return publicUrlData.publicUrl;
-  } catch (error) {
-    console.error("[analyze-full] persistMeshyGlbToSupabase error:", error);
     return null;
   }
 }
@@ -840,16 +756,12 @@ export async function POST(request: Request) {
       imageUrls[view] = trimmedUrl;
     }
 
-    const serviceClient = createServiceRoleClient();
-    const meshyGlbUrl = await generateMeshy3DModel(
+    const meshyTaskId = await submitMeshy3DTask(
       imageUrls.front,
       imageUrls.left,
       imageUrls.hind,
       imageUrls.right,
     );
-    const glbUrl = meshyGlbUrl
-      ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
-      : null;
 
     const placeholderSection = {
       score: 85,
@@ -865,7 +777,7 @@ export async function POST(request: Request) {
       summary: "Debug mode placeholder report — conformation analysis was skipped.",
     };
 
-    console.log("[analyze-full] glbUrl:", glbUrl);
+    console.log("[analyze-full] meshyTaskId:", meshyTaskId);
 
     return NextResponse.json({
       overlayUrl: "",
@@ -891,8 +803,9 @@ export async function POST(request: Request) {
       coatColor: "bay",
       markings: ["none"],
       markingsDescription: "Debug mode placeholder.",
-      tripoGlbUrl: glbUrl,
-      glbUrl,
+      meshyTaskId,
+      tripoGlbUrl: null,
+      glbUrl: null,
     });
   }
 
@@ -1185,15 +1098,12 @@ export async function POST(request: Request) {
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
-    const meshyGlbUrl = await generateMeshy3DModel(
+    const meshyTaskId = await submitMeshy3DTask(
       imageUrls.front,
       imageUrls.left,
       imageUrls.hind,
       imageUrls.right,
     );
-    const glbUrl = meshyGlbUrl
-      ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
-      : null;
 
     const combinedScore = calculateCombinedScore(
       leftReport,
@@ -1455,7 +1365,7 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log("[analyze-full] glbUrl:", glbUrl);
+    console.log("[analyze-full] meshyTaskId:", meshyTaskId);
 
     return NextResponse.json({
       overlayUrl,
@@ -1478,8 +1388,9 @@ export async function POST(request: Request) {
       coatColor,
       markings,
       markingsDescription,
-      tripoGlbUrl: glbUrl,
-      glbUrl,
+      meshyTaskId,
+      tripoGlbUrl: null,
+      glbUrl: null,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);
