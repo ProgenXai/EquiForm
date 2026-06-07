@@ -235,6 +235,7 @@ const SIDE_VIEW_TIPS = [
   "Horse must be standing still",
   "All four feet visible on level ground",
   "Horse standing square with a natural stance",
+  "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
 ];
 
 const FRONT_VIEW_TIPS = [
