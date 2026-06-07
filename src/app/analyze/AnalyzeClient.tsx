@@ -1977,7 +1977,7 @@ export default function AnalyzeClient() {
                   type="text"
                   value={discipline}
                   onChange={(event) => setDiscipline(event.target.value)}
-                  placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper"
+                  placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper, Cutting, Roping, Broodmare, Retired"
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
@@ -2249,7 +2249,7 @@ export default function AnalyzeClient() {
                     type="text"
                     value={discipline}
                     onChange={(event) => setDiscipline(event.target.value)}
-                    placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper"
+                    placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper, Cutting, Roping, Broodmare, Retired"
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
