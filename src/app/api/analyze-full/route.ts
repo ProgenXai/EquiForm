@@ -1302,6 +1302,8 @@ export async function POST(request: Request) {
       }
     }
 
+    console.log("[analyze-full] glbUrl:", tripoGlbUrl);
+
     return NextResponse.json({
       overlayUrl,
       overlayImage,
@@ -1324,6 +1326,7 @@ export async function POST(request: Request) {
       markings,
       markingsDescription,
       tripoGlbUrl,
+      glbUrl: tripoGlbUrl,
     });
   } catch (error) {
     console.error("[analyze-full] failed:", error);
