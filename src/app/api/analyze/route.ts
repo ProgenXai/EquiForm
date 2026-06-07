@@ -125,6 +125,139 @@ function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
   }
 }
 
+async function generateMeshy3DModel(imageUrl: string): Promise<string | null> {
+  const apiKey = process.env.MESHY_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  try {
+    const meshyPayload = {
+      image_urls: [imageUrl],
+      ai_model: "meshy-6",
+      target_formats: ["glb"],
+    };
+
+    console.log("[meshy] request payload:", JSON.stringify(meshyPayload, null, 2));
+
+    const submitResponse = await fetch(
+      "https://api.meshy.ai/openapi/v1/multi-image-to-3d",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(meshyPayload),
+      },
+    );
+
+    if (!submitResponse.ok) {
+      const text = await submitResponse.text();
+      console.error("[meshy] submit failed:", text);
+      return null;
+    }
+
+    const submitData = (await submitResponse.json()) as {
+      result?: string;
+    };
+
+    if (!submitData.result) {
+      console.error("[meshy] submit error:", JSON.stringify(submitData));
+      return null;
+    }
+
+    const taskId = submitData.result;
+    console.log("[meshy] task submitted:", taskId);
+
+    const maxAttempts = 60;
+    const pollInterval = 5000;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      const statusResponse = await fetch(
+        `https://api.meshy.ai/openapi/v1/multi-image-to-3d/${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      if (!statusResponse.ok) {
+        console.error("[meshy] poll failed:", await statusResponse.text());
+        continue;
+      }
+
+      const taskData = (await statusResponse.json()) as {
+        status?: string;
+        model_urls?: { glb?: string };
+      };
+
+      const status = taskData.status;
+      console.log(`[meshy] attempt ${attempt + 1} status:`, status);
+
+      if (status === "SUCCEEDED") {
+        const glbUrl = taskData.model_urls?.glb ?? null;
+        console.log("[meshy] model ready:", glbUrl);
+        return glbUrl;
+      }
+
+      if (status === "FAILED") {
+        console.log("[meshy] failure detail:", JSON.stringify(taskData, null, 2));
+        console.error("[meshy] task failed with status:", status);
+        return null;
+      }
+    }
+
+    console.error("[meshy] timed out");
+    return null;
+  } catch (error) {
+    console.error("[meshy] unexpected error:", error);
+    return null;
+  }
+}
+
+async function persistMeshyGlbToSupabase(
+  meshyGlbUrl: string,
+  userId: string,
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+): Promise<string | null> {
+  try {
+    const glbResponse = await fetch(meshyGlbUrl);
+    if (!glbResponse.ok) {
+      console.error(
+        "[analyze] failed to download GLB from Meshy:",
+        meshyGlbUrl,
+      );
+      return null;
+    }
+
+    const glbBuffer = Buffer.from(await glbResponse.arrayBuffer());
+    const storagePath = `3d-models/${userId}/${Date.now()}.glb`;
+
+    const { error: uploadError } = await serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .upload(storagePath, glbBuffer, {
+        contentType: "model/gltf-binary",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("[analyze] GLB upload failed:", uploadError);
+      return null;
+    }
+
+    const { data: publicUrlData } = serviceClient.storage
+      .from(OVERLAY_STORAGE_BUCKET)
+      .getPublicUrl(storagePath);
+
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error("[analyze] persistMeshyGlbToSupabase error:", error);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -151,6 +284,7 @@ export async function POST(request: Request) {
     typeof horseNameRaw === "string" && horseNameRaw.trim()
       ? horseNameRaw.trim()
       : null;
+  const generate3D = formData.get("generate3D") === "true";
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No image provided" }, { status: 400 });
@@ -468,11 +602,37 @@ export async function POST(request: Request) {
       }
     }
 
+    let glbUrl: string | null = null;
+
+    if (generate3D && user) {
+      const photoStoragePath = `full-report-temp/${user.id}/${Date.now()}-3d.jpg`;
+      const { error: photoUploadError } = await serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .upload(photoStoragePath, inputBuffer, {
+          contentType: mediaType,
+          upsert: false,
+        });
+
+      if (photoUploadError) {
+        console.error("[analyze] 3D photo upload failed:", photoUploadError);
+      } else {
+        const { data: photoPublicUrl } = serviceClient.storage
+          .from(OVERLAY_STORAGE_BUCKET)
+          .getPublicUrl(photoStoragePath);
+        const sidePhotoUrl = photoPublicUrl.publicUrl;
+        const meshyGlbUrl = await generateMeshy3DModel(sidePhotoUrl);
+        glbUrl = meshyGlbUrl
+          ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
+          : null;
+      }
+    }
+
     return NextResponse.json({
       overlayImage,
       overlayUrl,
       report,
       landmarks: detectedLandmarks,
+      ...(generate3D ? { glbUrl } : {}),
     });
   } catch (error) {
     console.error("[analyze] failed:", error);
