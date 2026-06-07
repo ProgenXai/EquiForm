@@ -132,8 +132,18 @@ function withReportContext(
   prompt: string,
   breed: string,
   discipline?: string | null,
+  age?: string | null,
+  sex?: string | null,
 ): string {
   let result = `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+
+  if (age) {
+    result += `\n\nAGE CONTEXT: This horse is ${age} old. Consider age-appropriate conformation expectations in your analysis and scoring.`;
+  }
+
+  if (sex) {
+    result += `\n\nSEX CONTEXT: This horse is a ${sex}. Consider sex-appropriate conformation traits where relevant in your analysis.`;
+  }
 
   if (discipline) {
     result += `\n\nDISCIPLINE CONTEXT: This horse is evaluated for ${discipline}. Tailor your conformation analysis, scoring, and notes to the conformation priorities most important for this discipline.`;
@@ -308,6 +318,12 @@ export async function POST(request: Request) {
     typeof disciplineRaw === "string" && disciplineRaw.trim()
       ? disciplineRaw.trim()
       : null;
+  const ageRaw = formData.get("age");
+  const age =
+    typeof ageRaw === "string" && ageRaw.trim() ? ageRaw.trim() : null;
+  const sexRaw = formData.get("sex");
+  const sex =
+    typeof sexRaw === "string" && sexRaw.trim() ? sexRaw.trim() : null;
   const generate3D = formData.get("generate3D") === "true";
 
   if (!breed) {
@@ -470,6 +486,8 @@ export async function POST(request: Request) {
       getConformationReportPrompt(viewMode),
       breed,
       discipline,
+      age,
+      sex,
     );
 
     const reportMessage = await anthropic.messages.create({

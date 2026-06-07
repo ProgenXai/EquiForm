@@ -153,6 +153,8 @@ type FullReportRequestBody = {
   horseName?: string;
   breed?: string;
   discipline?: string;
+  age?: string;
+  sex?: string;
 };
 
 const FULL_REPORT_URL_FIELDS: Record<
@@ -317,8 +319,18 @@ function withReportContext(
   prompt: string,
   breed: string,
   discipline?: string | null,
+  age?: string | null,
+  sex?: string | null,
 ): string {
   let result = `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+
+  if (age) {
+    result += `\n\nAGE CONTEXT: This horse is ${age} old. Consider age-appropriate conformation expectations in your analysis and scoring.`;
+  }
+
+  if (sex) {
+    result += `\n\nSEX CONTEXT: This horse is a ${sex}. Consider sex-appropriate conformation traits where relevant in your analysis.`;
+  }
 
   if (discipline) {
     result += `\n\nDISCIPLINE CONTEXT: This horse is evaluated for ${discipline}. Tailor your conformation analysis, scoring, and notes to the conformation priorities most important for this discipline.`;
@@ -333,6 +345,8 @@ async function generateViewReport(
   prepared: PreparedViewImage,
   breed: string,
   discipline?: string | null,
+  age?: string | null,
+  sex?: string | null,
 ): Promise<ConformationReport> {
   const reportMessage = await anthropic.messages.create({
     model: "claude-opus-4-5-20251101",
@@ -344,7 +358,13 @@ async function generateViewReport(
           buildAnthropicImageContent(prepared),
           {
             type: "text",
-            text: withReportContext(REPORT_PROMPTS[view], breed, discipline),
+            text: withReportContext(
+              REPORT_PROMPTS[view],
+              breed,
+              discipline,
+              age,
+              sex,
+            ),
           },
         ],
       },
@@ -921,6 +941,12 @@ export async function POST(request: Request) {
       typeof disciplineRaw === "string" && disciplineRaw.trim()
         ? disciplineRaw.trim()
         : null;
+    const ageRaw = body.age;
+    const age =
+      typeof ageRaw === "string" && ageRaw.trim() ? ageRaw.trim() : null;
+    const sexRaw = body.sex;
+    const sex =
+      typeof sexRaw === "string" && sexRaw.trim() ? sexRaw.trim() : null;
 
     if (!breed) {
       return NextResponse.json({ error: "Breed is required" }, { status: 400 });
@@ -1075,10 +1101,42 @@ export async function POST(request: Request) {
     };
 
     const [leftReport, rightReport, frontReport, hindReport] = await Promise.all([
-      generateViewReport(anthropic, "left", preparedByView.left, breed, discipline),
-      generateViewReport(anthropic, "right", preparedByView.right, breed, discipline),
-      generateViewReport(anthropic, "front", preparedByView.front, breed, discipline),
-      generateViewReport(anthropic, "hind", preparedByView.hind, breed, discipline),
+      generateViewReport(
+        anthropic,
+        "left",
+        preparedByView.left,
+        breed,
+        discipline,
+        age,
+        sex,
+      ),
+      generateViewReport(
+        anthropic,
+        "right",
+        preparedByView.right,
+        breed,
+        discipline,
+        age,
+        sex,
+      ),
+      generateViewReport(
+        anthropic,
+        "front",
+        preparedByView.front,
+        breed,
+        discipline,
+        age,
+        sex,
+      ),
+      generateViewReport(
+        anthropic,
+        "hind",
+        preparedByView.hind,
+        breed,
+        discipline,
+        age,
+        sex,
+      ),
     ]);
 
     const betterSide: "left" | "right" =

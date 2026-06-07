@@ -324,6 +324,14 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
   { view: "hind", label: "Hind View" },
 ];
 
+const HORSE_SEX_OPTIONS = [
+  "Mare",
+  "Gelding",
+  "Stallion",
+  "Colt",
+  "Filly",
+] as const;
+
 function buildFullReportPdfReport(
   fullReportResult: FullReportApiResponse,
 ): ConformationReport {
@@ -421,6 +429,8 @@ export default function AnalyzeClient() {
   const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
   const [breed, setBreed] = useState("");
+  const [age, setAge] = useState("");
+  const [sex, setSex] = useState("");
   const [discipline, setDiscipline] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -833,6 +843,8 @@ export default function AnalyzeClient() {
       const formData = new FormData();
       formData.append("image", fileToSend);
       formData.append("breed", breed.trim());
+      formData.append("age", age.trim());
+      formData.append("sex", sex.trim());
       formData.append("discipline", discipline.trim());
       formData.append("horseName", horseName.trim());
       formData.append("viewMode", viewMode);
@@ -1143,6 +1155,8 @@ export default function AnalyzeClient() {
           frontUrl,
           hindUrl,
           breed: breed.trim(),
+          age: age.trim(),
+          sex: sex.trim(),
           discipline: discipline.trim(),
           horseName: horseName.trim(),
         }),
@@ -1251,6 +1265,8 @@ export default function AnalyzeClient() {
           frontUrl,
           hindUrl,
           breed: breed.trim(),
+          age: age.trim(),
+          sex: sex.trim(),
           discipline: discipline.trim(),
           horseName: horseName.trim(),
           debugMode: true,
@@ -1558,6 +1574,43 @@ export default function AnalyzeClient() {
               </div>
               <div>
                 <label
+                  htmlFor="age"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Age (optional)
+                </label>
+                <input
+                  id="age"
+                  type="text"
+                  value={age}
+                  onChange={(event) => setAge(event.target.value)}
+                  placeholder="e.g. 5 years, 18 months"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="sex"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Sex (optional)
+                </label>
+                <select
+                  id="sex"
+                  value={sex}
+                  onChange={(event) => setSex(event.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                >
+                  <option value="">Select</option>
+                  {HORSE_SEX_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
                   htmlFor="discipline"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
@@ -1800,6 +1853,43 @@ export default function AnalyzeClient() {
                     required
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
+                </div>
+                <div>
+                  <label
+                    htmlFor="full-report-age"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Age (optional)
+                  </label>
+                  <input
+                    id="full-report-age"
+                    type="text"
+                    value={age}
+                    onChange={(event) => setAge(event.target.value)}
+                    placeholder="e.g. 5 years, 18 months"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="full-report-sex"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Sex (optional)
+                  </label>
+                  <select
+                    id="full-report-sex"
+                    value={sex}
+                    onChange={(event) => setSex(event.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  >
+                    <option value="">Select</option>
+                    {HORSE_SEX_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label
