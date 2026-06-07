@@ -170,14 +170,16 @@ function withReportContext(
   age?: string | null,
   sex?: string | null,
 ): string {
-  let result = `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+  let result = prompt;
+
+  if (sex) {
+    result = `HORSE SEX — REQUIRED: This horse is a ${sex}. You MUST use this sex (${sex}) throughout the entire report — in the summary, every section's notes, and anywhere you refer to the horse. Do NOT infer, assume, or override this sex from the photo. Never call this horse a different sex.\n\n${result}`;
+  }
+
+  result += `\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
 
   if (age) {
     result += `\n\nAGE CONTEXT: This horse is ${age} old. Consider age-appropriate conformation expectations in your analysis and scoring.`;
-  }
-
-  if (sex) {
-    result += `\n\nSEX CONTEXT: This horse is a ${sex}. Consider sex-appropriate conformation traits where relevant in your analysis.`;
   }
 
   if (discipline) {
