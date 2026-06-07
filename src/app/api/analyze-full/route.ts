@@ -1402,14 +1402,36 @@ export async function POST(request: Request) {
       console.error("[analyze-full] failed to save report:", error);
     } else {
       if (savedReport && userId && horseName) {
-        await linkReportToHorse(serviceClient, userId, savedReport.id, {
-          name: horseName,
-          breed: breed || null,
-          coat_color: coatColor ?? "",
-          age: age ?? "",
-          sex: sex ?? "",
-          discipline,
+        console.log("[analyze-full] linkReportToHorse starting:", {
+          userId,
+          reportId: savedReport.id,
+          horseName,
         });
+        try {
+          await linkReportToHorse(serviceClient, userId, savedReport.id, {
+            name: horseName,
+            breed: breed || null,
+            coat_color: coatColor ?? "",
+            age: age ?? "",
+            sex: sex ?? "",
+            discipline,
+          });
+          console.log("[analyze-full] linkReportToHorse completed:", {
+            userId,
+            reportId: savedReport.id,
+            horseName,
+          });
+        } catch (linkError) {
+          console.error("[analyze-full] linkReportToHorse failed:", {
+            userId,
+            reportId: savedReport.id,
+            horseName,
+            error:
+              linkError instanceof Error
+                ? { name: linkError.name, message: linkError.message, stack: linkError.stack }
+                : linkError,
+          });
+        }
       }
 
       // Send first-report email
