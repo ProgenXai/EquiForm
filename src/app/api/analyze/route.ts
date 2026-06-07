@@ -60,6 +60,7 @@ const LANDMARK_DETECTION_USER_ERROR =
   "We couldn't detect horse landmarks in this photo. Please try a photo with better lighting, contrast, and the horse standing square.";
 
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
+const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
 
 const SINGLE_VIEW_3D_DISCLAIMER =
   "3D model generated from a single photo. This is an estimated representation only — a four-view report will produce a more accurate 3D model.";
@@ -72,7 +73,41 @@ function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
   return "image/jpeg";
 }
 
-function parseViewMode(value: FormDataEntryValue | null): CalibrationViewMode {
+type AnalyzeRequestBody = {
+  photoUrl?: string;
+  viewMode?: string;
+  horseName?: string;
+  breed?: string;
+  discipline?: string;
+  age?: string;
+  sex?: string;
+  generate3D?: boolean;
+};
+
+function extractStoragePathFromPublicUrl(url: string): string | null {
+  const marker = `/storage/v1/object/public/${OVERLAY_STORAGE_BUCKET}/`;
+
+  try {
+    const parsed = new URL(url);
+    const markerIndex = parsed.pathname.indexOf(marker);
+    if (markerIndex === -1) return null;
+    return decodeURIComponent(
+      parsed.pathname.slice(markerIndex + marker.length),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function validateTempImageUrl(url: string, userId: string): string | null {
+  const path = extractStoragePathFromPublicUrl(url);
+  if (!path?.startsWith(`${FULL_REPORT_TEMP_PREFIX}/${userId}/`)) {
+    return null;
+  }
+  return path;
+}
+
+function parseViewMode(value: unknown): CalibrationViewMode {
   if (typeof value !== "string") return "left";
   const trimmed = value.trim();
   if (trimmed === "front") return "front";
@@ -293,8 +328,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const formData = await request.formData();
-  const viewMode = parseViewMode(formData.get("viewMode"));
+  let body: AnalyzeRequestBody;
+  try {
+    body = (await request.json()) as AnalyzeRequestBody;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const viewMode = parseViewMode(body.viewMode);
   const roboflowModelId = getRoboflowModelIdForView(viewMode);
   const roboflowModelIdEnvVar = getRoboflowModelIdEnvVarName(viewMode);
 
@@ -305,47 +346,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const file = formData.get("image");
-  const horseNameRaw = formData.get("horseName");
+  const photoUrlRaw = body.photoUrl;
+  const photoUrl = typeof photoUrlRaw === "string" ? photoUrlRaw.trim() : "";
   const horseName =
-    typeof horseNameRaw === "string" && horseNameRaw.trim()
-      ? horseNameRaw.trim()
+    typeof body.horseName === "string" && body.horseName.trim()
+      ? body.horseName.trim()
       : null;
-  const breedRaw = formData.get("breed");
-  const breed = typeof breedRaw === "string" ? breedRaw.trim() : "";
-  const disciplineRaw = formData.get("discipline");
+  const breed = typeof body.breed === "string" ? body.breed.trim() : "";
   const discipline =
-    typeof disciplineRaw === "string" && disciplineRaw.trim()
-      ? disciplineRaw.trim()
+    typeof body.discipline === "string" && body.discipline.trim()
+      ? body.discipline.trim()
       : null;
-  const ageRaw = formData.get("age");
   const age =
-    typeof ageRaw === "string" && ageRaw.trim() ? ageRaw.trim() : null;
-  const sexRaw = formData.get("sex");
+    typeof body.age === "string" && body.age.trim() ? body.age.trim() : null;
   const sex =
-    typeof sexRaw === "string" && sexRaw.trim() ? sexRaw.trim() : null;
-  const generate3D = formData.get("generate3D") === "true";
+    typeof body.sex === "string" && body.sex.trim() ? body.sex.trim() : null;
+  const generate3D = body.generate3D === true;
 
   if (!breed) {
     return NextResponse.json({ error: "Breed is required" }, { status: 400 });
   }
 
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "No image provided" }, { status: 400 });
-  }
-
-  if (!ALLOWED_MIME.has(file.type)) {
-    return NextResponse.json(
-      { error: "Only JPG, PNG, and WEBP images are allowed" },
-      { status: 400 },
-    );
-  }
-
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json(
-      { error: "File must be 10MB or smaller" },
-      { status: 400 },
-    );
+  if (!photoUrl) {
+    return NextResponse.json({ error: "Missing photo URL" }, { status: 400 });
   }
 
   const authHeader = request.headers.get("Authorization");
@@ -360,22 +383,62 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabaseAuth.auth.getUser(token);
 
+  if (!user) {
+    return NextResponse.json(
+      { error: "Authentication required for analysis" },
+      { status: 401 },
+    );
+  }
+
+  const storagePath = validateTempImageUrl(photoUrl, user.id);
+  if (!storagePath) {
+    return NextResponse.json({ error: "Invalid photo URL" }, { status: 400 });
+  }
+
   let isAdmin = false;
-  if (user) {
-    const { data: roleData } = await supabaseAuth
-      .from("user_roles")
-      .select("is_admin")
-      .eq("user_id", user.id)
-      .single();
+  const { data: roleData } = await supabaseAuth
+    .from("user_roles")
+    .select("is_admin")
+    .eq("user_id", user.id)
+    .single();
 
-    isAdmin = roleData?.is_admin === true;
-  }
-
-  if (!isAdmin) {
-  }
+  isAdmin = roleData?.is_admin === true;
 
   try {
-    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const imageResponse = await fetch(photoUrl);
+    if (!imageResponse.ok) {
+      return NextResponse.json(
+        { error: "Failed to fetch photo" },
+        { status: 400 },
+      );
+    }
+
+    const inputBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    if (inputBuffer.length === 0) {
+      return NextResponse.json({ error: "Photo is empty" }, { status: 400 });
+    }
+
+    if (inputBuffer.length > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "File must be 10MB or smaller" },
+        { status: 400 },
+      );
+    }
+
+    const contentType =
+      imageResponse.headers.get("content-type") ?? "image/jpeg";
+    const normalizedContentType = contentType.split(";")[0]?.trim() ?? "";
+
+    if (normalizedContentType && !ALLOWED_MIME.has(normalizedContentType)) {
+      return NextResponse.json(
+        { error: "Only JPG, PNG, and WEBP images are allowed" },
+        { status: 400 },
+      );
+    }
+
+    const mediaType = toAnthropicMediaType(
+      normalizedContentType || "image/jpeg",
+    );
     const metadata = await sharp(inputBuffer).metadata();
 
     if (!metadata.width || !metadata.height) {
@@ -415,7 +478,6 @@ export async function POST(request: Request) {
 
     const imageWidth = metadata.width;
     const imageHeight = metadata.height;
-    const mediaType = toAnthropicMediaType(file.type);
     const imageBase64 = inputBuffer.toString("base64");
     const anthropicMediaType: AnthropicImageMediaType =
       anthropicBuffer === inputBuffer ? mediaType : "image/jpeg";
@@ -654,27 +716,11 @@ export async function POST(request: Request) {
 
     let glbUrl: string | null = null;
 
-    if (generate3D && user) {
-      const photoStoragePath = `full-report-temp/${user.id}/${Date.now()}-3d.jpg`;
-      const { error: photoUploadError } = await serviceClient.storage
-        .from(OVERLAY_STORAGE_BUCKET)
-        .upload(photoStoragePath, inputBuffer, {
-          contentType: mediaType,
-          upsert: false,
-        });
-
-      if (photoUploadError) {
-        console.error("[analyze] 3D photo upload failed:", photoUploadError);
-      } else {
-        const { data: photoPublicUrl } = serviceClient.storage
-          .from(OVERLAY_STORAGE_BUCKET)
-          .getPublicUrl(photoStoragePath);
-        const sidePhotoUrl = photoPublicUrl.publicUrl;
-        const meshyGlbUrl = await generateMeshy3DModel(sidePhotoUrl);
-        glbUrl = meshyGlbUrl
-          ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
-          : null;
-      }
+    if (generate3D) {
+      const meshyGlbUrl = await generateMeshy3DModel(photoUrl);
+      glbUrl = meshyGlbUrl
+        ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
+        : null;
     }
 
     return NextResponse.json({

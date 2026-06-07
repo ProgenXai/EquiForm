@@ -325,8 +325,12 @@ function getFullReportViewReport(
 export default function AnalyzeClient() {
   const router = useRouter();
   const supabase = createClient();
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [singleViewPhoto, setSingleViewPhoto] = useState<FullReportSlot | null>(
+    null,
+  );
+  const [singleViewUploading, setSingleViewUploading] = useState(false);
+  const singleViewPhotoRef = useRef(singleViewPhoto);
+  singleViewPhotoRef.current = singleViewPhoto;
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("full");
   const [fullReportPhotos, setFullReportPhotos] = useState<
     Partial<Record<FullReportView, FullReportSlot>>
@@ -432,6 +436,10 @@ export default function AnalyzeClient() {
   useEffect(() => {
     return () => {
       revokeFullReportPreviewUrls(fullReportPhotosRef.current);
+      const slot = singleViewPhotoRef.current;
+      if (slot?.previewUrl) {
+        URL.revokeObjectURL(slot.previewUrl);
+      }
     };
   }, []);
 
@@ -556,13 +564,20 @@ export default function AnalyzeClient() {
     }
   }
 
-  function handleAnalyzeAnotherHorse() {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
+  async function clearSingleViewPhoto() {
+    const slot = singleViewPhotoRef.current;
+    if (slot?.storagePath) {
+      await deleteFullReportStorageFiles([slot.storagePath]);
     }
+    if (slot?.previewUrl) {
+      URL.revokeObjectURL(slot.previewUrl);
+    }
+    setSingleViewPhoto(null);
+  }
+
+  function handleAnalyzeAnotherHorse() {
+    void clearSingleViewPhoto();
     void clearFullReportPhotos();
-    setPreviewUrl(null);
-    setSelectedFile(null);
     setFullReportResult(null);
     setHorseName("");
     setLoading(false);
@@ -577,20 +592,12 @@ export default function AnalyzeClient() {
   }
 
   function handleTryAnotherPhoto() {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setPreviewUrl(null);
-    setSelectedFile(null);
+    void clearSingleViewPhoto();
     setError(null);
   }
 
   function handleRemoveSingleViewPhoto() {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setPreviewUrl(null);
-    setSelectedFile(null);
+    void clearSingleViewPhoto();
     setError(null);
     resetResult();
   }
@@ -614,18 +621,63 @@ export default function AnalyzeClient() {
       return;
     }
 
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+
+    if (!currentSession?.user) {
+      setError("Sign in to upload photos for analysis.");
+      return;
     }
 
+    setSingleViewUploading(true);
+    setError(null);
+
+    const existingSlot = singleViewPhotoRef.current;
+    const userId = currentSession.user.id;
+
     try {
-      const { file: processedFile, previewUrl: nextPreviewUrl } =
+      const { file: processedFile, previewUrl } =
         await compressImageIfNeeded(file);
-      setSelectedFile(processedFile);
-      setPreviewUrl(nextPreviewUrl);
-      setError(null);
-    } catch {
-      setError("Failed to process image. Please try another photo.");
+
+      if (existingSlot?.storagePath) {
+        await deleteFullReportStorageFiles([existingSlot.storagePath]);
+      }
+
+      const storagePath = `${FULL_REPORT_TEMP_PREFIX}/${userId}/${Date.now()}-single.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(FULL_REPORT_STORAGE_BUCKET)
+        .upload(storagePath, processedFile, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(FULL_REPORT_STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+
+      if (existingSlot?.previewUrl && existingSlot.previewUrl !== previewUrl) {
+        URL.revokeObjectURL(existingSlot.previewUrl);
+      }
+
+      setSingleViewPhoto({
+        previewUrl,
+        supabaseUrl: publicUrlData.publicUrl,
+        storagePath,
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Failed to upload photo: ${err.message}`
+          : "Failed to upload photo. Please try another.",
+      );
+    } finally {
+      setSingleViewUploading(false);
     }
   }
 
@@ -730,7 +782,7 @@ export default function AnalyzeClient() {
   }
 
   async function handleAnalyze() {
-    if (!selectedFile) {
+    if (!singleViewPhoto?.supabaseUrl) {
       setError("Upload a photo first.");
       return;
     }
@@ -748,20 +800,6 @@ export default function AnalyzeClient() {
     setEmailError(null);
 
     try {
-      const { file: fileToSend } = await compressImageIfNeeded(selectedFile);
-
-      const formData = new FormData();
-      formData.append("image", fileToSend);
-      formData.append("breed", breed.trim());
-      formData.append("age", age.trim());
-      formData.append("sex", sex.trim());
-      formData.append("discipline", discipline.trim());
-      formData.append("horseName", horseName.trim());
-      formData.append("viewMode", viewMode);
-      if (generate3D) {
-        formData.append("generate3D", "true");
-      }
-
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -770,49 +808,35 @@ export default function AnalyzeClient() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session?.access_token ?? ""}`,
+          "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify({
+          photoUrl: singleViewPhoto.supabaseUrl,
+          viewMode,
+          breed: breed.trim(),
+          age: age.trim(),
+          sex: sex.trim(),
+          discipline: discipline.trim(),
+          horseName: horseName.trim(),
+          ...(generate3D ? { generate3D: true } : {}),
+        }),
       });
 
       const contentType = response.headers.get("content-type") ?? "";
       const isJson = contentType.includes("application/json");
 
-      let result: AnalyzeApiResponse & {
+      if (!isJson) {
+        await response.text();
+        throw new Error("Analysis failed");
+      }
+
+      const result = (await response.json()) as AnalyzeApiResponse & {
         error?: string;
         requiresPayment?: boolean;
         overlayUrl?: string;
         glbUrl?: string | null;
         disclaimer?: string;
       };
-
-      try {
-        if (!response.ok || !isJson) {
-          if (!isJson) {
-            await response.text();
-            throw new Error(
-              "Photo file is too large. Please try a smaller image.",
-            );
-          }
-        }
-
-        result = (await response.json()) as AnalyzeApiResponse & {
-          error?: string;
-          requiresPayment?: boolean;
-          overlayUrl?: string;
-          glbUrl?: string | null;
-          disclaimer?: string;
-        };
-      } catch (parseError) {
-        if (
-          parseError instanceof Error &&
-          parseError.message ===
-            "Photo file is too large. Please try a smaller image."
-        ) {
-          throw parseError;
-        }
-
-        throw new Error("Photo file is too large. Please try a smaller image.");
-      }
 
       console.log("API response:", result);
 
@@ -1006,9 +1030,10 @@ export default function AnalyzeClient() {
       fullReportBalance >= FULL_REPORT_CREDIT_COST);
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
-    !selectedFile ||
+    !singleViewPhoto?.supabaseUrl ||
     !breed.trim() ||
     loading ||
+    singleViewUploading ||
     (!authLoading && !hasAnalyzeAccess);
   const fullReportSubmitDisabled =
     typeof window === "undefined" ||
@@ -1233,7 +1258,7 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      {analysisMode === "quick" && previewUrl ? (
+      {analysisMode === "quick" && singleViewPhoto?.previewUrl ? (
         <button
           type="button"
           onClick={handleRemoveSingleViewPhoto}
@@ -1396,13 +1421,13 @@ export default function AnalyzeClient() {
                 </button>
               ))}
             </div>
-            {previewUrl ? (
+            {singleViewPhoto?.previewUrl ? (
               <p className="mt-2 text-xs text-amber-400">
                 Make sure you&apos;ve selected the correct view above before analyzing.
               </p>
             ) : null}
           </div>
-          {!previewUrl ? (
+          {!singleViewPhoto?.previewUrl ? (
             <>
               <div className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
                 <p className="font-medium text-accent">For best results:</p>
@@ -1421,12 +1446,14 @@ export default function AnalyzeClient() {
                 </Link>
               </p>
               <label
-                className="mt-4 flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 text-center transition hover:border-accent/60 hover:bg-accent/10"
+                className={`mt-4 flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 text-center transition hover:border-accent/60 hover:bg-accent/10 ${
+                  singleViewUploading ? "pointer-events-none opacity-60" : ""
+                }`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
               >
                 <span className="text-sm font-medium text-zinc-200">
-                  Upload horse photo
+                  {singleViewUploading ? "Uploading photo…" : "Upload horse photo"}
                 </span>
                 <span className="mt-2 text-xs text-zinc-500">
                   {VIEW_MODE_UPLOAD_HINT[viewMode]}
@@ -1441,7 +1468,7 @@ export default function AnalyzeClient() {
             </>
           ) : null}
 
-          {previewUrl ? (
+          {singleViewPhoto?.previewUrl ? (
             <div className="mt-6">
               <p className="mb-2 text-xs font-medium text-zinc-400">Preview</p>
               <div className="relative mx-auto w-full">
@@ -1455,7 +1482,7 @@ export default function AnalyzeClient() {
                 </button>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={previewUrl}
+                  src={singleViewPhoto.previewUrl}
                   alt="Uploaded horse"
                   className="max-h-96 w-full rounded-lg border border-zinc-800 object-contain"
                 />
@@ -1463,7 +1490,7 @@ export default function AnalyzeClient() {
             </div>
           ) : null}
 
-          {previewUrl ? (
+          {singleViewPhoto?.previewUrl ? (
             <div className="mt-6 space-y-6">
               <div>
                 <label
@@ -1588,7 +1615,7 @@ export default function AnalyzeClient() {
               </>
             ) : null}
 
-            {previewUrl ? (
+            {singleViewPhoto?.previewUrl ? (
               <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
                 <input
                   type="checkbox"
