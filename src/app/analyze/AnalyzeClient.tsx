@@ -273,6 +273,26 @@ const COAT_COLOR_SUGGESTIONS = [
   "Pinto",
 ] as const;
 
+const DISCIPLINE_SUGGESTIONS = [
+  "Barrel Racing",
+  "Reining",
+  "Cutting",
+  "Roping",
+  "Team Penning",
+  "Sorting",
+  "Dressage",
+  "Hunter/Jumper",
+  "Eventing",
+  "Western Pleasure",
+  "Trail",
+  "Endurance",
+  "Polo",
+  "Racing",
+  "Broodmare",
+  "Retired",
+  "Pleasure Riding",
+] as const;
+
 const TYPEAHEAD_INPUT_CLASS =
   "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none";
 
@@ -1965,22 +1985,14 @@ export default function AnalyzeClient() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label
-                  htmlFor="discipline"
-                  className="mb-2 block text-xs font-medium text-zinc-400"
-                >
-                  Discipline (optional)
-                </label>
-                <input
-                  id="discipline"
-                  type="text"
-                  value={discipline}
-                  onChange={(event) => setDiscipline(event.target.value)}
-                  placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper, Cutting, Roping, Broodmare, Retired"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                />
-              </div>
+              <TypeaheadInput
+                id="discipline"
+                label="Discipline (optional)"
+                value={discipline}
+                onChange={setDiscipline}
+                placeholder="e.g. Barrel Racing, Dressage, Broodmare"
+                suggestions={DISCIPLINE_SUGGESTIONS}
+              />
             </div>
           ) : null}
 
@@ -2237,22 +2249,14 @@ export default function AnalyzeClient() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label
-                    htmlFor="full-report-discipline"
-                    className="mb-2 block text-xs font-medium text-zinc-400"
-                  >
-                    Discipline (optional)
-                  </label>
-                  <input
-                    id="full-report-discipline"
-                    type="text"
-                    value={discipline}
-                    onChange={(event) => setDiscipline(event.target.value)}
-                    placeholder="e.g. Barrel Racing, Reining, Dressage, Hunter/Jumper, Cutting, Roping, Broodmare, Retired"
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                  />
-                </div>
+                <TypeaheadInput
+                  id="full-report-discipline"
+                  label="Discipline (optional)"
+                  value={discipline}
+                  onChange={setDiscipline}
+                  placeholder="e.g. Barrel Racing, Dressage, Broodmare"
+                  suggestions={DISCIPLINE_SUGGESTIONS}
+                />
               </div>
 
               <div className="mt-6">
