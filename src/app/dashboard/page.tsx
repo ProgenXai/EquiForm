@@ -26,9 +26,72 @@ function getWelcomeName(user: {
   return capitalizeEmailPrefix(user.email ?? "");
 }
 
+type CreditBalances = {
+  single_view_balance: number;
+  single_view_3d_balance: number;
+  full_report_balance: number;
+  full_report_3d_balance: number;
+};
+
+function formatBalanceBadge(
+  count: number,
+  labelSingular: string,
+  labelPlural: string,
+): string {
+  const label = count === 1 ? labelSingular : labelPlural;
+  return `${count} ${label} remaining`;
+}
+
+function getBalanceBadges(balances: CreditBalances): string[] {
+  const badges: string[] = [];
+
+  if (balances.single_view_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.single_view_balance,
+        "Single View Report",
+        "Single View Reports",
+      ),
+    );
+  }
+
+  if (balances.single_view_3d_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.single_view_3d_balance,
+        "Single View + 3D Report",
+        "Single View + 3D Reports",
+      ),
+    );
+  }
+
+  if (balances.full_report_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.full_report_balance,
+        "Four-View Report",
+        "Four-View Reports",
+      ),
+    );
+  }
+
+  if (balances.full_report_3d_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.full_report_3d_balance,
+        "Four-View + 3D Report",
+        "Four-View + 3D Reports",
+      ),
+    );
+  }
+
+  return badges;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
+  const [balances, setBalances] = useState<CreditBalances | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,6 +107,21 @@ export default function DashboardPage() {
       }
 
       setWelcomeName(getWelcomeName(session.user));
+
+      const { data: tokenRow } = await supabase
+        .from("user_tokens")
+        .select(
+          "single_view_balance, single_view_3d_balance, full_report_balance, full_report_3d_balance",
+        )
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      setBalances({
+        single_view_balance: tokenRow?.single_view_balance ?? 0,
+        single_view_3d_balance: tokenRow?.single_view_3d_balance ?? 0,
+        full_report_balance: tokenRow?.full_report_balance ?? 0,
+        full_report_3d_balance: tokenRow?.full_report_3d_balance ?? 0,
+      });
       setLoading(false);
     }
 
@@ -57,6 +135,8 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const balanceBadges = balances ? getBalanceBadges(balances) : [];
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -107,6 +187,27 @@ export default function DashboardPage() {
             Select the analysis package that fits your needs
           </p>
         </div>
+
+        {balances ? (
+          <div className="mb-8 flex flex-col items-center gap-3">
+            {balanceBadges.length > 0 ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                {balanceBadges.map((badge) => (
+                  <span
+                    key={badge}
+                    className="rounded-full border border-accent/40 bg-accent/10 px-4 py-1.5 text-sm font-medium text-accent"
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-400">
+                No reports remaining — choose a package below.
+              </p>
+            )}
+          </div>
+        ) : null}
 
         <PurchaseTierGrid authRedirectPath="/" />
       </main>

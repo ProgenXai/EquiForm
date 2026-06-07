@@ -2018,17 +2018,24 @@ export default function AnalyzeClient() {
                         ) : null}
 
                         {fullReportGlbUrl ? (
-                          <HorseViewer3D
-                            className="mt-8"
-                            landmarks={fullReportResult.landmarks}
-                            coatColor={fullReportResult.coatColor}
-                            markings={fullReportResult.markings}
-                            tripoGlbUrl={fullReportGlbUrl}
-                            leftPhotoUrl={fullReportPhotos.left?.supabaseUrl}
-                            rightPhotoUrl={fullReportPhotos.right?.supabaseUrl}
-                            frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}
-                            hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
-                          />
+                          <>
+                            <HorseViewer3D
+                              className="mt-8"
+                              landmarks={fullReportResult.landmarks}
+                              coatColor={fullReportResult.coatColor}
+                              markings={fullReportResult.markings}
+                              tripoGlbUrl={fullReportGlbUrl}
+                              leftPhotoUrl={fullReportPhotos.left?.supabaseUrl}
+                              rightPhotoUrl={fullReportPhotos.right?.supabaseUrl}
+                              frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}
+                              hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
+                            />
+                            <p className="mt-3 text-xs italic text-zinc-500">
+                              3D model is AI-generated from your photos. Results may
+                              vary based on photo quality, lighting, camera angle, and
+                              horse stance.
+                            </p>
+                          </>
                         ) : null}
 
                         <p className="mt-4 text-sm leading-relaxed text-zinc-300">
