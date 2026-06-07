@@ -1998,8 +1998,7 @@ export default function AnalyzeClient() {
             </div>
           ) : null}
 
-          {singleViewPhoto?.previewUrl ? (
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label
                   htmlFor="horse-name"
@@ -2088,7 +2087,6 @@ export default function AnalyzeClient() {
                 hint="Select one or more disciplines."
               />
             </div>
-          ) : null}
 
           <div className="mt-6">
             {!authLoading ? (
