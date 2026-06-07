@@ -126,13 +126,6 @@ const REPORT_SECTIONS_BY_VIEW: Record<
   ],
 };
 
-const VIEW_MODE_OPTIONS: { value: CalibrationViewMode; label: string }[] = [
-  { value: "left", label: "Left Side" },
-  { value: "right", label: "Right Side" },
-  { value: "front", label: "Front View" },
-  { value: "hind", label: "Hind View" },
-];
-
 const APP_SUBTITLE =
   "The most advanced AI equine conformation analysis available";
 
@@ -178,14 +171,6 @@ const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
 
 const SIDE_VIEW_UPLOAD_HINT =
   "JPG, PNG, or WEBP · max 10MB · side profile recommended";
-
-const VIEW_MODE_UPLOAD_HINT: Record<CalibrationViewMode, string> = {
-  side: SIDE_VIEW_UPLOAD_HINT,
-  left: SIDE_VIEW_UPLOAD_HINT,
-  right: SIDE_VIEW_UPLOAD_HINT,
-  front: "JPG, PNG, or WEBP · max 10MB · front view recommended",
-  hind: "JPG, PNG, or WEBP · max 10MB · hind view recommended",
-};
 
 const PENDING_RESULT_KEY = "equiform_pending_result";
 
@@ -339,8 +324,6 @@ export default function AnalyzeClient() {
     useState<FullReportView | null>(null);
   const fullReportPhotosRef = useRef(fullReportPhotos);
   fullReportPhotosRef.current = fullReportPhotos;
-  const [viewMode, setViewMode] = useState<CalibrationViewMode>("left");
-  const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
   const [breed, setBreed] = useState("");
   const [age, setAge] = useState("");
@@ -812,7 +795,7 @@ export default function AnalyzeClient() {
         },
         body: JSON.stringify({
           photoUrl: singleViewPhoto.supabaseUrl,
-          viewMode,
+          viewMode: "left",
           breed: breed.trim(),
           age: age.trim(),
           sex: sex.trim(),
@@ -854,7 +837,6 @@ export default function AnalyzeClient() {
         setEmailSubmitted(false);
       }
 
-      setAnalyzedViewMode(viewMode);
       setResult(result);
 
       if (session?.access_token) {
@@ -1398,41 +1380,12 @@ export default function AnalyzeClient() {
 
           {analysisMode === "quick" ? (
             <>
-          <div className="mb-6">
-            <p className="mb-2 text-xs font-medium text-zinc-400">Photo view</p>
-            <div
-              className="flex rounded-lg border border-zinc-700 bg-zinc-950 p-1"
-              role="group"
-              aria-label="Photo view"
-            >
-              {VIEW_MODE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setViewMode(option.value)}
-                  aria-pressed={viewMode === option.value}
-                  className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
-                    viewMode === option.value
-                      ? "bg-accent text-black shadow-sm"
-                      : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {singleViewPhoto?.previewUrl ? (
-              <p className="mt-2 text-xs text-amber-400">
-                Make sure you&apos;ve selected the correct view above before analyzing.
-              </p>
-            ) : null}
-          </div>
           {!singleViewPhoto?.previewUrl ? (
             <>
               <div className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
                 <p className="font-medium text-accent">For best results:</p>
                 <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-                  {VIEW_MODE_TIPS[viewMode].map((tip) => (
+                  {SIDE_VIEW_TIPS.map((tip) => (
                     <li key={tip}>{tip}</li>
                   ))}
                 </ul>
@@ -1453,10 +1406,12 @@ export default function AnalyzeClient() {
                 onDrop={handleDrop}
               >
                 <span className="text-sm font-medium text-zinc-200">
-                  {singleViewUploading ? "Uploading photo…" : "Upload horse photo"}
+                  {singleViewUploading
+                    ? "Uploading photo…"
+                    : "Upload a side profile photo of your horse."}
                 </span>
                 <span className="mt-2 text-xs text-zinc-500">
-                  {VIEW_MODE_UPLOAD_HINT[viewMode]}
+                  {SIDE_VIEW_UPLOAD_HINT}
                 </span>
                 <input
                   type="file"
@@ -2331,7 +2286,7 @@ export default function AnalyzeClient() {
               </p>
 
               <ul className="mt-6 space-y-4">
-                {REPORT_SECTIONS_BY_VIEW[analyzedViewMode].map(({ key, label }) => {
+                {SIDE_REPORT_SECTIONS.map(({ key, label }) => {
                   const section = result.report[key];
                   return (
                     <li
@@ -2358,13 +2313,7 @@ export default function AnalyzeClient() {
                 <>
                   <HorseViewer3D
                     className="mt-8"
-                    landmarks={
-                      analyzedViewMode === "front"
-                        ? { front: result.landmarks }
-                        : analyzedViewMode === "hind"
-                          ? { hind: result.landmarks }
-                          : { left: result.landmarks }
-                    }
+                    landmarks={{ left: result.landmarks }}
                     tripoGlbUrl={result.glbUrl}
                   />
                   {result.disclaimer ? (
