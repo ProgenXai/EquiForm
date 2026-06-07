@@ -394,6 +394,12 @@ function TypeaheadInput({
         className="mb-2 block text-xs font-medium text-zinc-400"
       >
         {label}
+        {required ? (
+          <>
+            {" "}
+            <span className="text-red-500">*</span>
+          </>
+        ) : null}
       </label>
       <input
         id={id}
@@ -1975,7 +1981,8 @@ export default function AnalyzeClient() {
                   htmlFor="horse-name"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Horse name
+                  Horse name{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="horse-name"
@@ -2010,7 +2017,8 @@ export default function AnalyzeClient() {
                   htmlFor="age"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Age
+                  Age{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="age"
@@ -2027,7 +2035,8 @@ export default function AnalyzeClient() {
                   htmlFor="sex"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Sex
+                  Sex{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="sex"
@@ -2241,7 +2250,8 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-horse-name"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Horse name
+                    Horse name{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="full-report-horse-name"
@@ -2276,7 +2286,8 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-age"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Age
+                    Age{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="full-report-age"
@@ -2293,7 +2304,8 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-sex"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Sex
+                    Sex{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="full-report-sex"
