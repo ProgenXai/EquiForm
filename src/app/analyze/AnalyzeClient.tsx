@@ -565,6 +565,31 @@ function parseLandmarkPoints(
   return points;
 }
 
+function parseAnalyzeApiResponse(
+  raw: AnalyzeApiResponse & {
+    error?: string;
+    requiresPayment?: boolean;
+    glbUrl?: string | null;
+    disclaimer?: string;
+  },
+): AnalyzeApiResponse & { glbUrl?: string | null; disclaimer?: string } {
+  return {
+    overlayImage:
+      typeof raw.overlayImage === "string"
+        ? raw.overlayImage
+        : typeof raw.overlayUrl === "string"
+          ? raw.overlayUrl
+          : "",
+    overlayUrl: typeof raw.overlayUrl === "string" ? raw.overlayUrl : undefined,
+    report: parseViewReportValue(raw.report),
+    landmarks: parseLandmarkPoints(raw.landmarks),
+    reportId: typeof raw.reportId === "string" ? raw.reportId : null,
+    pdfUrl: typeof raw.pdfUrl === "string" ? raw.pdfUrl : null,
+    ...(typeof raw.glbUrl === "string" ? { glbUrl: raw.glbUrl } : {}),
+    ...(typeof raw.disclaimer === "string" ? { disclaimer: raw.disclaimer } : {}),
+  };
+}
+
 function parseFullReportApiResponse(
   raw: FullReportApiResponse & {
     error?: string;
@@ -1368,7 +1393,22 @@ export default function AnalyzeClient() {
         setEmailSubmitted(false);
       }
 
-      setResult(result);
+      const savedReportId =
+        typeof result.reportId === "string" ? result.reportId.trim() : "";
+
+      try {
+        setResult(parseAnalyzeApiResponse(result));
+      } catch (displayError) {
+        if (savedReportId) {
+          setError(
+            "Your analysis was saved, but the report could not be displayed. View it in My Reports.",
+          );
+        } else {
+          throw displayError instanceof Error
+            ? displayError
+            : new Error("Analysis failed");
+        }
+      }
 
       if (session?.access_token && session.user) {
         const balanceResponse = await fetch("/api/get-balance", {
