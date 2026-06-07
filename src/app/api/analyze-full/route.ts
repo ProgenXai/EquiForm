@@ -491,7 +491,7 @@ async function generateMeshy3DModel(
     console.log('[meshy] request payload:', JSON.stringify(meshyPayload, null, 2));
 
     const submitResponse = await fetch(
-      "https://api.meshy.ai/openapi/v1/multiimage-to-3d",
+      "https://api.meshy.ai/openapi/v1/multi-image-to-3d",
       {
         method: "POST",
         headers: {
@@ -527,7 +527,7 @@ async function generateMeshy3DModel(
       await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
       const statusResponse = await fetch(
-        `https://api.meshy.ai/openapi/v1/multiimage-to-3d/${taskId}`,
+        `https://api.meshy.ai/openapi/v1/multi-image-to-3d/${taskId}`,
         {
           headers: {
             Authorization: `Bearer ${apiKey}`,
