@@ -4,12 +4,14 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import PurchaseTierGrid from "@/components/PurchaseTierGrid";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
 export default function BuyRosettesPage() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <button
         type="button"
         onClick={() => router.push("/analyze")}

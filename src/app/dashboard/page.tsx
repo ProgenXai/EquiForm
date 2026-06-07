@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import PurchaseTierGrid from "@/components/PurchaseTierGrid";
 
 function capitalizeEmailPrefix(email: string): string {
@@ -140,6 +141,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <header className="border-b border-zinc-800 bg-black px-6 py-4 text-center sm:py-8">
         <div className="flex justify-center">
           <Image

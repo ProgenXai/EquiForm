@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+
 const GOOD_EXAMPLES = ["good-1.jpg", "good-2.jpg", "good-3.jpg", "good-4.jpg"] as const;
 const BAD_EXAMPLES = ["bad-1.jpg", "bad-2.jpg", "bad-3.jpg", "bad-4.jpg"] as const;
 
@@ -157,6 +159,7 @@ function ViewSection({
 export default function ExamplesPage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <header className="border-b border-zinc-800 bg-black px-6 py-4 text-center sm:py-8">
         <div className="flex justify-center">
           <Image

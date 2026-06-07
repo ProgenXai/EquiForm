@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+
 const SUBJECT_OPTIONS = [
   "General Question",
   "Bug Report",
@@ -57,6 +59,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <button
         type="button"
         onClick={() => router.push("/analyze")}

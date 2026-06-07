@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import { createClient } from "@/lib/supabase/client";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
 type HorseDetail = {
   id: string;
@@ -125,6 +126,7 @@ export default function HorseProgressPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-sm text-zinc-400">
+        <AppHamburgerMenu />
         <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
         <span className="ml-3">Loading horse progress…</span>
       </div>
@@ -134,6 +136,7 @@ export default function HorseProgressPage() {
   if (notFound || !horse) {
     return (
       <div className="min-h-screen bg-black px-6 py-10 text-zinc-100">
+        <AppHamburgerMenu />
         <Link
           href="/my-horses"
           className="text-sm font-medium text-accent transition hover:text-accent-hover"
@@ -147,6 +150,7 @@ export default function HorseProgressPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <AppHamburgerMenu />
       <Link
         href="/my-horses"
         className="inline-block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
