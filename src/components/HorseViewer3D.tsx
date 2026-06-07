@@ -26,8 +26,6 @@ type HorseViewer3DProps = {
   tripoGlbUrl?: string | null;
 };
 
-const HORSE_MODEL_PATH =
-  "https://uketidictondmetyngxh.supabase.co/storage/v1/object/public/models/horse-rigged.glb";
 const COAT_COLOR_MAP: Record<string, number> = {
   black: 0x0a0a0a,
   bay: 0x6b3a2a,
@@ -758,6 +756,7 @@ export default function HorseViewer3D({
     void (async () => {
       try {
         if (!tripoGlbUrl) {
+          setLoadError("Unable to load 3D horse model.");
           setLoading(false);
           return;
         }
