@@ -481,22 +481,26 @@ async function generateTripo3DModel(
   if (!apiKey) return null;
 
   try {
+    const tripoPayload = {
+      type: "multiview_to_model",
+      files: [
+        { type: "jpg", url: frontUrl },
+        { type: "jpg", url: bestSideUrl },
+        {},
+        { type: "jpg", url: hindUrl },
+      ],
+      model_version: "v2.5-20250123",
+    };
+
+    console.log('[tripo3d] request payload:', JSON.stringify(tripoPayload, null, 2));
+
     const submitResponse = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        type: "multiview_to_model",
-        files: [
-          { type: "jpg", url: frontUrl },
-          { type: "jpg", url: bestSideUrl },
-          {},
-          { type: "jpg", url: hindUrl },
-        ],
-        model_version: "v2.5-20250123",
-      }),
+      body: JSON.stringify(tripoPayload),
     });
 
     if (!submitResponse.ok) {
