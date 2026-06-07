@@ -877,11 +877,46 @@ export async function POST(request: Request) {
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
+    const tripoTimestamp = Date.now();
+    const tripoPhotoUrls = {
+      front: "",
+      left: "",
+      hind: "",
+      right: "",
+    };
+
+    await Promise.all(
+      (["front", "left", "hind", "right"] as const).map(async (view) => {
+        const imageResponse = await fetch(imageUrls[view]);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch ${view} photo for Tripo3D upload`);
+        }
+
+        const buffer = Buffer.from(await imageResponse.arrayBuffer());
+        const storagePath = `tripo-input/${user.id}/${tripoTimestamp}-${view}.jpg`;
+        const { error: uploadError } = await serviceClient.storage
+          .from("horse-photos")
+          .upload(storagePath, buffer, {
+            contentType: "image/jpeg",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Failed to upload ${view} photo for Tripo3D`);
+        }
+
+        const { data: publicUrlData } = serviceClient.storage
+          .from("horse-photos")
+          .getPublicUrl(storagePath);
+        tripoPhotoUrls[view] = publicUrlData.publicUrl;
+      }),
+    );
+
     const tripoGlbUrl = await generateTripo3DModel(
-      imageUrls.front,
-      imageUrls.left,
-      imageUrls.hind,
-      imageUrls.right,
+      tripoPhotoUrls.front,
+      tripoPhotoUrls.left,
+      tripoPhotoUrls.hind,
+      tripoPhotoUrls.right,
     );
 
     const combinedScore = calculateCombinedScore(
