@@ -11,7 +11,8 @@ export type ReportPackageOption = {
   reportCount: 1 | 3 | 5;
   stripePriceId: string;
   label: string;
-  savingsLabel?: string;
+  priceDisplay?: string;
+  savingsDisplay?: string;
 };
 
 export type ReportTier = {
@@ -44,14 +45,16 @@ export const REPORT_TIERS: ReportTier[] = [
         reportCount: 3,
         stripePriceId: "price_1Te0VY6SA5I9u4voomqK0K79",
         label: "3 Reports",
-        savingsLabel: "Save with a 3-pack",
+        priceDisplay: "$25",
+        savingsDisplay: "$5",
       },
       {
         packId: "sv-5",
         reportCount: 5,
         stripePriceId: "price_1Te0VC6SA5I9u4vozrpsA9k9",
         label: "5 Reports",
-        savingsLabel: "Save with a 5-pack",
+        priceDisplay: "$40",
+        savingsDisplay: "$10",
       },
     ],
   },
@@ -74,14 +77,16 @@ export const REPORT_TIERS: ReportTier[] = [
         reportCount: 3,
         stripePriceId: "price_1Tfl9m6SA5I9u4vova2WOBwA",
         label: "3 Reports",
-        savingsLabel: "Save with a 3-pack",
+        priceDisplay: "$48",
+        savingsDisplay: "$6",
       },
       {
         packId: "sv3d-5",
         reportCount: 5,
         stripePriceId: "price_1TflAL6SA5I9u4vogzOdxkCE",
         label: "5 Reports",
-        savingsLabel: "Save with a 5-pack",
+        priceDisplay: "$75",
+        savingsDisplay: "$15",
       },
     ],
   },
@@ -104,14 +109,16 @@ export const REPORT_TIERS: ReportTier[] = [
         reportCount: 3,
         stripePriceId: "price_1Te0XH6SA5I9u4vo2QdMUMt5",
         label: "3 Reports",
-        savingsLabel: "Save with a 3-pack",
+        priceDisplay: "$50",
+        savingsDisplay: "$10",
       },
       {
         packId: "fv-5",
         reportCount: 5,
         stripePriceId: "price_1Te0Wz6SA5I9u4vodJfb7npV",
         label: "5 Reports",
-        savingsLabel: "Save with a 5-pack",
+        priceDisplay: "$75",
+        savingsDisplay: "$25",
       },
     ],
   },
@@ -135,14 +142,16 @@ export const REPORT_TIERS: ReportTier[] = [
         reportCount: 3,
         stripePriceId: "price_1Te0Wj6SA5I9u4vou6vVxgF9",
         label: "3 Reports",
-        savingsLabel: "Save with a 3-pack",
+        priceDisplay: "$75",
+        savingsDisplay: "$15",
       },
       {
         packId: "fv3d-5",
         reportCount: 5,
         stripePriceId: "price_1TflB16SA5I9u4voSUfusvYf",
         label: "5 Reports",
-        savingsLabel: "Save with a 5-pack",
+        priceDisplay: "$120",
+        savingsDisplay: "$30",
       },
     ],
   },

@@ -11,6 +11,10 @@ type PurchaseTierGridProps = {
   authRedirectPath?: string;
 };
 
+function formatBundleRow(option: ReportPackageOption): string {
+  return `${option.label} — ${option.priceDisplay} · Save ${option.savingsDisplay}`;
+}
+
 function TierCard({
   tier,
   loadingPriceId,
@@ -68,13 +72,8 @@ function TierCard({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-zinc-200">
-                    {option.label}
+                    {formatBundleRow(option)}
                   </p>
-                  {option.savingsLabel ? (
-                    <p className="mt-1 text-xs text-accent">
-                      {option.savingsLabel}
-                    </p>
-                  ) : null}
                 </div>
                 <button
                   type="button"
