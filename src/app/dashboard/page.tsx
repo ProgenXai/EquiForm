@@ -169,13 +169,13 @@ export default function DashboardPage() {
         <nav className="mb-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
           <Link
             href="/examples"
-            className="w-40 rounded-lg bg-zinc-600 px-10 py-4 text-center text-lg font-semibold text-zinc-200 transition hover:bg-zinc-500"
+            className="w-52 rounded-lg bg-zinc-600 px-10 py-4 text-center text-lg font-semibold text-zinc-200 transition hover:bg-zinc-500"
           >
             Examples
           </Link>
           <Link
             href="/analyze"
-            className="w-40 rounded-lg bg-accent px-10 py-4 text-center text-lg font-semibold text-white transition hover:bg-accent-hover"
+            className="w-52 rounded-lg bg-accent px-10 py-4 text-center text-lg font-semibold text-white transition hover:bg-accent-hover"
           >
             Analyze
           </Link>
