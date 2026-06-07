@@ -701,12 +701,16 @@ export default function HorseViewer3D({
 
     controls.addEventListener("change", updatePlumbVisibility);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
     scene.add(ambientLight);
 
     const keyLight = new THREE.DirectionalLight(0xfff2e6, 2.0);
     keyLight.position.set(2.5, 5, 4);
     scene.add(keyLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    mainLight.position.set(0, 4, 6);
+    scene.add(mainLight);
 
     const rightLight = new THREE.DirectionalLight(0xffffff, 0.4);
     rightLight.position.set(4, 2, 0);
