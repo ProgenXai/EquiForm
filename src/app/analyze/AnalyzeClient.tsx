@@ -25,96 +25,6 @@ const HorseViewer3D = dynamic(
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
-const ANALYZE_SEND_AS_IS_MAX_BYTES = 5 * 1024 * 1024;
-const ANALYZE_COMPRESS_TARGET_BYTES = 3670016;
-
-async function compressImageBeforeAnalyze(file: File): Promise<File> {
-  if (file.size <= ANALYZE_SEND_AS_IS_MAX_BYTES) {
-    return file;
-  }
-
-  const imageBitmap = await createImageBitmap(file);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  if (!ctx) {
-    imageBitmap.close();
-    throw new Error("Failed to process image");
-  }
-
-  let width = imageBitmap.width;
-  let height = imageBitmap.height;
-  let blob: Blob | null = null;
-
-  const scaleToMaxWidth = (maxWidth: number) => {
-    if (width <= maxWidth) return;
-    height = Math.round((height * maxWidth) / width);
-    width = maxWidth;
-  };
-
-  const compressAtCurrentDimensions = async (): Promise<Blob | null> => {
-    let latestBlob: Blob | null = null;
-
-    for (let quality = 0.85; quality >= 0.3; quality -= 0.1) {
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(imageBitmap, 0, 0, width, height);
-
-      latestBlob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve, "image/jpeg", quality);
-      });
-
-      if (!latestBlob) {
-        throw new Error("Failed to compress image");
-      }
-
-      if (latestBlob.size <= ANALYZE_COMPRESS_TARGET_BYTES) {
-        return latestBlob;
-      }
-    }
-
-    return latestBlob;
-  };
-
-  try {
-    scaleToMaxWidth(2048);
-    blob = await compressAtCurrentDimensions();
-
-    if (!blob || blob.size > ANALYZE_COMPRESS_TARGET_BYTES) {
-      width = imageBitmap.width;
-      height = imageBitmap.height;
-      scaleToMaxWidth(1600);
-      blob = await compressAtCurrentDimensions();
-    }
-
-    if (!blob || blob.size > ANALYZE_COMPRESS_TARGET_BYTES) {
-      throw new Error("Failed to compress image below 3.5MB");
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      if (!blob) {
-        reject(new Error("Failed to compress image"));
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          resolve();
-        } else {
-          reject(new Error("Failed to convert image to base64"));
-        }
-      };
-      reader.onerror = () => reject(new Error("Failed to convert image to base64"));
-      reader.readAsDataURL(blob);
-    });
-
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
-    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
-  } finally {
-    imageBitmap.close();
-  }
-}
 
 async function compressImageIfNeeded(
   file: File,
@@ -838,7 +748,7 @@ export default function AnalyzeClient() {
     setEmailError(null);
 
     try {
-      const fileToSend = await compressImageBeforeAnalyze(selectedFile);
+      const { file: fileToSend } = await compressImageIfNeeded(selectedFile);
 
       const formData = new FormData();
       formData.append("image", fileToSend);
