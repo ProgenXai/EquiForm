@@ -1794,6 +1794,13 @@ export default function AnalyzeClient() {
         {menuOpen ? (
           <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
             <Link
+              href="/dashboard"
+              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              Home
+            </Link>
+            <Link
               href="/buy-rosettes"
               className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
               onClick={() => setMenuOpen(false)}
