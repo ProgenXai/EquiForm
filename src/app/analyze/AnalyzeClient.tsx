@@ -738,6 +738,9 @@ export default function AnalyzeClient() {
     null,
   );
   const [singleViewUploading, setSingleViewUploading] = useState(false);
+  const [singleViewUploadError, setSingleViewUploadError] = useState<string | null>(
+    null,
+  );
   const singleViewPhotoRef = useRef(singleViewPhoto);
   singleViewPhotoRef.current = singleViewPhoto;
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("full");
@@ -1117,14 +1120,15 @@ export default function AnalyzeClient() {
 
   async function handleFile(file: File) {
     resetResult();
+    setSingleViewUploadError(null);
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Only JPG, PNG, and WEBP files are allowed.");
+      setSingleViewUploadError("Only JPG, PNG, and WEBP files are allowed.");
       return;
     }
 
     if (file.size > MAX_BYTES) {
-      setError("File must be 10MB or smaller.");
+      setSingleViewUploadError("File must be 10MB or smaller.");
       return;
     }
 
@@ -1133,12 +1137,12 @@ export default function AnalyzeClient() {
     } = await supabase.auth.getSession();
 
     if (!currentSession?.user) {
-      setError("Sign in to upload photos for analysis.");
+      setSingleViewUploadError("Sign in to upload photos for analysis.");
       return;
     }
 
     setSingleViewUploading(true);
-    setError(null);
+    setSingleViewUploadError(null);
 
     const existingSlot = singleViewPhotoRef.current;
     const userId = currentSession.user.id;
@@ -1178,7 +1182,7 @@ export default function AnalyzeClient() {
         storagePath,
       });
     } catch (err) {
-      setError(
+      setSingleViewUploadError(
         err instanceof Error
           ? `Failed to upload photo: ${err.message}`
           : "Failed to upload photo. Please try another.",
@@ -1982,6 +1986,11 @@ export default function AnalyzeClient() {
                   onChange={handleFileInput}
                 />
               </label>
+              {singleViewUploadError ? (
+                <p className="mt-3 text-sm text-red-400" role="alert">
+                  {singleViewUploadError}
+                </p>
+              ) : null}
             </>
           ) : null}
 
