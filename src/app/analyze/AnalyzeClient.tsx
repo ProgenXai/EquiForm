@@ -308,24 +308,34 @@ type TypeaheadInputProps = {
   hint?: string;
 };
 
-function appendTypeaheadValue(current: string, suggestion: string): string {
-  const trimmed = current.trim();
-  if (!trimmed) {
-    return suggestion;
-  }
-
-  const existing = trimmed
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
+function appendTypeaheadValue(
+  current: string,
+  suggestion: string,
+): string | null {
+  const lastComma = current.lastIndexOf(",");
+  const completedParts =
+    lastComma >= 0
+      ? current
+          .slice(0, lastComma)
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean)
+      : [];
 
   if (
-    existing.some((part) => part.toLowerCase() === suggestion.toLowerCase())
+    completedParts.some(
+      (part) => part.toLowerCase() === suggestion.toLowerCase(),
+    )
   ) {
-    return trimmed;
+    return null;
   }
 
-  return `${trimmed}, ${suggestion}`;
+  if (lastComma >= 0) {
+    const prefix = current.slice(0, lastComma).trimEnd();
+    return prefix ? `${prefix}, ${suggestion}` : suggestion;
+  }
+
+  return suggestion;
 }
 
 function TypeaheadInput({
@@ -429,7 +439,7 @@ function TypeaheadInput({
                 onClick={() => {
                   if (appendOnSelect) {
                     const nextValue = appendTypeaheadValue(value, suggestion);
-                    if (nextValue !== value.trim()) {
+                    if (nextValue !== null) {
                       onChange(`${nextValue}, `);
                     }
                     setOpen(true);
