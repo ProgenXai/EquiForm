@@ -607,19 +607,44 @@ export async function POST(request: Request) {
 
     y = drawReportHorseDetailsHeader(page, y, fontBold, fontRegular, body);
 
-    page.drawText(`Generated: ${generatedAt}`, {
+    const overallText = `Overall Score: ${report.overall_score} / 100`;
+    page.drawText(overallText, {
       x: MARGIN,
       y,
-      size: 10,
-      font: fontRegular,
-      color: rgb(0.4, 0.4, 0.4),
+      size: 13,
+      font: fontBold,
+      color: ACCENT_RGB,
     });
-    y -= 24;
+    y -= 32;
 
-    let fullReportPhotosDrawn = false;
+    if (!isFullReport) {
+      const overlayMaxHeight = Math.max(200, y - MARGIN - 40);
+      const imageScale = Math.min(
+        CONTENT_WIDTH / overlayImage!.width,
+        overlayMaxHeight / overlayImage!.height,
+      );
+      const imageWidth = overlayImage!.width * imageScale;
+      const imageHeight = overlayImage!.height * imageScale;
 
-    const drawFullReportPhotoRow = () => {
-      if (!isFullReport || fullReportPhotosDrawn) return;
+      page.drawImage(overlayImage!, {
+        x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
+        y: y - imageHeight,
+        width: imageWidth,
+        height: imageHeight,
+      });
+      y -= imageHeight + 20;
+    } else if (fullReportOverlayImage) {
+      const overlayLabel = getFullReportOverlayLabel(body.better_side);
+      y = drawFullReportOverlay(
+        page,
+        y,
+        fullReportOverlayImage,
+        overlayLabel,
+        fontRegular,
+      );
+    }
+
+    if (isFullReport) {
       const photoLabels = FULL_REPORT_IMAGE_FIELDS.map(({ label }) => label);
       y = drawHorizontalPhotoRow(
         page,
@@ -628,8 +653,11 @@ export async function POST(request: Request) {
         photoLabels,
         fontRegular,
       );
-      fullReportPhotosDrawn = true;
-    };
+    }
+
+    drawFooter(page, fontRegular);
+    page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    y = PAGE_HEIGHT - MARGIN;
 
     const MIN_CONTENT_Y = MARGIN + 32;
 
@@ -639,13 +667,6 @@ export async function POST(request: Request) {
       y = PAGE_HEIGHT - MARGIN;
     };
 
-    const breakWrittenReportPage = () => {
-      forceNewPage();
-      if (isFullReport && !fullReportPhotosDrawn) {
-        drawFullReportPhotoRow();
-      }
-    };
-
     const ensureSpace = (needed: number) => {
       if (y - needed >= MIN_CONTENT_Y) return;
       forceNewPage();
@@ -653,7 +674,7 @@ export async function POST(request: Request) {
 
     const ensureLineSpace = (lineHeight: number) => {
       if (y - lineHeight >= MIN_CONTENT_Y) return;
-      breakWrittenReportPage();
+      forceNewPage();
     };
 
     const writeSectionHeader = (label: string) => {
@@ -667,29 +688,6 @@ export async function POST(request: Request) {
       });
       y -= 12;
     };
-
-    if (!isFullReport) {
-      const overlayMaxHeight = Math.max(
-        280,
-        y - MARGIN - 40 - SINGLE_VIEW_SCORES_RESERVED_HEIGHT,
-      );
-      const imageScale = Math.min(
-        CONTENT_WIDTH / overlayImage!.width,
-        overlayMaxHeight / overlayImage!.height,
-      );
-      const imageWidth = overlayImage!.width * imageScale;
-      const imageHeight = overlayImage!.height * imageScale;
-
-      ensureSpace(imageHeight + 28);
-
-      page.drawImage(overlayImage!, {
-        x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
-        y: y - imageHeight,
-        width: imageWidth,
-        height: imageHeight,
-      });
-      y -= imageHeight + 28;
-    }
 
     ensureSpace(120);
     page.drawText("Conformation Scores", {
@@ -722,42 +720,7 @@ export async function POST(request: Request) {
       y -= 20;
     }
 
-    ensureSpace(28);
-    const overallText = `Overall Score: ${report.overall_score} / 100`;
-    page.drawText(overallText, {
-      x: MARGIN,
-      y,
-      size: 13,
-      font: fontBold,
-      color: ACCENT_RGB,
-    });
-    y -= 32;
-
-    if (isFullReport && fullReportOverlayImage) {
-      const overlayLabel = getFullReportOverlayLabel(body.better_side);
-      const overlayBlockHeight = measureFullReportOverlayBlock(
-        fullReportOverlayImage,
-        fontRegular,
-        overlayLabel,
-      );
-
-      if (y - overlayBlockHeight < MIN_CONTENT_Y) {
-        forceNewPage();
-      }
-
-      y = drawFullReportOverlay(
-        page,
-        y,
-        fullReportOverlayImage,
-        overlayLabel,
-        fontRegular,
-      );
-    }
-
-    if (!isFullReport) {
-      forceNewPage();
-    }
-
+    y -= 12;
     ensureSpace(36);
     page.drawText("Written Report", {
       x: MARGIN,
@@ -800,13 +763,6 @@ export async function POST(request: Request) {
       const section = report[key];
       writeSectionHeader(label);
       writeParagraph(section.notes, 10, 3, rgb(0.25, 0.25, 0.25));
-    }
-
-    if (isFullReport && !fullReportPhotosDrawn) {
-      const photoBlockHeight = measureHorizontalPhotoRowHeight();
-      if (y - photoBlockHeight >= MIN_CONTENT_Y) {
-        drawFullReportPhotoRow();
-      }
     }
 
     if (model3dSnapshotImage) {
