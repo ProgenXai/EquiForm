@@ -45,6 +45,7 @@ type PdfRequestBody = {
   age?: string;
   sex?: string;
   discipline?: string;
+  model3d_snapshot?: string;
 };
 
 const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
@@ -573,6 +574,14 @@ export async function POST(request: Request) {
       overlayImage = await fetchEmbeddedImage(pdfDoc, body.overlayUrl!.trim());
     }
 
+    let model3dSnapshotImage: PDFImage | null = null;
+    if (body.model3d_snapshot?.trim()) {
+      model3dSnapshotImage = await embedOverlayImage(
+        pdfDoc,
+        body.model3d_snapshot.trim(),
+      );
+    }
+
     const report = body.report;
     const generatedAt = new Date().toLocaleDateString("en-US", {
       year: "numeric",
@@ -798,6 +807,39 @@ export async function POST(request: Request) {
       if (y - photoBlockHeight >= MIN_CONTENT_Y) {
         drawFullReportPhotoRow();
       }
+    }
+
+    if (model3dSnapshotImage) {
+      while (pdfDoc.getPageCount() < 4) {
+        forceNewPage();
+      }
+
+      page = pdfDoc.getPages()[3]!;
+      y = PAGE_HEIGHT - MARGIN;
+
+      page.drawText("3D Model View", {
+        x: MARGIN,
+        y,
+        size: 16,
+        font: fontBold,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+      y -= 28;
+
+      const maxSnapshotHeight = 420;
+      const snapshotScale = Math.min(
+        CONTENT_WIDTH / model3dSnapshotImage.width,
+        maxSnapshotHeight / model3dSnapshotImage.height,
+      );
+      const snapshotWidth = model3dSnapshotImage.width * snapshotScale;
+      const snapshotHeight = model3dSnapshotImage.height * snapshotScale;
+
+      page.drawImage(model3dSnapshotImage, {
+        x: MARGIN + (CONTENT_WIDTH - snapshotWidth) / 2,
+        y: y - snapshotHeight,
+        width: snapshotWidth,
+        height: snapshotHeight,
+      });
     }
 
     for (const pdfPage of pdfDoc.getPages()) {

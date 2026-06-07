@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -24,6 +24,10 @@ type HorseViewer3DProps = {
   frontPhotoUrl?: string;
   hindPhotoUrl?: string;
   tripoGlbUrl?: string | null;
+};
+
+export type HorseViewer3DHandle = {
+  captureSnapshot: () => string | null;
 };
 
 const COAT_COLOR_MAP: Record<string, number> = {
@@ -487,18 +491,25 @@ function setBoneWorldPosition(bone: THREE.Bone, worldPos: THREE.Vector3): void {
   bone.position.copy(local);
 }
 
-export default function HorseViewer3D({
-  landmarks,
-  coatColor,
-  markings,
-  className = "",
-  leftPhotoUrl,
-  rightPhotoUrl,
-  frontPhotoUrl,
-  hindPhotoUrl,
-  tripoGlbUrl,
-}: HorseViewer3DProps) {
+const HorseViewer3D = forwardRef<HorseViewer3DHandle, HorseViewer3DProps>(
+  function HorseViewer3D(
+    {
+      landmarks,
+      coatColor,
+      markings,
+      className = "",
+      leftPhotoUrl,
+      rightPhotoUrl,
+      frontPhotoUrl,
+      hindPhotoUrl,
+      tripoGlbUrl,
+    },
+    ref,
+  ) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(true);
@@ -507,6 +518,17 @@ export default function HorseViewer3D({
     string,
     number | boolean
   > | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    captureSnapshot: () => {
+      const renderer = rendererRef.current;
+      const scene = sceneRef.current;
+      const camera = cameraRef.current;
+      if (!renderer || !scene || !camera) return null;
+      renderer.render(scene, camera);
+      return renderer.domElement.toDataURL("image/png");
+    },
+  }));
 
   function computeMorphWeights(
     sideLandmarks: Record<string, { x: number; y: number }>,
@@ -591,11 +613,14 @@ export default function HorseViewer3D({
     let disposed = false;
 
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    cameraRef.current = camera;
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
     });
+    rendererRef.current = renderer;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
@@ -923,6 +948,9 @@ export default function HorseViewer3D({
       dracoLoader.dispose();
 
       renderer.dispose();
+      rendererRef.current = null;
+      sceneRef.current = null;
+      cameraRef.current = null;
       if (renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement);
       }
@@ -985,4 +1013,6 @@ export default function HorseViewer3D({
       ) : null}
     </div>
   );
-}
+});
+
+export default HorseViewer3D;

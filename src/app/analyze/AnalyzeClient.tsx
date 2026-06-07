@@ -16,6 +16,7 @@ import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
 import type { Session } from "@supabase/supabase-js";
 
+import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import { createClient } from "@/lib/supabase/client";
 
 const HorseViewer3D = dynamic(
@@ -395,8 +396,14 @@ export default function AnalyzeClient() {
   const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
   const [meshy3DError, setMeshy3DError] = useState<string | null>(null);
   const [showCommunitySharePrompt, setShowCommunitySharePrompt] = useState(false);
+  const [showPdf3DModal, setShowPdf3DModal] = useState(false);
+  const [pdf3DModalMode, setPdf3DModalMode] = useState<"single" | "full" | null>(
+    null,
+  );
   const menuRef = useRef<HTMLDivElement>(null);
   const shareEventIdRef = useRef<string | null>(null);
+  const singleViewViewerRef = useRef<HorseViewer3DHandle>(null);
+  const fullReportViewerRef = useRef<HorseViewer3DHandle>(null);
 
   function applyBalanceData(data: BalanceResponse) {
     setSingleViewBalance(data.single_view_balance ?? 0);
@@ -975,13 +982,8 @@ export default function AnalyzeClient() {
     }
   }
 
-  async function handleDownloadPdf() {
+  async function submitSingleViewPdfDownload(model3dSnapshot?: string) {
     if (!result) return;
-
-    if (result.pdfUrl) {
-      window.open(result.pdfUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
 
     if (!result.reportId) {
       setError("PDF generation failed. Report ID is missing.");
@@ -1011,6 +1013,7 @@ export default function AnalyzeClient() {
           age,
           sex,
           discipline,
+          ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
         }),
       });
 
@@ -1031,13 +1034,50 @@ export default function AnalyzeClient() {
     }
   }
 
-  async function handleDownloadFullReportPdf() {
-    if (!fullReportResult) return;
+  async function handleDownloadPdf() {
+    if (!result) return;
 
-    if (fullReportResult.pdfUrl) {
-      window.open(fullReportResult.pdfUrl, "_blank", "noopener,noreferrer");
+    if (result.pdfUrl) {
+      window.open(result.pdfUrl, "_blank", "noopener,noreferrer");
       return;
     }
+
+    if (result.glbUrl) {
+      setPdf3DModalMode("single");
+      setShowPdf3DModal(true);
+      return;
+    }
+
+    await submitSingleViewPdfDownload();
+  }
+
+  async function handleConfirmPdf3DDownload() {
+    const mode = pdf3DModalMode;
+    if (!mode) return;
+
+    const snapshot =
+      mode === "single"
+        ? singleViewViewerRef.current?.captureSnapshot()
+        : fullReportViewerRef.current?.captureSnapshot();
+
+    setShowPdf3DModal(false);
+    setPdf3DModalMode(null);
+
+    if (mode === "single") {
+      await submitSingleViewPdfDownload(snapshot ?? undefined);
+      return;
+    }
+
+    await submitFullReportPdfDownload(snapshot ?? undefined);
+  }
+
+  function handleCancelPdf3DModal() {
+    setShowPdf3DModal(false);
+    setPdf3DModalMode(null);
+  }
+
+  async function submitFullReportPdfDownload(model3dSnapshot?: string) {
+    if (!fullReportResult) return;
 
     if (!fullReportResult.reportId) {
       setError("PDF generation failed. Report ID is missing.");
@@ -1085,6 +1125,7 @@ export default function AnalyzeClient() {
           age,
           sex,
           discipline,
+          ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
         }),
       });
 
@@ -1103,6 +1144,23 @@ export default function AnalyzeClient() {
     } finally {
       setPdfLoading(false);
     }
+  }
+
+  async function handleDownloadFullReportPdf() {
+    if (!fullReportResult) return;
+
+    if (fullReportResult.pdfUrl) {
+      window.open(fullReportResult.pdfUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (fullReportGlbUrl) {
+      setPdf3DModalMode("full");
+      setShowPdf3DModal(true);
+      return;
+    }
+
+    await submitFullReportPdfDownload();
   }
 
   async function handleGetReport() {
@@ -2114,6 +2172,7 @@ export default function AnalyzeClient() {
                         {fullReportGlbUrl ? (
                           <>
                             <HorseViewer3D
+                              ref={fullReportViewerRef}
                               className="mt-8"
                               landmarks={fullReportResult.landmarks}
                               coatColor={fullReportResult.coatColor}
@@ -2361,6 +2420,7 @@ export default function AnalyzeClient() {
               {result.glbUrl ? (
                 <>
                   <HorseViewer3D
+                    ref={singleViewViewerRef}
                     className="mt-8"
                     landmarks={{ left: result.landmarks }}
                     tripoGlbUrl={result.glbUrl}
@@ -2412,6 +2472,36 @@ export default function AnalyzeClient() {
         ) : null}
       </main>
       </div>
+
+      {showPdf3DModal ? (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+            <p className="text-sm leading-relaxed text-zinc-200">
+              Position your 3D model before downloading. The current view of your
+              3D model will be captured and included on Page 4 of your PDF report.
+              Rotate the model to your preferred angle, then click Download.
+            </p>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void handleConfirmPdf3DDownload()}
+                disabled={pdfLoading}
+                className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {pdfLoading ? "Generating PDF…" : "Download PDF"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelPdf3DModal}
+                disabled={pdfLoading}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showCommunitySharePrompt ? (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4">
