@@ -155,6 +155,7 @@ type FullReportRequestBody = {
   discipline?: string;
   age?: string;
   sex?: string;
+  generate3D?: boolean;
 };
 
 const FULL_REPORT_URL_FIELDS: Record<
@@ -905,12 +906,16 @@ export async function POST(request: Request) {
     .single();
   isAdmin = roleData?.is_admin === true;
 
+  const generate3D = body.generate3D === true;
+  const balanceColumn = generate3D
+    ? "full_report_3d_balance"
+    : "full_report_balance";
   const serviceClient = createServiceRoleClient();
 
   if (!isAdmin) {
     const { data: tokenRow, error: balanceError } = await serviceClient
       .from("user_tokens")
-      .select("full_report_balance")
+      .select("full_report_balance, full_report_3d_balance")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -918,10 +923,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: balanceError.message }, { status: 500 });
     }
 
-    if ((tokenRow?.full_report_balance ?? 0) < FULL_REPORT_CREDIT_COST) {
+    const currentBalance = generate3D
+      ? (tokenRow?.full_report_3d_balance ?? 0)
+      : (tokenRow?.full_report_balance ?? 0);
+
+    if (currentBalance < FULL_REPORT_CREDIT_COST) {
       return NextResponse.json(
         {
-          error: `Insufficient full report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`,
+          error: generate3D
+            ? `Insufficient four-view + 3D credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`
+            : `Insufficient full report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`,
         },
         { status: 401 },
       );
@@ -1421,21 +1432,24 @@ export async function POST(request: Request) {
     if (!isAdmin) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
-        .select("full_report_balance")
+        .select("full_report_balance, full_report_3d_balance")
         .eq("user_id", user.id)
-        .gte("full_report_balance", FULL_REPORT_CREDIT_COST)
+        .gte(balanceColumn, FULL_REPORT_CREDIT_COST)
         .maybeSingle();
 
       if (fetchError) {
         console.error("[analyze-full] failed to fetch credits:", fetchError);
       } else if (tokenRow) {
-        const newBalance = tokenRow.full_report_balance - FULL_REPORT_CREDIT_COST;
+        const currentBalance = generate3D
+          ? tokenRow.full_report_3d_balance
+          : tokenRow.full_report_balance;
+        const newBalance = currentBalance - FULL_REPORT_CREDIT_COST;
 
         const { error: deductError } = await serviceClient
           .from("user_tokens")
-          .update({ full_report_balance: newBalance })
+          .update({ [balanceColumn]: newBalance })
           .eq("user_id", user.id)
-          .gte("full_report_balance", FULL_REPORT_CREDIT_COST);
+          .gte(balanceColumn, FULL_REPORT_CREDIT_COST);
 
         if (deductError) {
           console.error("[analyze-full] failed to deduct credits:", deductError);
@@ -1446,7 +1460,9 @@ export async function POST(request: Request) {
               user_id: user.id,
               amount: -FULL_REPORT_CREDIT_COST,
               type: "usage",
-              description: "Full report analysis",
+              description: generate3D
+                ? "Four-view + 3D report analysis"
+                : "Full report analysis",
             });
 
           if (transactionError) {

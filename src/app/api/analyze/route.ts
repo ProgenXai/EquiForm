@@ -404,6 +404,38 @@ export async function POST(request: Request) {
 
   isAdmin = roleData?.is_admin === true;
 
+  const balanceColumn = generate3D
+    ? "single_view_3d_balance"
+    : "single_view_balance";
+  const serviceClient = createServiceRoleClient();
+
+  if (!isAdmin) {
+    const { data: tokenRow, error: balanceError } = await serviceClient
+      .from("user_tokens")
+      .select("single_view_balance, single_view_3d_balance")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (balanceError) {
+      return NextResponse.json({ error: balanceError.message }, { status: 500 });
+    }
+
+    const currentBalance = generate3D
+      ? (tokenRow?.single_view_3d_balance ?? 0)
+      : (tokenRow?.single_view_balance ?? 0);
+
+    if (currentBalance < 1) {
+      return NextResponse.json(
+        {
+          error: generate3D
+            ? "Insufficient single view + 3D credits."
+            : "Insufficient single view credits.",
+        },
+        { status: 401 },
+      );
+    }
+  }
+
   try {
     const imageResponse = await fetch(photoUrl);
     if (!imageResponse.ok) {
@@ -613,8 +645,6 @@ export async function POST(request: Request) {
     const overlayBase64 = overlayBuffer.toString("base64");
     const overlayImage = `data:${overlayContentType};base64,${overlayBase64}`;
 
-    const serviceClient = createServiceRoleClient();
-
     const overlayStoragePath = `overlays/${user?.id ?? "anonymous"}/${Date.now()}.jpg`;
     console.log("Uploading overlay to Supabase...", {
       bucket: OVERLAY_STORAGE_BUCKET,
@@ -702,21 +732,25 @@ export async function POST(request: Request) {
     if (!isAdmin && user) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
-        .select("single_view_balance")
+        .select("single_view_balance, single_view_3d_balance")
         .eq("user_id", user.id)
-        .gt("single_view_balance", 0)
+        .gt(balanceColumn, 0)
         .maybeSingle();
 
       if (fetchError) {
         console.error("[analyze] failed to deduct token:", fetchError);
       } else if (tokenRow) {
+        const currentBalance = generate3D
+          ? tokenRow.single_view_3d_balance
+          : tokenRow.single_view_balance;
+
         const { error: deductError } = await serviceClient
           .from("user_tokens")
           .update({
-            single_view_balance: tokenRow.single_view_balance - 1,
+            [balanceColumn]: currentBalance - 1,
           })
           .eq("user_id", user.id)
-          .gt("single_view_balance", 0);
+          .gt(balanceColumn, 0);
 
         if (deductError) {
           console.error("[analyze] failed to deduct token:", deductError);

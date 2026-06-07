@@ -6,6 +6,51 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
+type BalanceColumn =
+  | "single_view_balance"
+  | "single_view_3d_balance"
+  | "full_report_balance"
+  | "full_report_3d_balance";
+
+const PACK_ID_TO_BALANCE_COLUMN: Record<string, BalanceColumn> = {
+  single_view_no3d_1: "single_view_balance",
+  single_view_no3d_3: "single_view_balance",
+  single_view_no3d_5: "single_view_balance",
+  single_view_3d_1: "single_view_3d_balance",
+  single_view_3d_3: "single_view_3d_balance",
+  single_view_3d_5: "single_view_3d_balance",
+  full_report_no3d_1: "full_report_balance",
+  full_report_no3d_3: "full_report_balance",
+  full_report_no3d_5: "full_report_balance",
+  full_report_3d_1: "full_report_3d_balance",
+  full_report_3d_3: "full_report_3d_balance",
+  full_report_3d_5: "full_report_3d_balance",
+  "sv-1": "single_view_balance",
+  "sv-3": "single_view_balance",
+  "sv-5": "single_view_balance",
+  "sv3d-1": "single_view_3d_balance",
+  "sv3d-3": "single_view_3d_balance",
+  "sv3d-5": "single_view_3d_balance",
+  "fv-1": "full_report_balance",
+  "fv-3": "full_report_balance",
+  "fv-5": "full_report_balance",
+  "fv3d-1": "full_report_3d_balance",
+  "fv3d-3": "full_report_3d_balance",
+  "fv3d-5": "full_report_3d_balance",
+};
+
+function getCreditsForPackId(
+  packId: string,
+  pack: ReturnType<typeof findRosettePack>,
+): number {
+  if (pack) {
+    return pack.rosettes;
+  }
+
+  const suffixMatch = packId.match(/(?:^|[_-])(\d+)$/);
+  return suffixMatch ? Number(suffixMatch[1]) : 0;
+}
+
 export async function POST(request: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
@@ -49,20 +94,25 @@ export async function POST(request: Request) {
   }
 
   const pack = findRosettePack(packId);
+  const balanceColumn = PACK_ID_TO_BALANCE_COLUMN[packId];
 
-  if (!pack) {
+  if (!balanceColumn) {
+    console.error("[stripe-rosettes] unknown packId:", packId);
+    return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
+  }
+
+  const credits = getCreditsForPackId(packId, pack);
+
+  if (credits <= 0) {
     console.error("[stripe-rosettes] invalid packId:", packId);
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
   }
 
-  const balanceColumn =
-    pack.reportType === "full_report"
-      ? "full_report_balance"
-      : "single_view_balance";
-
   const { data: existing, error: lookupError } = await supabaseAdmin
     .from("user_tokens")
-    .select("single_view_balance, full_report_balance")
+    .select(
+      "single_view_balance, single_view_3d_balance, full_report_balance, full_report_3d_balance",
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -71,11 +121,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: lookupError.message }, { status: 500 });
   }
 
-  const currentBalance =
-    pack.reportType === "full_report"
-      ? (existing?.full_report_balance ?? 0)
-      : (existing?.single_view_balance ?? 0);
-  const newBalance = currentBalance + pack.rosettes;
+  const currentBalance = existing?.[balanceColumn] ?? 0;
+  const newBalance = currentBalance + credits;
 
   if (existing) {
     const { error: updateError } = await supabaseAdmin
@@ -91,9 +138,13 @@ export async function POST(request: Request) {
     const { error: insertError } = await supabaseAdmin.from("user_tokens").insert({
       user_id: userId,
       single_view_balance:
-        pack.reportType === "single_view" ? pack.rosettes : 0,
+        balanceColumn === "single_view_balance" ? credits : 0,
+      single_view_3d_balance:
+        balanceColumn === "single_view_3d_balance" ? credits : 0,
       full_report_balance:
-        pack.reportType === "full_report" ? pack.rosettes : 0,
+        balanceColumn === "full_report_balance" ? credits : 0,
+      full_report_3d_balance:
+        balanceColumn === "full_report_3d_balance" ? credits : 0,
     });
 
     if (insertError) {
@@ -106,9 +157,9 @@ export async function POST(request: Request) {
     .from("token_transactions")
     .insert({
       user_id: userId,
-      amount: pack.rosettes,
+      amount: credits,
       type: "purchase",
-      description: `${pack.name} (${pack.reportType})`,
+      description: pack?.name ?? packId,
     });
 
   if (transactionError) {
