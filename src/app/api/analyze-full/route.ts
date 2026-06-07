@@ -485,7 +485,7 @@ async function generateMeshy3DModel(
     const meshyPayload = {
       image_urls: [frontUrl, leftUrl, hindUrl, rightUrl],
       ai_model: "meshy-6",
-      output_format: ["glb"],
+      target_formats: ["glb"],
     };
 
     console.log('[meshy] request payload:', JSON.stringify(meshyPayload, null, 2));
