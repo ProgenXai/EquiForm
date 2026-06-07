@@ -1234,6 +1234,18 @@ export default function AnalyzeClient() {
         {menuOpen ? (
           <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
             <Link
+              href="/buy-rosettes"
+              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+              onClick={() => setMenuOpen(false)}
+            >
+              Buy Report Credits{" "}
+              <FileCheck
+                size={18}
+                className="inline-block shrink-0 align-middle text-accent"
+                aria-hidden
+              />
+            </Link>
+            <Link
               href="/examples"
               className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
               onClick={() => setMenuOpen(false)}
@@ -1246,18 +1258,6 @@ export default function AnalyzeClient() {
               onClick={() => setMenuOpen(false)}
             >
               My Reports
-            </Link>
-            <Link
-              href="/buy-rosettes"
-              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              Buy Report Credits{" "}
-              <FileCheck
-                size={18}
-                className="inline-block shrink-0 align-middle text-accent"
-                aria-hidden
-              />
             </Link>
             <button
               type="button"
