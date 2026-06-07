@@ -128,6 +128,10 @@ function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
   }
 }
 
+function withBreedContext(prompt: string, breed: string): string {
+  return `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+}
+
 async function generateMeshy3DModel(imageUrl: string): Promise<string | null> {
   const apiKey = process.env.MESHY_API_KEY?.trim();
   if (!apiKey) return null;
@@ -287,7 +291,13 @@ export async function POST(request: Request) {
     typeof horseNameRaw === "string" && horseNameRaw.trim()
       ? horseNameRaw.trim()
       : null;
+  const breedRaw = formData.get("breed");
+  const breed = typeof breedRaw === "string" ? breedRaw.trim() : "";
   const generate3D = formData.get("generate3D") === "true";
+
+  if (!breed) {
+    return NextResponse.json({ error: "Breed is required" }, { status: 400 });
+  }
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No image provided" }, { status: 400 });
@@ -441,7 +451,10 @@ export async function POST(request: Request) {
       viewMode,
     );
     const landmarks = toConformationLandmarks(detectedLandmarks, viewMode);
-    const reportPrompt = getConformationReportPrompt(viewMode);
+    const reportPrompt = withBreedContext(
+      getConformationReportPrompt(viewMode),
+      breed,
+    );
 
     const reportMessage = await anthropic.messages.create({
       model: "claude-opus-4-5-20251101",

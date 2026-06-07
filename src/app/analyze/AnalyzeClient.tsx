@@ -420,6 +420,7 @@ export default function AnalyzeClient() {
   const [viewMode, setViewMode] = useState<CalibrationViewMode>("left");
   const [analyzedViewMode, setAnalyzedViewMode] = useState<CalibrationViewMode>("left");
   const [horseName, setHorseName] = useState("");
+  const [breed, setBreed] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -813,6 +814,11 @@ export default function AnalyzeClient() {
       return;
     }
 
+    if (!breed.trim()) {
+      setError("Breed is required.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -825,6 +831,7 @@ export default function AnalyzeClient() {
 
       const formData = new FormData();
       formData.append("image", fileToSend);
+      formData.append("breed", breed.trim());
       formData.append("horseName", horseName.trim());
       formData.append("viewMode", viewMode);
       if (generate3D) {
@@ -1076,11 +1083,13 @@ export default function AnalyzeClient() {
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !selectedFile ||
+    !breed.trim() ||
     loading ||
     (!authLoading && !hasAnalyzeAccess);
   const fullReportSubmitDisabled =
     typeof window === "undefined" ||
     !fullReportComplete ||
+    !breed.trim() ||
     loading ||
     fullReportResult !== null ||
     fullReportUploadingView !== null ||
@@ -1096,6 +1105,11 @@ export default function AnalyzeClient() {
 
     if (!leftUrl || !rightUrl || !frontUrl || !hindUrl) {
       setError("Upload all four photos before submitting.");
+      return;
+    }
+
+    if (!breed.trim()) {
+      setError("Breed is required.");
       return;
     }
 
@@ -1126,6 +1140,7 @@ export default function AnalyzeClient() {
           rightUrl,
           frontUrl,
           hindUrl,
+          breed: breed.trim(),
           horseName: horseName.trim(),
         }),
       });
@@ -1232,6 +1247,7 @@ export default function AnalyzeClient() {
           rightUrl,
           frontUrl,
           hindUrl,
+          breed: breed.trim(),
           horseName: horseName.trim(),
           debugMode: true,
         }),
@@ -1518,21 +1534,40 @@ export default function AnalyzeClient() {
           ) : null}
 
           {previewUrl ? (
-            <div className="mt-6">
-              <label
-                htmlFor="horse-name"
-                className="mb-2 block text-xs font-medium text-zinc-400"
-              >
-                Horse name (optional)
-              </label>
-              <input
-                id="horse-name"
-                type="text"
-                value={horseName}
-                onChange={(event) => setHorseName(event.target.value)}
-                placeholder="e.g. Blazin High Alibi"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-              />
+            <div className="mt-6 space-y-6">
+              <div>
+                <label
+                  htmlFor="breed"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Breed
+                </label>
+                <input
+                  id="breed"
+                  type="text"
+                  value={breed}
+                  onChange={(event) => setBreed(event.target.value)}
+                  placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
+                  required
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="horse-name"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Horse name (optional)
+                </label>
+                <input
+                  id="horse-name"
+                  type="text"
+                  value={horseName}
+                  onChange={(event) => setHorseName(event.target.value)}
+                  placeholder="e.g. Blazin High Alibi"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
             </div>
           ) : null}
 
@@ -1728,21 +1763,40 @@ export default function AnalyzeClient() {
                 })}
               </div>
 
-              <div className="mt-6">
-                <label
-                  htmlFor="full-report-horse-name"
-                  className="mb-2 block text-xs font-medium text-zinc-400"
-                >
-                  Horse name (optional)
-                </label>
-                <input
-                  id="full-report-horse-name"
-                  type="text"
-                  value={horseName}
-                  onChange={(event) => setHorseName(event.target.value)}
-                  placeholder="e.g. Blazin High Alibi"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                />
+              <div className="mt-6 space-y-6">
+                <div>
+                  <label
+                    htmlFor="full-report-breed"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Breed
+                  </label>
+                  <input
+                    id="full-report-breed"
+                    type="text"
+                    value={breed}
+                    onChange={(event) => setBreed(event.target.value)}
+                    placeholder="e.g. Quarter Horse, Thoroughbred, Paint"
+                    required
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="full-report-horse-name"
+                    className="mb-2 block text-xs font-medium text-zinc-400"
+                  >
+                    Horse name (optional)
+                  </label>
+                  <input
+                    id="full-report-horse-name"
+                    type="text"
+                    value={horseName}
+                    onChange={(event) => setHorseName(event.target.value)}
+                    placeholder="e.g. Blazin High Alibi"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="mt-6">
@@ -1813,6 +1867,7 @@ export default function AnalyzeClient() {
                     onClick={() => void handleDebug3DSubmit()}
                     disabled={
                       !fullReportComplete ||
+                      !breed.trim() ||
                       loading ||
                       fullReportUploadingView !== null
                     }

@@ -151,6 +151,7 @@ type FullReportRequestBody = {
   frontUrl?: string;
   hindUrl?: string;
   horseName?: string;
+  breed?: string;
 };
 
 const FULL_REPORT_URL_FIELDS: Record<
@@ -311,10 +312,15 @@ async function validateViewImage(
   return parseValidationResponse(validationText);
 }
 
+function withBreedContext(prompt: string, breed: string): string {
+  return `${prompt}\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+}
+
 async function generateViewReport(
   anthropic: Anthropic,
   view: FullReportViewKey,
   prepared: PreparedViewImage,
+  breed: string,
 ): Promise<ConformationReport> {
   const reportMessage = await anthropic.messages.create({
     model: "claude-opus-4-5-20251101",
@@ -324,7 +330,10 @@ async function generateViewReport(
         role: "user",
         content: [
           buildAnthropicImageContent(prepared),
-          { type: "text", text: REPORT_PROMPTS[view] },
+          {
+            type: "text",
+            text: withBreedContext(REPORT_PROMPTS[view], breed),
+          },
         ],
       },
     ],
@@ -893,6 +902,12 @@ export async function POST(request: Request) {
       typeof horseNameRaw === "string" && horseNameRaw.trim()
         ? horseNameRaw.trim()
         : null;
+    const breedRaw = body.breed;
+    const breed = typeof breedRaw === "string" ? breedRaw.trim() : "";
+
+    if (!breed) {
+      return NextResponse.json({ error: "Breed is required" }, { status: 400 });
+    }
 
     const imageUrls = {} as Record<FullReportViewKey, string>;
 
@@ -1043,10 +1058,10 @@ export async function POST(request: Request) {
     };
 
     const [leftReport, rightReport, frontReport, hindReport] = await Promise.all([
-      generateViewReport(anthropic, "left", preparedByView.left),
-      generateViewReport(anthropic, "right", preparedByView.right),
-      generateViewReport(anthropic, "front", preparedByView.front),
-      generateViewReport(anthropic, "hind", preparedByView.hind),
+      generateViewReport(anthropic, "left", preparedByView.left, breed),
+      generateViewReport(anthropic, "right", preparedByView.right, breed),
+      generateViewReport(anthropic, "front", preparedByView.front, breed),
+      generateViewReport(anthropic, "hind", preparedByView.hind, breed),
     ]);
 
     const betterSide: "left" | "right" =
