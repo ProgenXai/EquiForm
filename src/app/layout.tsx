@@ -38,7 +38,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <div className="flex-1">{children}</div>
-        <footer>
+        <footer style={{ backgroundColor: "#000000" }}>
           <div
             style={{
               display: "flex",
@@ -56,15 +56,14 @@ export default function RootLayout({
               aria-label="EquiForm on Facebook"
               style={{
                 display: "inline-flex",
-                color: "#6b7280",
-                transition: "color 0.15s ease",
+                color: "#1877F2",
               }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="20"
-                height="20"
+                width="32"
+                height="32"
                 fill="currentColor"
                 aria-hidden="true"
               >
@@ -78,15 +77,14 @@ export default function RootLayout({
               aria-label="EquiForm on Instagram"
               style={{
                 display: "inline-flex",
-                color: "#6b7280",
-                transition: "color 0.15s ease",
+                color: "#E1306C",
               }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="20"
-                height="20"
+                width="32"
+                height="32"
                 fill="currentColor"
                 aria-hidden="true"
               >
@@ -100,15 +98,14 @@ export default function RootLayout({
               aria-label="EquiForm on TikTok"
               style={{
                 display: "inline-flex",
-                color: "#6b7280",
-                transition: "color 0.15s ease",
+                color: "#69C9D0",
               }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="20"
-                height="20"
+                width="32"
+                height="32"
                 fill="currentColor"
                 aria-hidden="true"
               >
