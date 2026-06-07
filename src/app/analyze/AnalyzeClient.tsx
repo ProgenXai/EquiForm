@@ -1239,19 +1239,23 @@ export default function AnalyzeClient() {
       fullReport3DBalance !== null &&
       (fullReportBalance >= FULL_REPORT_CREDIT_COST ||
         fullReport3DBalance >= FULL_REPORT_CREDIT_COST));
+  const requiredHorseDetailsComplete =
+    horseName.trim() !== "" &&
+    breed.trim() !== "" &&
+    coatColor.trim() !== "" &&
+    age.trim() !== "" &&
+    sex.trim() !== "";
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !singleViewPhoto?.supabaseUrl ||
-    !breed.trim() ||
-    !horseName.trim() ||
+    !requiredHorseDetailsComplete ||
     loading ||
     singleViewUploading ||
     (!authLoading && !hasAnalyzeAccess);
   const fullReportSubmitDisabled =
     typeof window === "undefined" ||
     !fullReportComplete ||
-    !breed.trim() ||
-    !horseName.trim() ||
+    !requiredHorseDetailsComplete ||
     loading ||
     fullReportResult !== null ||
     fullReportUploadingView !== null ||
@@ -1624,7 +1628,7 @@ export default function AnalyzeClient() {
                   htmlFor="coat-color"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Coat Color (optional)
+                  Coat Color
                 </label>
                 <input
                   id="coat-color"
@@ -1632,6 +1636,7 @@ export default function AnalyzeClient() {
                   value={coatColor}
                   onChange={(event) => setCoatColor(event.target.value)}
                   placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
+                  required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
@@ -1640,7 +1645,7 @@ export default function AnalyzeClient() {
                   htmlFor="age"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Age (optional)
+                  Age
                 </label>
                 <input
                   id="age"
@@ -1648,6 +1653,7 @@ export default function AnalyzeClient() {
                   value={age}
                   onChange={(event) => setAge(event.target.value)}
                   placeholder="e.g. 5 years, 18 months"
+                  required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
               </div>
@@ -1656,12 +1662,13 @@ export default function AnalyzeClient() {
                   htmlFor="sex"
                   className="mb-2 block text-xs font-medium text-zinc-400"
                 >
-                  Sex (optional)
+                  Sex
                 </label>
                 <select
                   id="sex"
                   value={sex}
                   onChange={(event) => setSex(event.target.value)}
+                  required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 >
                   <option value="">Select</option>
@@ -1909,7 +1916,7 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-coat-color"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Coat Color (optional)
+                    Coat Color
                   </label>
                   <input
                     id="full-report-coat-color"
@@ -1917,6 +1924,7 @@ export default function AnalyzeClient() {
                     value={coatColor}
                     onChange={(event) => setCoatColor(event.target.value)}
                     placeholder="e.g. Bay, Black, Palomino, Bay Roan, Chestnut"
+                    required
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
@@ -1925,7 +1933,7 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-age"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Age (optional)
+                    Age
                   </label>
                   <input
                     id="full-report-age"
@@ -1933,6 +1941,7 @@ export default function AnalyzeClient() {
                     value={age}
                     onChange={(event) => setAge(event.target.value)}
                     placeholder="e.g. 5 years, 18 months"
+                    required
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   />
                 </div>
@@ -1941,12 +1950,13 @@ export default function AnalyzeClient() {
                     htmlFor="full-report-sex"
                     className="mb-2 block text-xs font-medium text-zinc-400"
                   >
-                    Sex (optional)
+                    Sex
                   </label>
                   <select
                     id="full-report-sex"
                     value={sex}
                     onChange={(event) => setSex(event.target.value)}
+                    required
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                   >
                     <option value="">Select</option>
