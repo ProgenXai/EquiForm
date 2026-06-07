@@ -1103,6 +1103,93 @@ export default function AnalyzeClient() {
     }
   }
 
+  async function handleDebug3DSubmit() {
+    if (
+      !isAdmin ||
+      !fullReportComplete ||
+      loading ||
+      fullReportUploadingView !== null
+    ) {
+      return;
+    }
+
+    const leftUrl = fullReportPhotos.left?.supabaseUrl;
+    const rightUrl = fullReportPhotos.right?.supabaseUrl;
+    const frontUrl = fullReportPhotos.front?.supabaseUrl;
+    const hindUrl = fullReportPhotos.hind?.supabaseUrl;
+
+    if (!leftUrl || !rightUrl || !frontUrl || !hindUrl) {
+      setError("Upload all four photos before submitting.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setFullReportResult(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch("/api/analyze-full", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          leftUrl,
+          rightUrl,
+          frontUrl,
+          hindUrl,
+          horseName: horseName.trim(),
+          debugMode: true,
+        }),
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+      const isJson = contentType.includes("application/json");
+
+      let apiResult: FullReportApiResponse & { error?: string; glbUrl?: string | null };
+
+      try {
+        if (!isJson) {
+          await response.text();
+          throw new Error("Debug 3D generation failed");
+        }
+
+        apiResult = (await response.json()) as FullReportApiResponse & {
+          error?: string;
+          glbUrl?: string | null;
+        };
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message) {
+          throw parseError;
+        }
+
+        throw new Error("Debug 3D generation failed");
+      }
+
+      if (!response.ok) {
+        throw new Error(apiResult.error ?? "Debug 3D generation failed");
+      }
+
+      setFullReportResult({
+        ...apiResult,
+        tripoGlbUrl: apiResult.glbUrl ?? apiResult.tripoGlbUrl ?? null,
+        frontOverlayUrl: apiResult.frontOverlayUrl,
+        hindOverlayUrl: apiResult.hindOverlayUrl,
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Debug 3D generation failed",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
       {analysisMode === "quick" && previewUrl ? (
@@ -1603,6 +1690,21 @@ export default function AnalyzeClient() {
                     ? "Analyzing…"
                     : `Analyze Full Report — ${FULL_REPORT_CREDIT_COST} credit`}
                 </button>
+
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleDebug3DSubmit()}
+                    disabled={
+                      !fullReportComplete ||
+                      loading ||
+                      fullReportUploadingView !== null
+                    }
+                    className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {loading ? "Debug 3D…" : "Debug 3D"}
+                  </button>
+                ) : null}
 
                 {error ? (
                   <div className="mt-4">
