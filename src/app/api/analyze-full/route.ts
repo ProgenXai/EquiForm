@@ -537,7 +537,6 @@ async function generateTripo3DModel(
           { type: "jpg", url: bestSideUrl },
         ],
         model_version: "v2.5-20250123",
-        prompt,
       }),
     });
 
