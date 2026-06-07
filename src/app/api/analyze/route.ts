@@ -729,7 +729,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!isAdmin && user) {
+    if (reportId && !isAdmin && user) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
         .select("single_view_balance, single_view_3d_balance")

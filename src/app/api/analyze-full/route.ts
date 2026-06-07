@@ -1429,7 +1429,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!isAdmin) {
+    if (!error && savedReport && !isAdmin) {
       const { data: tokenRow, error: fetchError } = await serviceClient
         .from("user_tokens")
         .select("full_report_balance, full_report_3d_balance")
