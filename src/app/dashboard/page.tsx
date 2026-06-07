@@ -78,6 +78,24 @@ function TierCard({ tier }: { tier: PurchaseTier }) {
   );
 }
 
+function capitalizeEmailPrefix(email: string): string {
+  const prefix = email.split("@")[0]?.trim() ?? "";
+  if (!prefix) return "there";
+  return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+}
+
+function getWelcomeName(user: {
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+}): string {
+  const firstName =
+    typeof user.user_metadata?.first_name === "string"
+      ? user.user_metadata.first_name.trim()
+      : "";
+  if (firstName) return firstName;
+  return capitalizeEmailPrefix(user.email ?? "");
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
@@ -95,9 +113,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const email = session.user.email ?? "";
-      const nameFromEmail = email.split("@")[0]?.trim();
-      setWelcomeName(nameFromEmail || "there");
+      setWelcomeName(getWelcomeName(session.user));
       setLoading(false);
     }
 
