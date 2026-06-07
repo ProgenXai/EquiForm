@@ -690,6 +690,15 @@ export async function POST(request: Request) {
 
     let reportId: string | null = null;
 
+    let glbUrl: string | null = null;
+
+    if (generate3D) {
+      const meshyGlbUrl = await generateMeshy3DModel(photoUrl);
+      glbUrl = meshyGlbUrl
+        ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
+        : null;
+    }
+
     const { data: savedReport, error: insertError } = await serviceClient
       .from("reports")
       .insert({
@@ -707,6 +716,7 @@ export async function POST(request: Request) {
         leg_score: report.leg_alignment.score,
         report_text: reportText,
         overlay_url: overlayUrl,
+        glb_url: glbUrl,
       })
       .select("id")
       .single();
@@ -762,15 +772,6 @@ export async function POST(request: Request) {
           console.error("[analyze] failed to deduct token:", deductError);
         }
       }
-    }
-
-    let glbUrl: string | null = null;
-
-    if (generate3D) {
-      const meshyGlbUrl = await generateMeshy3DModel(photoUrl);
-      glbUrl = meshyGlbUrl
-        ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
-        : null;
     }
 
     return NextResponse.json({

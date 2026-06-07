@@ -1367,6 +1367,7 @@ export async function POST(request: Request) {
         leg_score: betterSideReport.leg_alignment.score,
         report_text: reportText,
         overlay_url: overlayUrl,
+        glb_url: null,
       })
       .select("id")
       .single();

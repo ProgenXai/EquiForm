@@ -503,6 +503,7 @@ export default function AnalyzeClient() {
     if (!meshyTaskId) return;
 
     const taskId = meshyTaskId;
+    const reportId = fullReportResult?.reportId;
     let cancelled = false;
 
     async function pollMeshyStatus() {
@@ -510,15 +511,17 @@ export default function AnalyzeClient() {
         data: { session },
       } = await supabase.auth.getSession();
 
+      const query = new URLSearchParams({ taskId });
+      if (reportId) {
+        query.set("reportId", reportId);
+      }
+
       try {
-        const response = await fetch(
-          `/api/meshy-status?taskId=${encodeURIComponent(taskId)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session?.access_token ?? ""}`,
-            },
+        const response = await fetch(`/api/meshy-status?${query.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${session?.access_token ?? ""}`,
           },
-        );
+        });
 
         const data = (await response.json()) as {
           status?: string;
@@ -556,7 +559,7 @@ export default function AnalyzeClient() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [meshyTaskId]);
+  }, [meshyTaskId, fullReportResult?.reportId]);
 
   useEffect(() => {
     if (!fullReportGlbUrl) return;

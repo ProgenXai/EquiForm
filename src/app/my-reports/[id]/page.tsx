@@ -1,22 +1,45 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import type { ConformationReport } from "@/lib/analyze/types";
+import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { createClient } from "@/lib/supabase/client";
 
-type ReportSectionKey =
-  | "balance"
-  | "shoulder_angle"
-  | "hip_angle"
-  | "topline_quality"
-  | "leg_alignment";
+const HorseViewer3D = dynamic(
+  () => import("@/components/HorseViewer3D"),
+  { ssr: false },
+);
 
-type ParsedReportText =
-  | { ok: true; summary: string; notes: Record<ReportSectionKey, string | undefined> }
-  | { ok: false; raw: string };
+type ReportSectionKey = keyof Omit<
+  ConformationReport,
+  "overall_score" | "summary"
+>;
+
+type StoredFullReport = {
+  combinedScore: number;
+  betterSide: "left" | "right";
+  leftReport: ConformationReport;
+  rightReport: ConformationReport;
+  frontReport: ConformationReport;
+  hindReport: ConformationReport;
+  coatColor?: string;
+  markings?: string[];
+  markingsDescription?: string;
+};
+
+type ParsedStoredReport =
+  | { kind: "full"; data: StoredFullReport }
+  | {
+      kind: "single";
+      summary: string;
+      notes: Record<ReportSectionKey, string | undefined>;
+    }
+  | { kind: "raw"; raw: string };
 
 type ReportDetail = {
   id: string;
@@ -33,7 +56,54 @@ type ReportDetail = {
   topline_score: number | null;
   leg_score: number | null;
   report_text: string | null;
+  overlay_url: string | null;
+  glb_url: string | null;
 };
+
+const SIDE_REPORT_SECTIONS: { key: ReportSectionKey; label: string }[] = [
+  { key: "balance", label: "Balance (rule of thirds)" },
+  { key: "shoulder_angle", label: "Shoulder Angle" },
+  { key: "hip_angle", label: "Hip Angle" },
+  { key: "topline_quality", label: "Topline Quality" },
+  { key: "leg_alignment", label: "Leg Alignment" },
+];
+
+const REPORT_SECTIONS_BY_VIEW: Record<
+  CalibrationViewMode,
+  { key: ReportSectionKey; label: string }[]
+> = {
+  side: SIDE_REPORT_SECTIONS,
+  left: SIDE_REPORT_SECTIONS,
+  right: SIDE_REPORT_SECTIONS,
+  front: [
+    { key: "balance", label: "Balance (rule of thirds)" },
+    { key: "shoulder_angle", label: "Chest & Shoulder Width" },
+    { key: "hip_angle", label: "Knee Alignment" },
+    { key: "topline_quality", label: "Cannon Bone Alignment" },
+    { key: "leg_alignment", label: "Fetlock & Hoof Symmetry" },
+  ],
+  hind: [
+    { key: "balance", label: "Balance (rule of thirds)" },
+    { key: "shoulder_angle", label: "Hip Width & Muscling" },
+    { key: "hip_angle", label: "Hindquarter Symmetry" },
+    { key: "topline_quality", label: "Hock Alignment" },
+    { key: "leg_alignment", label: "Cannon & Hoof Alignment" },
+  ],
+};
+
+const FULL_REPORT_VIEWS: {
+  view: CalibrationViewMode;
+  label: string;
+  reportKey: keyof Pick<
+    StoredFullReport,
+    "leftReport" | "rightReport" | "frontReport" | "hindReport"
+  >;
+}[] = [
+  { view: "left", label: "Left Side", reportKey: "leftReport" },
+  { view: "right", label: "Right Side", reportKey: "rightReport" },
+  { view: "front", label: "Front View", reportKey: "frontReport" },
+  { view: "hind", label: "Hind View", reportKey: "hindReport" },
+];
 
 function formatHorseDetailLines(report: {
   breed: string | null;
@@ -51,26 +121,30 @@ function formatHorseDetailLines(report: {
   ].filter((line): line is string => line !== null);
 }
 
-const SCORE_SECTIONS: {
-  label: string;
-  key: keyof Pick<
-    ReportDetail,
-    | "balance_score"
-    | "shoulder_score"
-    | "hip_score"
-    | "topline_score"
-    | "leg_score"
-  >;
-  reportKey: ReportSectionKey;
-}[] = [
-  { label: "Balance", key: "balance_score", reportKey: "balance" },
-  { label: "Shoulder Angle", key: "shoulder_score", reportKey: "shoulder_angle" },
-  { label: "Hip Angle", key: "hip_score", reportKey: "hip_angle" },
-  { label: "Topline Quality", key: "topline_score", reportKey: "topline_quality" },
-  { label: "Leg Alignment", key: "leg_score", reportKey: "leg_alignment" },
-];
+function isConformationReport(value: unknown): value is ConformationReport {
+  if (typeof value !== "object" || value === null) return false;
+  const report = value as ConformationReport;
+  return (
+    typeof report.summary === "string" &&
+    typeof report.overall_score === "number" &&
+    typeof report.balance?.score === "number" &&
+    typeof report.balance?.notes === "string"
+  );
+}
 
-function parseReportText(text: string): ParsedReportText {
+function extractSectionNotes(
+  report: ConformationReport,
+): Record<ReportSectionKey, string | undefined> {
+  return {
+    balance: report.balance.notes,
+    shoulder_angle: report.shoulder_angle.notes,
+    hip_angle: report.hip_angle.notes,
+    topline_quality: report.topline_quality.notes,
+    leg_alignment: report.leg_alignment.notes,
+  };
+}
+
+function parseStoredReportText(text: string): ParsedStoredReport {
   try {
     let parsed: unknown = JSON.parse(text);
 
@@ -79,63 +153,92 @@ function parseReportText(text: string): ParsedReportText {
     }
 
     if (typeof parsed !== "object" || parsed === null) {
-      return { ok: false, raw: text };
+      return { kind: "raw", raw: text };
     }
 
-    const data = parsed as {
-      summary?: string;
-      overall_score?: number;
-      report?: {
-        balance?: { score?: number; notes?: string };
-        shoulder_angle?: { score?: number; notes?: string };
-        hip_angle?: { score?: number; notes?: string };
-        topline_quality?: { score?: number; notes?: string };
-        leg_alignment?: { score?: number; notes?: string };
-      };
-    };
+    const data = parsed as Record<string, unknown>;
 
-    const reportData = data.report;
-    const notes: Record<ReportSectionKey, string | undefined> = {
-      balance: reportData?.balance?.notes,
-      shoulder_angle: reportData?.shoulder_angle?.notes,
-      hip_angle: reportData?.hip_angle?.notes,
-      topline_quality: reportData?.topline_quality?.notes,
-      leg_alignment: reportData?.leg_alignment?.notes,
-    };
+    if (data.type === "full") {
+      const leftReport = data.leftReport;
+      const rightReport = data.rightReport;
+      const frontReport = data.frontReport;
+      const hindReport = data.hindReport;
 
-    if (data.summary) {
-      return {
-        ok: true,
-        summary: data.summary,
-        notes,
-      };
-    }
-
-    if (reportData) {
-      const summaryFromSections = [
-        ["Balance", notes.balance],
-        ["Shoulder Angle", notes.shoulder_angle],
-        ["Hip Angle", notes.hip_angle],
-        ["Topline Quality", notes.topline_quality],
-        ["Leg Alignment", notes.leg_alignment],
-      ]
-        .filter((entry): entry is [string, string] => Boolean(entry[1]))
-        .map(([label, note]) => `${label}\n${note}`)
-        .join("\n\n");
-
-      if (summaryFromSections) {
+      if (
+        isConformationReport(leftReport) &&
+        isConformationReport(rightReport) &&
+        isConformationReport(frontReport) &&
+        isConformationReport(hindReport)
+      ) {
         return {
-          ok: true,
-          summary: summaryFromSections,
-          notes,
+          kind: "full",
+          data: {
+            combinedScore:
+              typeof data.combinedScore === "number"
+                ? data.combinedScore
+                : leftReport.overall_score,
+            betterSide: data.betterSide === "right" ? "right" : "left",
+            leftReport,
+            rightReport,
+            frontReport,
+            hindReport,
+            coatColor:
+              typeof data.coatColor === "string" ? data.coatColor : undefined,
+            markings: Array.isArray(data.markings)
+              ? data.markings.filter(
+                  (marking): marking is string => typeof marking === "string",
+                )
+              : undefined,
+            markingsDescription:
+              typeof data.markingsDescription === "string"
+                ? data.markingsDescription
+                : undefined,
+          },
         };
       }
+    }
+
+    const nestedReport = data.report;
+    if (isConformationReport(nestedReport)) {
+      return {
+        kind: "single",
+        summary: nestedReport.summary,
+        notes: extractSectionNotes(nestedReport),
+      };
+    }
+
+    if (typeof data.summary === "string") {
+      const reportData = data.report as
+        | {
+            balance?: { notes?: string };
+            shoulder_angle?: { notes?: string };
+            hip_angle?: { notes?: string };
+            topline_quality?: { notes?: string };
+            leg_alignment?: { notes?: string };
+          }
+        | undefined;
+
+      return {
+        kind: "single",
+        summary: data.summary,
+        notes: {
+          balance: reportData?.balance?.notes,
+          shoulder_angle: reportData?.shoulder_angle?.notes,
+          hip_angle: reportData?.hip_angle?.notes,
+          topline_quality: reportData?.topline_quality?.notes,
+          leg_alignment: reportData?.leg_alignment?.notes,
+        },
+      };
     }
   } catch {
     // fall through to raw display
   }
 
-  return { ok: false, raw: text };
+  return { kind: "raw", raw: text };
+}
+
+function getBetterSideReport(data: StoredFullReport): ConformationReport {
+  return data.betterSide === "left" ? data.leftReport : data.rightReport;
 }
 
 function formatReportDate(isoDate: string): string {
@@ -176,7 +279,7 @@ export default function ReportDetailPage() {
       const { data, error } = await supabase
         .from("reports")
         .select(
-          "id, created_at, horse_name, breed, age, sex, discipline, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text",
+          "id, created_at, horse_name, breed, age, sex, discipline, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text, overlay_url, glb_url",
         )
         .eq("id", reportId)
         .eq("user_id", session.user.id)
@@ -194,9 +297,22 @@ export default function ReportDetailPage() {
     void loadReport();
   }, [reportId, router]);
 
-  const parsedReportText =
-    report?.report_text != null ? parseReportText(report.report_text) : null;
+  const parsedReport =
+    report?.report_text != null
+      ? parseStoredReportText(report.report_text)
+      : null;
   const horseDetailLines = report ? formatHorseDetailLines(report) : [];
+  const glbUrl = report?.glb_url?.trim() || null;
+  const overlayUrl = report?.overlay_url?.trim() || null;
+  const fullReportData =
+    parsedReport?.kind === "full" ? parsedReport.data : null;
+  const singleReportSummary =
+    parsedReport?.kind === "single" ? parsedReport.summary : null;
+  const singleReportNotes =
+    parsedReport?.kind === "single" ? parsedReport.notes : null;
+  const betterSideReport = fullReportData
+    ? getBetterSideReport(fullReportData)
+    : null;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -258,51 +374,163 @@ export default function ReportDetailPage() {
             </p>
 
             <div className="mt-4 border-b border-zinc-800 pb-6">
-              <p className="text-sm font-medium text-zinc-400">Overall score</p>
+              <p className="text-sm font-medium text-zinc-400">
+                {fullReportData ? "Combined score" : "Overall score"}
+              </p>
               <p className="mt-1 text-5xl font-bold text-accent">
                 {report.overall_score ?? "—"}
                 <span className="text-2xl font-normal text-zinc-500">/100</span>
               </p>
+              {fullReportData ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Weighted: best side 40%, other side 20%, front 20%, hind 20%
+                </p>
+              ) : null}
             </div>
 
-            {report.report_text ? (
+            {overlayUrl ? (
+              <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                <h2 className="text-lg font-semibold text-white">
+                  {fullReportData
+                    ? `Conformation Overlay — ${
+                        fullReportData.betterSide === "right"
+                          ? "Right"
+                          : "Left"
+                      } Side (best side)`
+                    : "Conformation Overlay"}
+                </h2>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={overlayUrl}
+                  alt="Conformation overlay"
+                  className="mt-4 max-h-[400px] w-full rounded-lg border border-zinc-800 object-contain"
+                />
+              </div>
+            ) : null}
+
+            {glbUrl ? (
+              <>
+                <HorseViewer3D
+                  className="mt-8"
+                  landmarks={{ left: {}, front: {}, hind: {} }}
+                  coatColor={fullReportData?.coatColor}
+                  markings={fullReportData?.markings}
+                  tripoGlbUrl={glbUrl}
+                />
+                <p className="mt-3 text-xs italic text-zinc-500">
+                  3D model is AI-generated from your photos. Results may vary
+                  based on photo quality, lighting, camera angle, and horse
+                  stance.
+                </p>
+              </>
+            ) : null}
+
+            {singleReportSummary || betterSideReport?.summary ? (
+              <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                <h2 className="text-lg font-semibold text-white">Summary</h2>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                  {singleReportSummary ??
+                    betterSideReport?.summary ??
+                    (parsedReport?.kind === "raw" ? parsedReport.raw : "")}
+                </p>
+              </div>
+            ) : parsedReport?.kind === "raw" && report.report_text ? (
               <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
                 <h2 className="text-lg font-semibold text-white">Report</h2>
                 <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
-                  {parsedReportText?.ok
-                    ? parsedReportText.summary
-                    : report.report_text}
+                  {parsedReport.raw}
                 </p>
               </div>
             ) : null}
 
-            <ul className="mt-6 space-y-4">
-              {SCORE_SECTIONS.map(({ label, key, reportKey }) => {
-                const sectionNotes =
-                  parsedReportText?.ok === true
-                    ? parsedReportText.notes[reportKey]
-                    : undefined;
+            {fullReportData ? (
+              <div className="mt-8 space-y-6">
+                {FULL_REPORT_VIEWS.map(({ view, label, reportKey }) => {
+                  const viewReport = fullReportData[reportKey];
+                  const isBestSide =
+                    (view === "left" || view === "right") &&
+                    fullReportData.betterSide === view;
 
-                return (
-                  <li
-                    key={key}
-                    className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-medium text-zinc-200">{label}</h3>
-                      <span className="text-sm font-semibold text-accent">
-                        {report[key] ?? "—"}/100
-                      </span>
+                  return (
+                    <div
+                      key={view}
+                      className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+                    >
+                      <div className="border-b border-zinc-800 pb-3">
+                        <h3 className="text-base font-semibold text-white">
+                          {label} — {viewReport.overall_score}/100
+                          {isBestSide ? (
+                            <span className="ml-2 text-xs font-normal text-accent">
+                              · best side
+                            </span>
+                          ) : null}
+                        </h3>
+                      </div>
+
+                      <ul className="mt-4 space-y-4">
+                        {REPORT_SECTIONS_BY_VIEW[view].map(({ key, label: sectionLabel }) => {
+                          const section = viewReport[key];
+
+                          return (
+                            <li key={key}>
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="text-sm font-medium text-zinc-200">
+                                  {sectionLabel}
+                                </h4>
+                                <span className="text-sm font-semibold text-accent">
+                                  {section.score}/100
+                                </span>
+                              </div>
+                              <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                                {section.notes}
+                              </p>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-                    {sectionNotes ? (
-                      <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-                        {sectionNotes}
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+                  );
+                })}
+              </div>
+            ) : (
+              <ul className="mt-6 space-y-4">
+                {SIDE_REPORT_SECTIONS.map(({ key, label }) => {
+                  const sectionNotes = singleReportNotes?.[key];
+
+                  return (
+                    <li
+                      key={key}
+                      className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium text-zinc-200">
+                          {label}
+                        </h3>
+                        <span className="text-sm font-semibold text-accent">
+                          {report[
+                            key === "balance"
+                              ? "balance_score"
+                              : key === "shoulder_angle"
+                                ? "shoulder_score"
+                                : key === "hip_angle"
+                                  ? "hip_score"
+                                  : key === "topline_quality"
+                                    ? "topline_score"
+                                    : "leg_score"
+                          ] ?? "—"}
+                          /100
+                        </span>
+                      </div>
+                      {sectionNotes ? (
+                        <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                          {sectionNotes}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </article>
         )}
       </main>

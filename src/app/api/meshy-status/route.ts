@@ -68,6 +68,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing taskId" }, { status: 400 });
   }
 
+  const reportId = new URL(request.url).searchParams.get("reportId")?.trim();
+
   const apiKey = process.env.MESHY_API_KEY?.trim();
   if (!apiKey) {
     return NextResponse.json(
@@ -123,6 +125,21 @@ export async function GET(request: Request) {
           { status, error: "Failed to store 3D model" },
           { status: 500 },
         );
+      }
+
+      if (reportId) {
+        const { error: updateError } = await serviceClient
+          .from("reports")
+          .update({ glb_url: glbUrl })
+          .eq("id", reportId)
+          .eq("user_id", user.id);
+
+        if (updateError) {
+          console.error(
+            "[meshy-status] failed to update report glb_url:",
+            updateError,
+          );
+        }
       }
 
       return NextResponse.json({ status, glbUrl });
