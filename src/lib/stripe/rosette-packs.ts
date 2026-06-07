@@ -11,78 +11,145 @@ export type RosettePack = {
   stripePriceId: string;
 };
 
-export const SINGLE_VIEW_PACKS: RosettePack[] = [
+export const ROSETTE_PACKS: RosettePack[] = [
   {
-    id: "single-1",
-    name: "1 Single View Report",
+    id: "sv-1",
+    name: "Single View Full Report",
     reportType: "single_view",
     rosettes: 1,
-    price: 500,
-    priceDisplay: "$5.00",
-    perReport: "$5.00 per report",
+    price: 1000,
+    priceDisplay: "$10.00",
+    perReport: "$10.00 per report",
     stripePriceId: "price_1Te0Ud6SA5I9u4voauwQN15m",
   },
   {
-    id: "single-5",
-    name: "5 Single View Reports",
+    id: "sv-3",
+    name: "3 Single View Full Reports",
+    reportType: "single_view",
+    rosettes: 3,
+    price: 0,
+    priceDisplay: "3-pack",
+    perReport: "3 reports",
+    stripePriceId: "price_1Te0VY6SA5I9u4voomqK0K79",
+  },
+  {
+    id: "sv-5",
+    name: "5 Single View Full Reports",
     reportType: "single_view",
     rosettes: 5,
-    price: 2200,
-    priceDisplay: "$22.00",
-    perReport: "$4.40 per report",
+    price: 0,
+    priceDisplay: "5-pack",
+    perReport: "5 reports",
     stripePriceId: "price_1Te0VC6SA5I9u4vozrpsA9k9",
   },
   {
-    id: "single-10",
-    name: "10 Single View Reports",
+    id: "sv3d-1",
+    name: "Single View Full Report + 3D",
     reportType: "single_view",
-    rosettes: 10,
-    price: 4000,
-    priceDisplay: "$40.00",
-    perReport: "$4.00 per report",
-    stripePriceId: "price_1Te0VY6SA5I9u4voomqK0K79",
+    rosettes: 1,
+    price: 1800,
+    priceDisplay: "$18.00",
+    perReport: "$18.00 per report",
+    stripePriceId: "price_1Tfko06SA5I9u4voN5wAjmyL",
   },
-];
-
-export const FULL_REPORT_PACKS: RosettePack[] = [
   {
-    id: "full-1",
-    name: "1 Full Report",
+    id: "sv3d-3",
+    name: "3 Single View Full Reports + 3D",
+    reportType: "single_view",
+    rosettes: 3,
+    price: 0,
+    priceDisplay: "3-pack",
+    perReport: "3 reports",
+    stripePriceId: "price_1Tfl9m6SA5I9u4vova2WOBwA",
+  },
+  {
+    id: "sv3d-5",
+    name: "5 Single View Full Reports + 3D",
+    reportType: "single_view",
+    rosettes: 5,
+    price: 0,
+    priceDisplay: "5-pack",
+    perReport: "5 reports",
+    stripePriceId: "price_1TflAL6SA5I9u4vogzOdxkCE",
+  },
+  {
+    id: "fv-1",
+    name: "Four-View Full Report",
+    reportType: "full_report",
+    rosettes: 1,
+    price: 2000,
+    priceDisplay: "$20.00",
+    perReport: "$20.00 per report",
+    stripePriceId: "price_1TflJp6SA5I9u4voV2oFs2vV",
+  },
+  {
+    id: "fv-3",
+    name: "3 Four-View Full Reports",
+    reportType: "full_report",
+    rosettes: 3,
+    price: 0,
+    priceDisplay: "3-pack",
+    perReport: "3 reports",
+    stripePriceId: "price_1Te0XH6SA5I9u4vo2QdMUMt5",
+  },
+  {
+    id: "fv-5",
+    name: "5 Four-View Full Reports",
+    reportType: "full_report",
+    rosettes: 5,
+    price: 0,
+    priceDisplay: "5-pack",
+    perReport: "5 reports",
+    stripePriceId: "price_1Te0Wz6SA5I9u4vodJfb7npV",
+  },
+  {
+    id: "fv3d-1",
+    name: "Four-View Full Report + 3D",
     reportType: "full_report",
     rosettes: 1,
     price: 3000,
     priceDisplay: "$30.00",
     perReport: "$30.00 per report",
+    stripePriceId: "price_1Tfkoa6SA5I9u4votsxJVd3S",
+  },
+  {
+    id: "fv3d-3",
+    name: "3 Four-View Full Reports + 3D",
+    reportType: "full_report",
+    rosettes: 3,
+    price: 0,
+    priceDisplay: "3-pack",
+    perReport: "3 reports",
     stripePriceId: "price_1Te0Wj6SA5I9u4vou6vVxgF9",
   },
   {
-    id: "full-3",
-    name: "3 Full Reports",
+    id: "fv3d-5",
+    name: "5 Four-View Full Reports + 3D",
     reportType: "full_report",
-    rosettes: 3,
-    price: 7900,
-    priceDisplay: "$79.00",
-    perReport: "$26.33 per report",
-    stripePriceId: "price_1Te0Wz6SA5I9u4vodJfb7npV",
-  },
-  {
-    id: "full-10",
-    name: "10 Full Reports",
-    reportType: "full_report",
-    rosettes: 10,
-    price: 25000,
-    priceDisplay: "$250.00",
-    perReport: "$25.00 per report",
-    stripePriceId: "price_1Te0XH6SA5I9u4vo2QdMUMt5",
+    rosettes: 5,
+    price: 0,
+    priceDisplay: "5-pack",
+    perReport: "5 reports",
+    stripePriceId: "price_1TflB16SA5I9u4voSUfusvYf",
   },
 ];
 
-/** @deprecated Buy page still uses combined list; prefer SINGLE_VIEW_PACKS / FULL_REPORT_PACKS */
-export const ROSETTE_PACKS: RosettePack[] = [
-  ...SINGLE_VIEW_PACKS,
-  ...FULL_REPORT_PACKS,
-];
+/** @deprecated Use ROSETTE_PACKS */
+export const SINGLE_VIEW_PACKS = ROSETTE_PACKS.filter(
+  (pack) => pack.reportType === "single_view",
+);
+
+/** @deprecated Use ROSETTE_PACKS */
+export const FULL_REPORT_PACKS = ROSETTE_PACKS.filter(
+  (pack) => pack.reportType === "full_report",
+);
 
 export function findRosettePack(packId: string): RosettePack | undefined {
   return ROSETTE_PACKS.find((pack) => pack.id === packId);
+}
+
+export function findRosettePackByPriceId(
+  stripePriceId: string,
+): RosettePack | undefined {
+  return ROSETTE_PACKS.find((pack) => pack.stripePriceId === stripePriceId);
 }
