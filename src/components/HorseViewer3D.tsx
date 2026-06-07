@@ -40,7 +40,6 @@ const COAT_COLOR_MAP: Record<string, number> = {
   cremello: 0xf5e6c8,
   pinto: 0x8b4513,
 };
-const LINE_COLOR = 0xff3333;
 const GROUND_TEAL = 0x00d4b4;
 
 function getLandmark(
@@ -78,66 +77,6 @@ function imageYToWorldY(
   // image Y increases downward, world Y increases upward — invert
   const t = (normY - landmarkYMin) / (landmarkYMax - landmarkYMin);
   return bboxYMax - t * (bboxYMax - bboxYMin);
-}
-
-function createPlumbLineSegment(
-  x1: number,
-  y1: number,
-  z1: number,
-  x2: number,
-  y2: number,
-  z2: number,
-): THREE.LineSegments {
-  const geometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(x1, y1, z1),
-    new THREE.Vector3(x2, y2, z2),
-  ]);
-  const material = new THREE.LineBasicMaterial({
-    color: LINE_COLOR,
-    linewidth: 2,
-  });
-  return new THREE.LineSegments(geometry, material);
-}
-
-function addConformationLines(
-  wrapper: THREE.Object3D,
-  lineBbox: THREE.Box3,
-  scaledBbox: THREE.Box3,
-) {
-  const depth = scaledBbox.max.z - scaledBbox.min.z;
-  const frontZ = scaledBbox.min.z + depth * 0.2;
-  const hindZ = scaledBbox.max.z - depth * 0.2;
-
-  wrapper.add(
-    createPlumbLineSegment(
-      0,
-      lineBbox.max.y,
-      0,
-      0,
-      lineBbox.min.y,
-      0,
-    ),
-  );
-  wrapper.add(
-    createPlumbLineSegment(
-      0,
-      scaledBbox.max.y,
-      frontZ,
-      0,
-      0,
-      frontZ,
-    ),
-  );
-  wrapper.add(
-    createPlumbLineSegment(
-      0,
-      scaledBbox.max.y,
-      hindZ,
-      0,
-      0,
-      hindZ,
-    ),
-  );
 }
 
 function resolveCoatColor(coatColor?: string): number {
@@ -560,10 +499,6 @@ export default function HorseViewer3D({
   tripoGlbUrl,
 }: HorseViewer3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const frontPlumbLineRef = useRef<THREE.Line | null>(null);
-  const hindPlumbLineRef = useRef<THREE.Line | null>(null);
-  const frontSphereRef = useRef<THREE.Mesh | null>(null);
-  const hindSphereRef = useRef<THREE.Mesh | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(true);
@@ -680,26 +615,6 @@ export default function HorseViewer3D({
     controls.minPolarAngle = Math.PI * 0.22;
     controls.autoRotate = false;
     controls.autoRotateSpeed = 0.35;
-
-    const updatePlumbVisibility = () => {
-      const azimuth = controls.getAzimuthalAngle();
-      const isFrontOrHind = Math.abs(Math.cos(azimuth)) > 0.5;
-
-      if (frontPlumbLineRef.current) {
-        frontPlumbLineRef.current.visible = isFrontOrHind;
-      }
-      if (hindPlumbLineRef.current) {
-        hindPlumbLineRef.current.visible = isFrontOrHind;
-      }
-      if (frontSphereRef.current) {
-        frontSphereRef.current.visible = isFrontOrHind;
-      }
-      if (hindSphereRef.current) {
-        hindSphereRef.current.visible = isFrontOrHind;
-      }
-    };
-
-    controls.addEventListener("change", updatePlumbVisibility);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
     scene.add(ambientLight);
@@ -847,15 +762,6 @@ export default function HorseViewer3D({
           }
         });
 
-        const bonePositions: Record<string, THREE.Vector3> = {};
-        scene.traverse((obj) => {
-          if (obj.type === "Bone") {
-            const worldPos = new THREE.Vector3();
-            obj.getWorldPosition(worldPos);
-            bonePositions[obj.name] = worldPos;
-          }
-        });
-
         const lm = landmarks?.left ?? {};
 
         const ikAllLmY = [
@@ -957,224 +863,9 @@ export default function HorseViewer3D({
           );
         }
 
-        scene.traverse((obj) => {
-          if (obj.type === "Bone") {
-            const worldPos = new THREE.Vector3();
-            obj.getWorldPosition(worldPos);
-            bonePositions[obj.name] = worldPos;
-          }
-        });
-
-        const width = finalBbox.max.x - finalBbox.min.x;
-        const depth = finalBbox.max.z - finalBbox.min.z;
-
-        function makeVerticalLine(
-          x: number,
-          yTop: number,
-          yBottom: number,
-          z: number,
-          color: number,
-        ) {
-          const points = [
-            new THREE.Vector3(x, yTop, z),
-            new THREE.Vector3(x, yBottom, z),
-          ];
-          const geo = new THREE.BufferGeometry().setFromPoints(points);
-          const mat = new THREE.LineBasicMaterial({
-            color,
-            linewidth: 2,
-          });
-          return new THREE.Line(geo, mat);
-        }
-
-        const allLmX = [
-          lm.shoulder?.x,
-          lm.girth?.x,
-          lm.point_of_hip?.x ?? lm.loin?.x,
-          lm.buttock?.x,
-        ].filter((v): v is number => v != null);
-        const landmarkXMin = Math.min(...allLmX);
-        const landmarkXMax = Math.max(...allLmX);
-        const bboxXMin = finalBbox.min.x;
-        const bboxXMax = finalBbox.max.x;
-
-        console.log("facingRight:", facingRight, "poll.x:", lm.poll?.x);
-        console.log(
-          "shoulder.x:",
-          lm.shoulder?.x,
-          "buttock.x:",
-          lm.buttock?.x,
-        );
-        console.log("finalBbox X:", bboxXMin, "to", bboxXMax);
-
-        let line1X = imageXToWorldX(
-          lm.shoulder?.x ?? 0.36,
-          landmarkXMin,
-          landmarkXMax,
-          bboxXMin,
-          bboxXMax,
-          facingRight,
-        );
-        let line2X = imageXToWorldX(
-          lm.girth?.x ?? 0.42,
-          landmarkXMin,
-          landmarkXMax,
-          bboxXMin,
-          bboxXMax,
-          facingRight,
-        );
-        let line3X = imageXToWorldX(
-          lm.point_of_hip?.x ?? lm.loin?.x ?? 0.65,
-          landmarkXMin,
-          landmarkXMax,
-          bboxXMin,
-          bboxXMax,
-          facingRight,
-        );
-        let line4X = imageXToWorldX(
-          lm.buttock?.x ?? 0.85,
-          landmarkXMin,
-          landmarkXMax,
-          bboxXMin,
-          bboxXMax,
-          facingRight,
-        );
-
-        console.log("Red line norm X:", {
-          shoulder: lm.shoulder?.x ?? 0.36,
-          girth: lm.girth?.x ?? 0.42,
-          point_of_hip: lm.point_of_hip?.x,
-          loin: lm.loin?.x,
-          buttock: lm.buttock?.x ?? 0.85,
-        });
-        console.log("Red line X:", {
-          line1X,
-          line2X,
-          line3X,
-          line4X,
-          landmarkXMin,
-          landmarkXMax,
-          facingRight,
-          distinct: new Set([line1X, line2X, line3X, line4X]).size === 4,
-        });
-
-        scene.add(
-          makeVerticalLine(
-            line1X,
-            finalBbox.max.y,
-            0,
-            bboxCenter.z,
-            0xff3333,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            line2X,
-            finalBbox.max.y,
-            0,
-            bboxCenter.z,
-            0xff3333,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            line3X,
-            finalBbox.max.y,
-            0,
-            bboxCenter.z,
-            0xff3333,
-          ),
-        );
-        scene.add(
-          makeVerticalLine(
-            line4X,
-            finalBbox.max.y,
-            0,
-            bboxCenter.z,
-            0xff3333,
-          ),
-        );
-
-        const elbowBone =
-          bonePositions["VIS_upper_arm_ik_pole.L"] ??
-          bonePositions["VIS_upper_arm_ik_poleL"];
-        const frontPlumbX = elbowBone
-          ? elbowBone.x
-          : (bonePositions["forefoot_ik.L"]?.x ??
-            bonePositions["forefoot_ikL"]?.x ??
-            line1X);
-        const frontSphereY = elbowBone
-          ? elbowBone.y
-          : finalBbox.max.y * 0.6;
-
-        const buttockBone =
-          bonePositions["ORG-tail.003"] ?? bonePositions["ORG-tail003"];
-        const hindPlumbX = buttockBone ? buttockBone.x : line4X;
-        const hindSphereY = buttockBone
-          ? buttockBone.y
-          : finalBbox.max.y * 0.7;
-
-        const frontPlumbGeo = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(frontPlumbX, finalBbox.min.y, bboxCenter.z),
-          new THREE.Vector3(frontPlumbX, frontSphereY, bboxCenter.z),
-        ]);
-        const plumbMat = new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.85,
-        });
-        const frontPlumbLine = new THREE.Line(frontPlumbGeo, plumbMat);
-        frontPlumbLine.visible = false;
-        scene.add(frontPlumbLine);
-        frontPlumbLineRef.current = frontPlumbLine;
-
-        const hindPlumbGeo = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(hindPlumbX, finalBbox.min.y, bboxCenter.z),
-          new THREE.Vector3(hindPlumbX, hindSphereY, bboxCenter.z),
-        ]);
-        const hindPlumbLine = new THREE.Line(hindPlumbGeo, plumbMat.clone());
-        hindPlumbLine.visible = false;
-        scene.add(hindPlumbLine);
-        hindPlumbLineRef.current = hindPlumbLine;
-
-        const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
-        const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-        const frontSphere = new THREE.Mesh(sphereGeo, sphereMat);
-        frontSphere.position.set(frontPlumbX, frontSphereY, bboxCenter.z);
-        frontSphere.visible = false;
-        scene.add(frontSphere);
-        frontSphereRef.current = frontSphere;
-
-        const hindSphere = new THREE.Mesh(sphereGeo.clone(), sphereMat.clone());
-        hindSphere.position.set(hindPlumbX, hindSphereY, bboxCenter.z);
-        hindSphere.visible = false;
-        scene.add(hindSphere);
-        hindSphereRef.current = hindSphere;
-
         if (!disposed) {
-          setDebugInfo({
-            ...morphWeights,
-            line1X,
-            line2X,
-            line3X,
-            line4X,
-            frontPlumbX,
-            hindPlumbX,
-            facingRight,
-          });
+          setDebugInfo({ ...morphWeights });
         }
-
-        const discGeo = new THREE.CircleGeometry(0.9, 64);
-        discGeo.rotateX(-Math.PI / 2);
-        const discMat = new THREE.MeshStandardMaterial({
-          color: 0x00d4b4,
-          opacity: 0.22,
-          transparent: true,
-        });
-        const disc = new THREE.Mesh(discGeo, discMat);
-        disc.position.set(bboxCenter.x, 0.01, bboxCenter.z);
-        scene.add(disc);
 
         camera.position.set(
           bboxCenter.x,
@@ -1206,12 +897,7 @@ export default function HorseViewer3D({
       setDebugInfo(null);
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
-      controls.removeEventListener("change", updatePlumbVisibility);
       controls.dispose();
-      frontPlumbLineRef.current = null;
-      hindPlumbLineRef.current = null;
-      frontSphereRef.current = null;
-      hindSphereRef.current = null;
 
       scene.traverse((object) => {
         if (object instanceof THREE.Line) {
@@ -1274,21 +960,6 @@ export default function HorseViewer3D({
           </div>
           <div>neck_long:          {formatDebugNumber(debugInfo.neck_long, 2)}</div>
           <div>legs_long:          {formatDebugNumber(debugInfo.legs_long, 2)}</div>
-          <div style={{ marginTop: 4, color: "#88ccff" }}>
-            L1x: {formatDebugNumber(debugInfo.line1X, 3)} &nbsp; L2x:{" "}
-            {formatDebugNumber(debugInfo.line2X, 3)}
-          </div>
-          <div style={{ color: "#88ccff" }}>
-            L3x: {formatDebugNumber(debugInfo.line3X, 3)} &nbsp; L4x:{" "}
-            {formatDebugNumber(debugInfo.line4X, 3)}
-          </div>
-          <div style={{ color: "#ff88ff", marginTop: 4 }}>
-            frontPlumb: {formatDebugNumber(debugInfo.frontPlumbX, 3)} &nbsp;
-            hindPlumb: {formatDebugNumber(debugInfo.hindPlumbX, 3)}
-          </div>
-          <div style={{ color: "#ff88ff" }}>
-            facingRight: {debugInfo.facingRight ? "YES" : "NO"}
-          </div>
         </div>
       ) : null}
 
