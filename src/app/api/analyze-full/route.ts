@@ -572,6 +572,9 @@ async function generateTripo3DModel(
       }
 
       if (status === "failed" || status === "cancelled") {
+        if (status === "failed") {
+          console.log('[tripo3d] failure detail:', JSON.stringify(statusData, null, 2));
+        }
         console.error("[tripo3d] task failed with status:", status);
         return null;
       }
