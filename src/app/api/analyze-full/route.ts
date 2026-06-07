@@ -473,9 +473,10 @@ function flipBufferHorizontally(
 }
 
 async function generateTripo3DModel(
-  bestSideUrl: string,
   frontUrl: string,
+  leftUrl: string,
   hindUrl: string,
+  rightUrl: string,
 ): Promise<string | null> {
   const apiKey = process.env.TRIPO_API_KEY?.trim();
   if (!apiKey) return null;
@@ -485,9 +486,9 @@ async function generateTripo3DModel(
       type: "multiview_to_model",
       files: [
         { type: "jpg", url: frontUrl },
-        { type: "jpg", url: bestSideUrl },
-        null,
+        { type: "jpg", url: leftUrl },
         { type: "jpg", url: hindUrl },
+        { type: "jpg", url: rightUrl },
       ],
       model_version: "v2.5-20250123",
     };
@@ -877,9 +878,10 @@ export async function POST(request: Request) {
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
     const tripoGlbUrl = await generateTripo3DModel(
-      imageUrls[betterSide],
       imageUrls.front,
+      imageUrls.left,
       imageUrls.hind,
+      imageUrls.right,
     );
 
     const combinedScore = calculateCombinedScore(
