@@ -491,8 +491,9 @@ async function generateTripo3DModel(
         type: "multiview_to_model",
         files: [
           { type: "jpg", url: frontUrl },
-          { type: "jpg", url: hindUrl },
           { type: "jpg", url: bestSideUrl },
+          {},
+          { type: "jpg", url: hindUrl },
         ],
         model_version: "v2.5-20250123",
       }),
