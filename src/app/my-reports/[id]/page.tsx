@@ -22,6 +22,10 @@ type ReportDetail = {
   id: string;
   created_at: string;
   horse_name: string | null;
+  breed: string | null;
+  age: string | null;
+  sex: string | null;
+  discipline: string | null;
   overall_score: number | null;
   balance_score: number | null;
   shoulder_score: number | null;
@@ -30,6 +34,22 @@ type ReportDetail = {
   leg_score: number | null;
   report_text: string | null;
 };
+
+function formatHorseDetailLines(report: {
+  breed: string | null;
+  age: string | null;
+  sex: string | null;
+  discipline: string | null;
+}): string[] {
+  return [
+    report.breed?.trim() ? `Breed: ${report.breed.trim()}` : null,
+    report.age?.trim() ? `Age: ${report.age.trim()}` : null,
+    report.sex?.trim() ? `Sex: ${report.sex.trim()}` : null,
+    report.discipline?.trim()
+      ? `Discipline: ${report.discipline.trim()}`
+      : null,
+  ].filter((line): line is string => line !== null);
+}
 
 const SCORE_SECTIONS: {
   label: string;
@@ -156,7 +176,7 @@ export default function ReportDetailPage() {
       const { data, error } = await supabase
         .from("reports")
         .select(
-          "id, created_at, horse_name, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text",
+          "id, created_at, horse_name, breed, age, sex, discipline, overall_score, balance_score, shoulder_score, hip_score, topline_score, leg_score, report_text",
         )
         .eq("id", reportId)
         .eq("user_id", session.user.id)
@@ -176,6 +196,7 @@ export default function ReportDetailPage() {
 
   const parsedReportText =
     report?.report_text != null ? parseReportText(report.report_text) : null;
+  const horseDetailLines = report ? formatHorseDetailLines(report) : [];
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -223,6 +244,15 @@ export default function ReportDetailPage() {
             <h1 className="text-2xl font-semibold text-white">
               {report.horse_name?.trim() || "Unnamed Horse"}
             </h1>
+            {horseDetailLines.length > 0 ? (
+              <div className="mt-2 space-y-1">
+                {horseDetailLines.map((line) => (
+                  <p key={line} className="text-sm text-zinc-400">
+                    {line}
+                  </p>
+                ))}
+              </div>
+            ) : null}
             <p className="mt-2 text-sm text-zinc-400">
               {formatReportDate(report.created_at)}
             </p>

@@ -1355,6 +1355,10 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         horse_name: horseName,
+        breed: breed || null,
+        age,
+        sex,
+        discipline,
         overall_score: combinedScore,
         balance_score: betterSideReport.balance.score,
         shoulder_score: betterSideReport.shoulder_angle.score,

@@ -12,8 +12,28 @@ type ReportRow = {
   created_at: string;
   overall_score: number | null;
   horse_name: string | null;
+  breed: string | null;
+  age: string | null;
+  sex: string | null;
+  discipline: string | null;
   pdf_url: string | null;
 };
+
+function formatHorseDetailLines(report: {
+  breed: string | null;
+  age: string | null;
+  sex: string | null;
+  discipline: string | null;
+}): string[] {
+  return [
+    report.breed?.trim() ? `Breed: ${report.breed.trim()}` : null,
+    report.age?.trim() ? `Age: ${report.age.trim()}` : null,
+    report.sex?.trim() ? `Sex: ${report.sex.trim()}` : null,
+    report.discipline?.trim()
+      ? `Discipline: ${report.discipline.trim()}`
+      : null,
+  ].filter((line): line is string => line !== null);
+}
 
 function formatReportDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString(undefined, {
@@ -51,9 +71,10 @@ export default function MyReportsPage() {
 
       const { data, error, count } = await supabase
         .from("reports")
-        .select("id, created_at, overall_score, horse_name, pdf_url", {
-          count: "exact",
-        })
+        .select(
+          "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url",
+          { count: "exact" },
+        )
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -131,6 +152,11 @@ export default function MyReportsPage() {
                     <p className="text-sm font-medium text-white">
                       {report.horse_name?.trim() || "Unnamed Horse"}
                     </p>
+                    {formatHorseDetailLines(report).map((line) => (
+                      <p key={line} className="mt-1 text-xs text-zinc-400">
+                        {line}
+                      </p>
+                    ))}
                     <p className="mt-1 text-xs text-zinc-400">
                       {formatReportDate(report.created_at)}
                     </p>
