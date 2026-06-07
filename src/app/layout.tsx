@@ -115,8 +115,8 @@ export default function RootLayout({
           </div>
           <p
             style={{
-              fontSize: "11px",
-              color: "#6b7280",
+              fontSize: "12px",
+              color: "#9ca3af",
               textAlign: "center",
               padding: "8px 16px",
             }}
@@ -126,7 +126,7 @@ export default function RootLayout({
             <a
               href="/disclaimer"
               style={{
-                color: "#6b7280",
+                color: "#9ca3af",
                 textDecoration: "underline",
                 marginLeft: "4px",
               }}
