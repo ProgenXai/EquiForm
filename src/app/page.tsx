@@ -61,6 +61,12 @@ export default function Home() {
     }
 
     if (mode === "signup") {
+      void fetch("/api/email/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, name: trimmedFirstName }),
+      });
+
       const session =
         authData.session ??
         (await supabase.auth.getSession()).data.session;
@@ -88,12 +94,6 @@ export default function Home() {
       } catch {
         // Profile setup can continue even if preferences fail.
       }
-
-      void fetch("/api/email/welcome", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail }),
-      });
 
       window.location.assign("/profile?setup=1");
       return;

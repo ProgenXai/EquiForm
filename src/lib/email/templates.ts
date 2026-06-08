@@ -57,7 +57,9 @@ function button(href: string, label: string, primary = true): string {
 }
 
 export function welcomeEmailHtml(name?: string): string {
-  const greeting = name?.trim() ? `Hi ${name.trim()},` : "Hi there,";
+  const greeting = name?.trim()
+    ? `Welcome, ${name.trim()}!`
+    : "Welcome to EquiForm!";
 
   const body = `
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${TEXT};">Welcome to EquiForm 🐴</h1>
