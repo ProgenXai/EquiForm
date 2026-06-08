@@ -135,55 +135,6 @@ const REPORT_SECTIONS_BY_VIEW: Record<
 const APP_SUBTITLE =
   "The most advanced AI equine conformation analysis available";
 
-const PHOTO_DISTANCE_TIP =
-  "Step back far enough that the full horse fills about 2/3 of the frame";
-
-const SIDE_VIEW_TIPS = [
-  "Use a clear side profile photo",
-  PHOTO_DISTANCE_TIP,
-  "Horse must be standing still",
-  "All four feet visible on level ground",
-  "Horse standing square with a natural stance",
-  "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
-];
-
-const SINGLE_VIEW_TIPS = [
-  "Use a clear side profile photo",
-  PHOTO_DISTANCE_TIP,
-  "Horse must be standing still",
-  "All four feet visible on level ground",
-  "Horse standing square with a natural stance",
-  "For best 3D model results, use a clear side profile with the horse standing square and the full body visible.",
-];
-
-const FRONT_VIEW_TIPS = [
-  "Horse facing directly toward the camera",
-  "Lead rope or halter should not obstruct the chest or legs",
-  PHOTO_DISTANCE_TIP,
-  "All four feet visible on level ground",
-  "Camera at chest height — not from above or below",
-  "Horse standing square with a natural, still stance",
-  "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
-];
-
-const HIND_VIEW_TIPS = [
-  "Horse facing directly away from the camera",
-  "Tail tied up or braided for an unobstructed view of hindquarters and hooves",
-  PHOTO_DISTANCE_TIP,
-  "All four feet visible on level ground",
-  "Camera at hip height — not from above or below",
-  "Horse standing square with a natural, still stance",
-  "For best 3D model results, take all four photos in the same session with the horse standing square in a consistent stance",
-];
-
-const VIEW_MODE_TIPS: Record<CalibrationViewMode, string[]> = {
-  side: SIDE_VIEW_TIPS,
-  left: SIDE_VIEW_TIPS,
-  right: SIDE_VIEW_TIPS,
-  front: FRONT_VIEW_TIPS,
-  hind: HIND_VIEW_TIPS,
-};
-
 const SIDE_VIEW_UPLOAD_HINT =
   "JPG, PNG, or WEBP · side profile recommended";
 
@@ -235,6 +186,102 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
   { view: "front", label: "Front View" },
   { view: "hind", label: "Hind View" },
 ];
+
+const SIDE_PROFILE_DO = [
+  "Full side profile, head to hoof fully visible",
+  "Standing square on level ground",
+  "All four feet planted naturally",
+  "Good lighting, horse clearly visible against background",
+  "Step back so full horse fills about 2/3 of the frame",
+] as const;
+
+const SIDE_PROFILE_DONT = [
+  "Angled, 3/4, or front-facing photos",
+  "Motion, cocked legs, or stretched halter poses",
+  "Dark horses in dark settings or heavy shadows",
+  "Obstructions blocking any part of the body",
+] as const;
+
+const FRONT_VIEW_DO = [
+  "Horse facing directly toward the camera",
+  "Standing square, all four feet visible on level ground",
+  "Camera at chest height",
+  "Step back so full horse fills about 2/3 of the frame",
+] as const;
+
+const FRONT_VIEW_DONT = [
+  "Angled or off-center — must face camera straight on",
+  "Camera too high or too low",
+  "Feet partially obscured or off level ground",
+  "Motion or unnatural stance",
+] as const;
+
+const HIND_VIEW_DO = [
+  "Horse facing directly away from the camera",
+  "Tail tied or braided up — hind legs fully visible",
+  "Standing square, all four feet visible on level ground",
+  "Camera at hip height",
+  "Step back so full horse fills about 2/3 of the frame",
+] as const;
+
+const HIND_VIEW_DONT = [
+  "Tail covering hind legs",
+  "Angled — must face directly away from camera",
+  "Camera too high or too low",
+  "Feet partially obscured or off level ground",
+] as const;
+
+const VIEW_MODE_GUIDELINES: Record<
+  FullReportView,
+  { do: readonly string[]; dont: readonly string[] }
+> = {
+  left: { do: SIDE_PROFILE_DO, dont: SIDE_PROFILE_DONT },
+  right: { do: SIDE_PROFILE_DO, dont: SIDE_PROFILE_DONT },
+  front: { do: FRONT_VIEW_DO, dont: FRONT_VIEW_DONT },
+  hind: { do: HIND_VIEW_DO, dont: HIND_VIEW_DONT },
+};
+
+function ViewModeGuidelinesCards({ view }: { view: FullReportView }) {
+  const { do: doItems, dont: dontItems } = VIEW_MODE_GUIDELINES[view];
+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
+        <h4 className="text-sm font-semibold text-green-400">Do</h4>
+        <ul className="mt-2 space-y-2">
+          {doItems.map((item) => (
+            <li
+              key={item}
+              className="flex gap-1.5 text-xs leading-relaxed text-zinc-300"
+            >
+              <span className="shrink-0" aria-hidden="true">
+                ✅
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
+        <h4 className="text-sm font-semibold text-red-400">Don&apos;t</h4>
+        <ul className="mt-2 space-y-2">
+          {dontItems.map((item) => (
+            <li
+              key={item}
+              className="flex gap-1.5 text-xs leading-relaxed text-zinc-300"
+            >
+              <span className="shrink-0" aria-hidden="true">
+                ❌
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
 
 const HORSE_SEX_OPTIONS = [
   "Mare",
@@ -2073,14 +2120,7 @@ export default function AnalyzeClient() {
             <>
           {!singleViewPhoto?.previewUrl ? (
             <>
-              <div className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-xs text-zinc-300">
-                <p className="font-medium text-accent">For best results:</p>
-                <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-zinc-400">
-                  {SINGLE_VIEW_TIPS.map((tip) => (
-                    <li key={tip}>{tip}</li>
-                  ))}
-                </ul>
-              </div>
+              <ViewModeGuidelinesCards view="left" />
               <p className="mt-4 text-center">
                 <Link
                   href="/examples"
@@ -2391,16 +2431,7 @@ export default function AnalyzeClient() {
                         {slot.label}
                       </h3>
 
-                      <div className="mt-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2">
-                        <p className="text-xs font-medium text-accent">
-                          For best results:
-                        </p>
-                        <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-zinc-400">
-                          {VIEW_MODE_TIPS[slot.view].map((tip) => (
-                            <li key={tip}>{tip}</li>
-                          ))}
-                        </ul>
-                      </div>
+                      <ViewModeGuidelinesCards view={slot.view} />
 
                       <input
                         id={inputId}
