@@ -33,7 +33,7 @@ function emailLayout(title: string, bodyHtml: string): string {
           </tr>
           <tr>
             <td style="padding:0 28px 28px;text-align:center;">
-              <p style="margin:0;font-size:12px;color:${MUTED};">Powered by EquiForm · AQHA-style conformation analysis</p>
+              <p style="margin:0;font-size:12px;color:${MUTED};">EquiForm — AI-Powered Horse Conformation Analysis</p>
             </td>
           </tr>
         </table>
@@ -63,8 +63,9 @@ export function welcomeEmailHtml(name?: string): string {
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${TEXT};">Welcome to EquiForm 🐴</h1>
     <p style="margin:0 0 16px;color:${MUTED};">${greeting}</p>
     <p style="margin:0 0 16px;color:${MUTED};">
-      Thanks for joining EquiForm. We use AI to analyze a single side-profile photo of your horse and deliver
-      an AQHA-style conformation report with landmark overlay, category scores, and written notes.
+      Thanks for joining EquiForm. Upload one or more photos of your horse and receive a detailed AI-powered
+      conformation analysis with landmark overlays, section scores for Balance, Shoulder Angle, Hip Angle,
+      Topline Quality, and Leg Alignment, plus a written report for every view.
     </p>
     <p style="margin:0 0 16px;color:${MUTED};">
       Before your first analysis, review our photo guidelines so you get the best results from your upload.
