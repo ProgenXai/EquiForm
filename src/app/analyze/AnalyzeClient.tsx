@@ -2111,6 +2111,16 @@ export default function AnalyzeClient() {
                   onChange={handleFileInput}
                 />
               </label>
+              <p className="mt-3 text-center text-xs text-zinc-500">
+                Not sure what photo to use? See our{" "}
+                <Link
+                  href="/examples"
+                  className="font-medium text-accent transition hover:text-accent-hover"
+                >
+                  Examples page
+                </Link>{" "}
+                for guidance.
+              </p>
               {singleViewUploadError ? (
                 <p className="mt-3 text-sm text-red-400" role="alert">
                   {singleViewUploadError}
@@ -2421,6 +2431,17 @@ export default function AnalyzeClient() {
                   );
                 })}
               </div>
+
+              <p className="mt-4 text-center text-xs text-zinc-500">
+                Not sure what photo to use? See our{" "}
+                <Link
+                  href="/examples"
+                  className="font-medium text-accent transition hover:text-accent-hover"
+                >
+                  Examples page
+                </Link>{" "}
+                for guidance.
+              </p>
 
               <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
