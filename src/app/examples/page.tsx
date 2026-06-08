@@ -60,7 +60,7 @@ const DO_GUIDELINES = [
   "All four feet planted naturally",
   "Good lighting, horse clearly visible against background",
   "One horse only, no obstructions",
-  "Tail tied or braided to the side for hind view",
+  "Tail tied or braided up for hind view",
   "In focus, high resolution photo",
 ] as const;
 
@@ -270,15 +270,7 @@ export default function ExamplesPage() {
           >
             I&apos;m Ready, Buy Credits
           </Link>
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href="/buy-credits"
-              className="rounded-lg border border-accent bg-transparent px-6 py-3 text-center text-sm font-semibold text-accent transition hover:bg-accent/10"
-            >
-              Buy Report Credits
-            </Link>
-            <ExamplesBackButton />
-          </div>
+          <ExamplesBackButton />
         </div>
       </main>
     </div>
