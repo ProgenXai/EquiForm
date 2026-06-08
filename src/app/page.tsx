@@ -36,7 +36,7 @@ export default function Home() {
       return;
     }
 
-    const { error: authError } =
+    const { data: authData, error: authError } =
       mode === "login"
         ? await supabase.auth.signInWithPassword({
             email: trimmedEmail,
@@ -61,12 +61,19 @@ export default function Home() {
     }
 
     if (mode === "signup") {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const session =
+        authData.session ??
+        (await supabase.auth.getSession()).data.session;
 
-      if (session?.access_token) {
-        void fetch("/api/signup-preferences", {
+      if (!session?.access_token) {
+        setError(
+          "Account created! Please check your email to confirm your account, then log in.",
+        );
+        return;
+      }
+
+      try {
+        await fetch("/api/signup-preferences", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -78,6 +85,8 @@ export default function Home() {
             lastName: trimmedLastName,
           }),
         });
+      } catch {
+        // Profile setup can continue even if preferences fail.
       }
 
       void fetch("/api/email/welcome", {
@@ -85,7 +94,8 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmedEmail }),
       });
-      router.push("/profile?setup=1");
+
+      window.location.assign("/profile?setup=1");
       return;
     }
 
