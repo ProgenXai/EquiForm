@@ -14,7 +14,7 @@ export default function BuyRosettesPage() {
       <AppHamburgerMenu />
       <button
         type="button"
-        onClick={() => router.push("/analyze")}
+        onClick={() => router.back()}
         className="px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
       >
         ← Back
