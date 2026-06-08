@@ -102,37 +102,11 @@ export default function AppHamburgerMenu() {
             </div>
           ) : null}
           <Link
-            href="/dashboard"
+            href="/profile"
             className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
             onClick={() => setMenuOpen(false)}
           >
-            Home
-          </Link>
-          <Link
-            href="/buy-credits"
-            className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-            onClick={() => setMenuOpen(false)}
-          >
-            Buy Report Credits{" "}
-            <FileCheck
-              size={18}
-              className="inline-block shrink-0 align-middle text-accent"
-              aria-hidden
-            />
-          </Link>
-          <Link
-            href="/examples"
-            className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-            onClick={() => setMenuOpen(false)}
-          >
-            Examples
-          </Link>
-          <Link
-            href="/analyze"
-            className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-            onClick={() => setMenuOpen(false)}
-          >
-            Analyze a Horse
+            My Profile
           </Link>
           <Link
             href="/my-reports"
@@ -149,11 +123,37 @@ export default function AppHamburgerMenu() {
             My Horses
           </Link>
           <Link
-            href="/profile"
+            href="/dashboard"
             className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
             onClick={() => setMenuOpen(false)}
           >
-            My Profile
+            Home
+          </Link>
+          <Link
+            href="/analyze"
+            className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+            onClick={() => setMenuOpen(false)}
+          >
+            Analyze a Horse
+          </Link>
+          <Link
+            href="/examples"
+            className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+            onClick={() => setMenuOpen(false)}
+          >
+            Examples
+          </Link>
+          <Link
+            href="/buy-credits"
+            className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+            onClick={() => setMenuOpen(false)}
+          >
+            Buy Report Credits{" "}
+            <FileCheck
+              size={18}
+              className="inline-block shrink-0 align-middle text-accent"
+              aria-hidden
+            />
           </Link>
           <Link
             href="/contact"
