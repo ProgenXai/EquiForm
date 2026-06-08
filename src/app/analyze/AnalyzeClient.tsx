@@ -33,7 +33,7 @@ async function compressImageIfNeeded(
   file: File,
   options?: { maxSizeMB?: number },
 ): Promise<{ file: File; previewUrl: string }> {
-  const maxSizeMB = options?.maxSizeMB ?? 4;
+  const maxSizeMB = options?.maxSizeMB ?? 2;
   const targetBytes = maxSizeMB * 1024 * 1024;
 
   if (file.size <= targetBytes) {
@@ -52,6 +52,7 @@ async function compressImageIfNeeded(
   let width = imageBitmap.width;
   let height = imageBitmap.height;
   let quality = 0.92;
+  let reducedQualityAtCurrentSize = false;
   let blob: Blob | null = null;
 
   try {
@@ -72,12 +73,14 @@ async function compressImageIfNeeded(
         break;
       }
 
-      if (quality > 0.55) {
+      if (!reducedQualityAtCurrentSize && quality > 0.55) {
         quality -= 0.1;
+        reducedQualityAtCurrentSize = true;
       } else {
         width = Math.floor(width * 0.85);
         height = Math.floor(height * 0.85);
         quality = 0.85;
+        reducedQualityAtCurrentSize = false;
       }
     }
 
@@ -772,8 +775,9 @@ export default function AnalyzeClient() {
   const [fullReportPhotos, setFullReportPhotos] = useState<
     Partial<Record<FullReportView, FullReportSlot>>
   >({});
-  const [fullReportUploadingView, setFullReportUploadingView] =
-    useState<FullReportView | null>(null);
+  const [fullReportUploadingViews, setFullReportUploadingViews] = useState<
+    Set<FullReportView>
+  >(() => new Set());
   const fullReportPhotosRef = useRef(fullReportPhotos);
   fullReportPhotosRef.current = fullReportPhotos;
   const [horseName, setHorseName] = useState("");
@@ -1186,11 +1190,7 @@ export default function AnalyzeClient() {
       return;
     }
 
-    const {
-      data: { session: currentSession },
-    } = await supabase.auth.getSession();
-
-    if (!currentSession?.user) {
+    if (!session?.user) {
       setSingleViewUploadError("Sign in to upload photos for analysis.");
       return;
     }
@@ -1199,14 +1199,14 @@ export default function AnalyzeClient() {
     setSingleViewUploadError(null);
 
     const existingSlot = singleViewPhotoRef.current;
-    const userId = currentSession.user.id;
+    const userId = session.user.id;
 
     try {
       const { file: processedFile, previewUrl } =
         await compressImageIfNeeded(file);
 
       if (existingSlot?.storagePath) {
-        await deleteFullReportStorageFiles([existingSlot.storagePath]);
+        void deleteFullReportStorageFiles([existingSlot.storagePath]);
       }
 
       const storagePath = `${FULL_REPORT_TEMP_PREFIX}/${userId}/${Date.now()}-single.jpg`;
@@ -1258,82 +1258,99 @@ export default function AnalyzeClient() {
     if (file) void handleFile(file);
   }
 
-  async function handleFullReportFile(view: FullReportView, file: File) {
-    const slotLabel =
-      FULL_REPORT_SLOTS.find((slot) => slot.view === view)?.label ?? "photo";
+  async function uploadFullReportPhotoSlot(
+    view: FullReportView,
+    file: File,
+    userId: string,
+  ) {
+    const { file: processedFile, previewUrl } = await compressImageIfNeeded(file);
+    const existingSlot = fullReportPhotosRef.current[view];
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Only JPG, PNG, and WEBP files are allowed.");
+    if (existingSlot?.storagePath) {
+      void deleteFullReportStorageFiles([existingSlot.storagePath]);
+    }
+
+    const storagePath = `${FULL_REPORT_TEMP_PREFIX}/${userId}/${Date.now()}-${view}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(FULL_REPORT_STORAGE_BUCKET)
+      .upload(storagePath, processedFile, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(FULL_REPORT_STORAGE_BUCKET)
+      .getPublicUrl(storagePath);
+
+    setFullReportPhotos((current) => {
+      const existing = current[view];
+      if (existing?.previewUrl && existing.previewUrl !== previewUrl) {
+        URL.revokeObjectURL(existing.previewUrl);
+      }
+
+      return {
+        ...current,
+        [view]: {
+          previewUrl,
+          supabaseUrl: publicUrlData.publicUrl,
+          storagePath,
+        },
+      };
+    });
+  }
+
+  async function uploadFullReportPhotosInParallel(
+    uploads: { view: FullReportView; file: File }[],
+  ) {
+    if (uploads.length === 0) {
       return;
     }
 
-    if (file.size > MAX_BYTES) {
-      setError("File must be 10MB or smaller.");
-      return;
+    for (const { file } of uploads) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setError("Only JPG, PNG, and WEBP files are allowed.");
+        return;
+      }
+
+      if (file.size > MAX_BYTES) {
+        setError("File must be 10MB or smaller.");
+        return;
+      }
     }
 
-    const {
-      data: { session: currentSession },
-    } = await supabase.auth.getSession();
-
-    if (!currentSession?.user) {
+    if (!session?.user) {
       setError("Sign in to upload photos for a full report.");
       return;
     }
 
-    setFullReportUploadingView(view);
+    const userId = session.user.id;
+    setFullReportUploadingViews(new Set(uploads.map((upload) => upload.view)));
     setError(null);
 
-    const existingSlot = fullReportPhotosRef.current[view];
-    const userId = currentSession.user.id;
-
     try {
-      const { file: processedFile, previewUrl } = await compressImageIfNeeded(file);
-
-      if (existingSlot?.storagePath) {
-        await deleteFullReportStorageFiles([existingSlot.storagePath]);
-      }
-
-      const storagePath = `${FULL_REPORT_TEMP_PREFIX}/${userId}/${Date.now()}-${view}.jpg`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(FULL_REPORT_STORAGE_BUCKET)
-        .upload(storagePath, processedFile, {
-          contentType: "image/jpeg",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(FULL_REPORT_STORAGE_BUCKET)
-        .getPublicUrl(storagePath);
-
-      setFullReportPhotos((current) => {
-        const existing = current[view];
-        if (existing?.previewUrl && existing.previewUrl !== previewUrl) {
-          URL.revokeObjectURL(existing.previewUrl);
-        }
-
-        return {
-          ...current,
-          [view]: {
-            previewUrl,
-            supabaseUrl: publicUrlData.publicUrl,
-            storagePath,
-          },
-        };
-      });
+      await Promise.all(
+        uploads.map(({ view, file }) =>
+          uploadFullReportPhotoSlot(view, file, userId),
+        ),
+      );
     } catch (err) {
+      const failedView = uploads[0]?.view ?? "left";
+      const slotLabel =
+        FULL_REPORT_SLOTS.find((slot) => slot.view === failedView)?.label ??
+        "photo";
+
       setError(
         err instanceof Error
           ? `Failed to upload ${slotLabel} photo: ${err.message}`
           : `Failed to upload ${slotLabel} photo. Please try another.`,
       );
     } finally {
-      setFullReportUploadingView(null);
+      setFullReportUploadingViews(new Set());
     }
   }
 
@@ -1341,9 +1358,22 @@ export default function AnalyzeClient() {
     view: FullReportView,
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0];
-    if (file) void handleFullReportFile(view, file);
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+
+    if (files.length === 0) {
+      return;
+    }
+
+    const startIndex = FULL_REPORT_SLOTS.findIndex((slot) => slot.view === view);
+    const uploads = files
+      .slice(0, FULL_REPORT_SLOTS.length - startIndex)
+      .map((file, index) => ({
+        view: FULL_REPORT_SLOTS[startIndex + index].view,
+        file,
+      }));
+
+    void uploadFullReportPhotosInParallel(uploads);
   }
 
   async function handleAnalyze() {
@@ -1735,7 +1765,7 @@ export default function AnalyzeClient() {
     !requiredHorseDetailsComplete ||
     loading ||
     fullReportResult !== null ||
-    fullReportUploadingView !== null ||
+    fullReportUploadingViews.size > 0 ||
     (!authLoading && !hasFullReportAccess);
 
   const resolvedSingleViewGlbUrl = singleViewGlbUrl ?? result?.glbUrl ?? null;
@@ -2312,7 +2342,7 @@ export default function AnalyzeClient() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {FULL_REPORT_SLOTS.map((slot) => {
                   const uploaded = fullReportPhotos[slot.view];
-                  const isUploading = fullReportUploadingView === slot.view;
+                  const isUploading = fullReportUploadingViews.has(slot.view);
                   const inputId = `full-report-upload-${slot.view}`;
 
                   return (
@@ -2361,6 +2391,7 @@ export default function AnalyzeClient() {
                         id={inputId}
                         type="file"
                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        multiple
                         className="hidden"
                         disabled={isUploading}
                         onChange={(event) =>
