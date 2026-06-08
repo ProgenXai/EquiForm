@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import TypeaheadInput from "@/components/TypeaheadInput";
@@ -42,8 +42,10 @@ function getAvatarExtension(file: File): string {
   }
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isSetupFlow = searchParams.get("setup") === "1";
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,6 +235,12 @@ export default function ProfilePage() {
           ? formatDisciplineList(preferredDisciplines)
           : "",
       );
+
+      if (isSetupFlow) {
+        router.push("/welcome");
+        return;
+      }
+
       setSuccessMessage("Profile saved successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile.");
@@ -276,6 +284,11 @@ export default function ProfilePage() {
       </header>
 
       <main className="mx-auto max-w-xl px-4 py-10">
+        {isSetupFlow ? (
+          <p className="mb-6 text-center text-sm font-medium text-accent">
+            Complete your profile to get started
+          </p>
+        ) : null}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold text-white">My Profile</h1>
           <p className="mt-2 text-sm text-zinc-400">
@@ -432,5 +445,19 @@ export default function ProfilePage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
+          Loading…
+        </div>
+      }
+    >
+      <ProfilePageContent />
+    </Suspense>
   );
 }

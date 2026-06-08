@@ -85,7 +85,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmedEmail }),
       });
-      router.push("/welcome");
+      router.push("/profile?setup=1");
       return;
     }
 

@@ -92,37 +92,12 @@ export default function WelcomePage() {
           ))}
         </div>
 
-        <section className="mt-12 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
-          <h2 className="text-center text-2xl font-semibold text-white">
-            Sample Report
-          </h2>
-          <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-            <Image
-              src="/onboarding/step3-report.png"
-              alt="EquiForm sample report preview"
-              width={1400}
-              height={1000}
-              className="h-auto w-full object-contain"
-            />
-          </div>
-          <p className="mt-3 text-center text-xs text-zinc-500">
-            This is just the first page — your full report includes detailed
-            written analysis for every view.
-          </p>
-        </section>
-
-        <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+        <div className="mt-10 flex justify-center">
           <Link
             href="/examples"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-8 py-3 text-center text-sm font-semibold text-zinc-200 transition hover:bg-zinc-800 sm:w-auto"
+            className="rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
-            See Examples
-          </Link>
-          <Link
-            href="/buy-credits"
-            className="w-full rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:w-auto"
-          >
-            I&apos;m Ready, Buy Credits
+            See Examples →
           </Link>
         </div>
       </main>

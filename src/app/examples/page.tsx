@@ -265,10 +265,10 @@ export default function ExamplesPage() {
 
         <div className="mt-10 flex flex-col items-center gap-4">
           <Link
-            href="/analyze"
+            href="/buy-credits"
             className="w-full max-w-sm rounded-xl bg-accent px-8 py-5 text-center text-lg font-bold text-white transition hover:bg-accent-hover sm:w-auto"
           >
-            Analyze a Horse
+            I&apos;m Ready, Buy Credits
           </Link>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
