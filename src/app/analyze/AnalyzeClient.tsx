@@ -2787,7 +2787,7 @@ export default function AnalyzeClient() {
                               frontPhotoUrl={fullReportPhotos.front?.supabaseUrl}
                               hindPhotoUrl={fullReportPhotos.hind?.supabaseUrl}
                             />
-                            <p className="mt-3 text-xs italic text-zinc-500">
+                            <p className="mt-3 text-base font-semibold text-yellow-400">
                               3D model is AI-generated from your photos. Results may
                               vary based on photo quality, lighting, camera angle, and
                               horse stance.
@@ -3056,7 +3056,7 @@ export default function AnalyzeClient() {
                     tripoGlbUrl={resolvedSingleViewGlbUrl}
                   />
                   {result.disclaimer ? (
-                    <p className="mt-3 text-xs italic text-zinc-500">
+                    <p className="mt-3 text-base font-semibold text-yellow-400">
                       {result.disclaimer}
                     </p>
                   ) : null}
