@@ -817,6 +817,7 @@ export default function AnalyzeClient() {
   const [pdf3DModalMode, setPdf3DModalMode] = useState<"single" | "full" | null>(
     null,
   );
+  const [singlePdfModalSlideIn, setSinglePdfModalSlideIn] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const shareEventIdRef = useRef<string | null>(null);
   const singleViewViewerRef = useRef<HorseViewer3DHandle>(null);
@@ -990,6 +991,16 @@ export default function AnalyzeClient() {
       block: "start",
     });
   }, [fullReportGlbUrl]);
+
+  useEffect(() => {
+    if (!showPdf3DModal || pdf3DModalMode !== "single") {
+      setSinglePdfModalSlideIn(false);
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => setSinglePdfModalSlideIn(true));
+    return () => cancelAnimationFrame(frame);
+  }, [showPdf3DModal, pdf3DModalMode]);
 
   useEffect(() => {
     const {
@@ -3040,31 +3051,70 @@ export default function AnalyzeClient() {
 
       {showPdf3DModal ? (
         <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
-            <p className="text-sm leading-relaxed text-zinc-200">
-              Position your 3D model before downloading. The current view of your
-              3D model will be captured and included on Page 4 of your PDF report.
-              Rotate the model to your preferred angle, then click Download.
-            </p>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => void handleConfirmPdf3DDownload()}
-                disabled={pdfLoading}
-                className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {pdfLoading ? "Generating PDF…" : "Download PDF"}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelPdf3DModal}
-                disabled={pdfLoading}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Cancel
-              </button>
+          {pdf3DModalMode === "single" ? (
+            <div
+              className={`w-full max-w-lg rounded-xl border-2 border-yellow-600 bg-yellow-400 p-6 shadow-xl transition-all duration-700 ease-out ${
+                singlePdfModalSlideIn
+                  ? "translate-x-0 opacity-100"
+                  : "translate-x-full opacity-0"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 text-3xl leading-none" aria-hidden="true">
+                  ⚠️
+                </span>
+                <p className="text-lg font-bold leading-snug text-zinc-900">
+                  Position your 3D model before downloading. The current view of your
+                  3D model will be captured and included on Page 4 of your PDF report.
+                  Rotate the model to your preferred angle, then click Download.
+                </p>
+              </div>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmPdf3DDownload()}
+                  disabled={pdfLoading}
+                  className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {pdfLoading ? "Generating PDF…" : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelPdf3DModal}
+                  disabled={pdfLoading}
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+              <p className="text-sm leading-relaxed text-zinc-200">
+                Position your 3D model before downloading. The current view of your
+                3D model will be captured and included on Page 4 of your PDF report.
+                Rotate the model to your preferred angle, then click Download.
+              </p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmPdf3DDownload()}
+                  disabled={pdfLoading}
+                  className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {pdfLoading ? "Generating PDF…" : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelPdf3DModal}
+                  disabled={pdfLoading}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
