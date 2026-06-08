@@ -28,7 +28,7 @@ const STEPS = [
     number: 3,
     icon: "📊",
     title: "Get your full report",
-    image: "/onboarding/step3-report.png",
+    image: "/onboarding/step3-report-live.png",
     imageAlt: "EquiForm sample report",
     description:
       "Receive detailed conformation scores and analysis for every view.",
@@ -40,6 +40,8 @@ const STEPS = [
 ] as const;
 
 export default function WelcomePage() {
+  const step3 = STEPS[2];
+
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <AppHamburgerMenu />
@@ -76,20 +78,51 @@ export default function WelcomePage() {
                   {step.note}
                 </p>
               ) : null}
-              <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                <Image
-                  src={step.image}
-                  alt={step.imageAlt}
-                  width={1200}
-                  height={800}
-                  className="h-auto w-full object-contain"
-                />
-              </div>
-              {"caption" in step && step.caption ? (
+              {step.number !== 3 ? (
+                <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+                  <Image
+                    src={step.image}
+                    alt={step.imageAlt}
+                    width={1200}
+                    height={800}
+                    className="h-auto w-full object-contain"
+                  />
+                </div>
+              ) : null}
+              {"caption" in step && step.caption && step.number !== 3 ? (
                 <p className="mt-3 text-xs text-zinc-500">{step.caption}</p>
               ) : null}
             </section>
           ))}
+
+          <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
+            <h2 className="text-xl font-semibold text-white">
+              What does your score mean?
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+              EquiForm analyzes your horse&apos;s conformation using AI and the
+              industry-standard rule of thirds — the same method used by
+              professional horse judges. Your horse receives an overall score out
+              of 100, plus individual scores for Balance, Shoulder Angle, Hip
+              Angle, Topline Quality, and Leg Alignment. Scores of 85–95 represent
+              excellent conformation for performance horses.
+            </p>
+          </section>
+
+          <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
+            <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+              <Image
+                src={step3.image}
+                alt={step3.imageAlt}
+                width={1200}
+                height={800}
+                className="h-auto w-full object-contain"
+              />
+            </div>
+            {"caption" in step3 && step3.caption ? (
+              <p className="mt-3 text-xs text-zinc-500">{step3.caption}</p>
+            ) : null}
+          </section>
         </div>
 
         <div className="mt-10 flex justify-center">
