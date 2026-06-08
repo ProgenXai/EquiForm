@@ -5,7 +5,18 @@ import Link from "next/link";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
-const STEPS = [
+type WelcomeStep = {
+  number: number;
+  icon: string;
+  title: string;
+  image: string;
+  imageAlt: string;
+  description: string;
+  note?: string;
+  caption?: string;
+};
+
+const STEPS: WelcomeStep[] = [
   {
     number: 1,
     icon: "📸",
@@ -37,7 +48,7 @@ const STEPS = [
     caption:
       "This is just the first page — your full report includes detailed written analysis for every view.",
   },
-] as const;
+];
 
 export default function WelcomePage() {
   const step3 = STEPS[2];
