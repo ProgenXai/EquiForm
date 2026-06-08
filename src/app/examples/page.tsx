@@ -54,16 +54,25 @@ const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
     "Horse is angled — must be standing square with hindquarters facing directly toward the camera",
 };
 
-const GUIDELINES = [
-  "Full side profile required — the horse must be fully visible from head to hoof, standing squarely on level ground, facing left or right. Angled, 3/4, or front-facing photos will not work.",
-  "Tie or braid your horse's tail up so both hind legs are clearly visible.",
-  "One horse, no obstructions — only one horse in the frame, with no people, fences, gates, or objects blocking any part of the body. Legs, shoulders, and hindquarters must be fully visible.",
-  "Horse must be standing still and square — no motion, no cocked legs, no stretched halter poses, no camped-out stance. All four feet should be planted naturally on the ground.",
-  "Good lighting and contrast — the horse must be clearly visible against the background. Avoid dark horses in dark settings, heavy shadows across the body, or overexposed/washed-out photos.",
-  "No text or graphics overlaid on the horse — watermarks, logos, or graphics printed directly over the horse's body will confuse the analysis. Text in the background or around the horse is fine.",
-  "Photo quality — image must be in focus, reasonably high resolution, and not a video screenshot. Blurry, pixelated, or heavily compressed photos will produce poor results.",
-  "For hind view photos, tie or braid the tail to the side so the hind legs are fully visible.",
-];
+const DO_GUIDELINES = [
+  "Full side profile, head to hoof fully visible",
+  "Standing square on level ground",
+  "All four feet planted naturally",
+  "Good lighting, horse clearly visible against background",
+  "One horse only, no obstructions",
+  "Tail tied or braided to the side for hind view",
+  "In focus, high resolution photo",
+] as const;
+
+const DONT_GUIDELINES = [
+  "Angled, 3/4, or front-facing photos for side profile",
+  "Motion, cocked legs, stretched halter poses, or camped-out stance",
+  "Dark horses in dark settings or heavy shadows",
+  "Watermarks, logos, or graphics overlaid on the horse's body",
+  "Multiple horses in the frame",
+  "Blurry, pixelated, or video screenshot photos",
+  "Tail covering hind legs in hind view",
+] as const;
 
 const EXAMPLE_IMAGE_CLASS =
   "max-h-64 w-full object-contain sm:max-h-72";
@@ -157,6 +166,46 @@ function ViewSection({
   );
 }
 
+function PhotoGuidelinesCards() {
+  return (
+    <div className="grid gap-8 md:grid-cols-2">
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+        <h3 className="text-lg font-semibold text-green-400">Do</h3>
+        <ul className="mt-4 space-y-3">
+          {DO_GUIDELINES.map((item) => (
+            <li
+              key={item}
+              className="flex gap-2 text-sm leading-relaxed text-zinc-300"
+            >
+              <span className="shrink-0" aria-hidden="true">
+                ✅
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+        <h3 className="text-lg font-semibold text-red-400">Don&apos;t</h3>
+        <ul className="mt-4 space-y-3">
+          {DONT_GUIDELINES.map((item) => (
+            <li
+              key={item}
+              className="flex gap-2 text-sm leading-relaxed text-zinc-300"
+            >
+              <span className="shrink-0" aria-hidden="true">
+                ❌
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
 export default function ExamplesPage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -210,12 +259,8 @@ export default function ExamplesPage() {
           badCaptions={HIND_BAD_CAPTIONS}
         />
 
-        <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-          <ul className="list-inside list-disc space-y-3 text-sm text-zinc-300">
-            {GUIDELINES.map((guideline) => (
-              <li key={guideline}>{guideline}</li>
-            ))}
-          </ul>
+        <section className="mt-8">
+          <PhotoGuidelinesCards />
         </section>
 
         <div className="mt-10 flex flex-col items-center gap-4">
