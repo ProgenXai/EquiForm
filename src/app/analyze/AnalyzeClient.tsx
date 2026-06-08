@@ -1079,7 +1079,7 @@ export default function AnalyzeClient() {
   }, [fullReportGlbUrl]);
 
   useEffect(() => {
-    if (!showPdf3DModal || pdf3DModalMode !== "single") {
+    if (!showPdf3DModal || !pdf3DModalMode) {
       setSinglePdfModalSlideIn(false);
       return;
     }
@@ -3254,12 +3254,23 @@ export default function AnalyzeClient() {
               </div>
             </div>
           ) : (
-            <div className="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
-              <p className="text-sm leading-relaxed text-zinc-200">
-                Position your 3D model before downloading. The current view of your
-                3D model will be captured and included on Page 4 of your PDF report.
-                Rotate the model to your preferred angle, then click Download.
-              </p>
+            <div
+              className={`w-full max-w-lg rounded-xl border-2 border-yellow-600 bg-yellow-400 p-6 shadow-xl transition-all duration-700 ease-out ${
+                singlePdfModalSlideIn
+                  ? "translate-x-0 opacity-100"
+                  : "translate-x-full opacity-0"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 text-3xl leading-none" aria-hidden="true">
+                  ⚠️
+                </span>
+                <p className="text-lg font-bold leading-snug text-zinc-900">
+                  Position your 3D model before downloading. The current view of your
+                  3D model will be captured and included on Page 4 of your PDF report.
+                  Rotate the model to your preferred angle, then click Download.
+                </p>
+              </div>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
@@ -3273,7 +3284,7 @@ export default function AnalyzeClient() {
                   type="button"
                   onClick={handleCancelPdf3DModal}
                   disabled={pdfLoading}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Cancel
                 </button>
