@@ -89,17 +89,15 @@ export default function WelcomePage() {
                   {step.note}
                 </p>
               ) : null}
-              {step.number !== 3 ? (
-                <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                  <Image
-                    src={step.image}
-                    alt={step.imageAlt}
-                    width={1200}
-                    height={800}
-                    className="h-auto w-full object-contain"
-                  />
-                </div>
-              ) : null}
+              <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+                <Image
+                  src={step.image}
+                  alt={step.imageAlt}
+                  width={1200}
+                  height={800}
+                  className="h-auto w-full object-contain"
+                />
+              </div>
               {"caption" in step && step.caption && step.number !== 3 ? (
                 <p className="mt-3 text-xs text-zinc-500">{step.caption}</p>
               ) : null}
@@ -121,7 +119,13 @@ export default function WelcomePage() {
           </section>
 
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
-            <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+            <h2 className="text-xl font-semibold text-accent">Sample Report Preview</h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+              Here&apos;s an example of what your full report looks like. This is just
+              the first page — your complete report includes detailed written analysis
+              for every view.
+            </p>
+            <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
               <Image
                 src={step3.image}
                 alt={step3.imageAlt}
