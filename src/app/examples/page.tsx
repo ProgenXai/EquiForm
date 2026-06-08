@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+import ExamplesBackButton from "@/components/ExamplesBackButton";
 
 const GOOD_EXAMPLES = ["good-1.jpg", "good-2.jpg", "good-3.jpg", "good-4.jpg"] as const;
 const BAD_EXAMPLES = ["bad-1.jpg", "bad-2.jpg", "bad-3.jpg", "bad-4.jpg"] as const;
@@ -231,12 +232,7 @@ export default function ExamplesPage() {
             >
               Buy Report Credits
             </Link>
-            <Link
-              href="/analyze"
-              className="rounded-lg border border-zinc-700 bg-transparent px-6 py-3 text-center text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
-            >
-              ← Back
-            </Link>
+            <ExamplesBackButton />
           </div>
         </div>
       </main>
