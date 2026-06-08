@@ -1949,7 +1949,7 @@ export default function AnalyzeClient() {
               Home
             </Link>
             <Link
-              href="/buy-rosettes"
+              href="/buy-credits"
               className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
               onClick={() => setMenuOpen(false)}
             >
@@ -2301,7 +2301,7 @@ export default function AnalyzeClient() {
 
             {!authLoading && !isAdmin && isLoggedIn && (singleViewBalance === 0 || singleViewBalance === null) && (singleView3DBalance === 0 || singleView3DBalance === null) ? (
               <Link
-                href="/buy-rosettes"
+                href="/buy-credits"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 Buy Report Credits{" "}
@@ -2627,7 +2627,7 @@ export default function AnalyzeClient() {
                 (fullReport3DBalance === null ||
                   fullReport3DBalance < FULL_REPORT_CREDIT_COST) ? (
                   <Link
-                    href="/buy-rosettes"
+                    href="/buy-credits"
                     className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
                   >
                     Buy Report Credits{" "}

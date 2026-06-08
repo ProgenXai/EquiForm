@@ -1677,7 +1677,7 @@ export async function POST(request: Request) {
                 </a>
               </div>
               <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
-                Need more analyses? <a href="https://www.equiform.app/buy-rosettes" style="color: #0f172a;">Purchase additional Report Tokens</a> to keep evaluating your horses.
+                Need more analyses? <a href="https://www.equiform.app/buy-credits" style="color: #0f172a;">Purchase additional Report Tokens</a> to keep evaluating your horses.
               </p>
             </div>
             <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">

@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         userId,
         reportType: pack.reportType,
       },
-      success_url: `${appUrl}/analyze?rosettes_success=true`,
+      success_url: `${appUrl}/buy-credits?credits_success=true`,
       cancel_url: `${appUrl}/analyze`,
     });
 

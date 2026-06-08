@@ -49,7 +49,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmedEmail }),
       });
-      router.push("/buy-rosettes");
+      router.push("/buy-credits");
       return;
     }
 

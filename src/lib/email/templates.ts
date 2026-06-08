@@ -91,7 +91,7 @@ export function firstReportEmailHtml(horseName?: string): string {
     <p style="margin:0 0 16px;color:${MUTED};">
       Need more reports? Purchase additional report credits anytime.
     </p>
-    ${button("https://equiform.app/buy-rosettes", "Buy Report Credits")}
+    ${button("https://equiform.app/buy-credits", "Buy Report Credits")}
     <p style="margin:24px 0 0;color:${MUTED};font-size:14px;">
       <strong style="color:${ACCENT};">Coming soon from ProgenXai:</strong> our breeding intelligence platform
       for mare owners who want to find the perfect stallion match. Stay tuned.
