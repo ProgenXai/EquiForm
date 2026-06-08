@@ -1721,6 +1721,10 @@ export default function AnalyzeClient() {
   const isSingleView3DGenerating = Boolean(
     meshyTaskId && result && emailSubmitted && !resolvedSingleViewGlbUrl,
   );
+  const shouldGenerateSingleView3D = (singleView3DBalance ?? 0) > 0;
+  const shouldGenerateFullReport3D = isAdmin
+    ? adminGenerate3D
+    : (fullReport3DBalance ?? 0) > 0;
 
   async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
@@ -2308,7 +2312,9 @@ export default function AnalyzeClient() {
           {loading ? (
             <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
               <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
-              Detecting landmarks and scoring conformation…
+              {shouldGenerateSingleView3D
+                ? "Analyzing your horse and generating 3D model — this may take 3–5 minutes. Please don't close this tab."
+                : "Analyzing your horse..."}
             </div>
           ) : null}
 
@@ -2636,7 +2642,9 @@ export default function AnalyzeClient() {
               {loading ? (
                 <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
                   <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
-                  Analyzing your horse and generating 3D model — this may take 3–5 minutes. Please don&apos;t close this tab.
+                  {shouldGenerateFullReport3D
+                    ? "Analyzing your horse and generating 3D model — this may take 3–5 minutes. Please don't close this tab."
+                    : "Analyzing your horse..."}
                 </div>
               ) : null}
 
@@ -2879,8 +2887,9 @@ export default function AnalyzeClient() {
                           </button>
                           <p className="mt-2 flex items-center gap-1.5 text-sm text-zinc-400">
                             <span aria-hidden="true">✅</span>
-                            Your report is automatically saved to My Reports for
-                            future access.
+                            Your report is automatically saved to My Reports.
+                            Click Download PDF to view it now, or find it anytime
+                            in My Reports.
                           </p>
                           {isFullReport3DGenerating ? (
                             <p className="mt-2 text-xs text-zinc-500">
@@ -2977,8 +2986,8 @@ export default function AnalyzeClient() {
                 </button>
                 <p className="flex items-center gap-1.5 text-sm text-zinc-400">
                   <span aria-hidden="true">✅</span>
-                  Your report is automatically saved to My Reports for future
-                  access.
+                  Your report is automatically saved to My Reports. Click
+                  Download PDF to view it now, or find it anytime in My Reports.
                 </p>
                 {isSingleView3DGenerating ? (
                   <p className="text-xs text-zinc-500">
