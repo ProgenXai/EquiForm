@@ -810,6 +810,7 @@ export default function AnalyzeClient() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
   const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
+  const [singleViewGlbUrl, setSingleViewGlbUrl] = useState<string | null>(null);
   const [meshy3DError, setMeshy3DError] = useState<string | null>(null);
   const [showCommunitySharePrompt, setShowCommunitySharePrompt] = useState(false);
   const [showPdf3DModal, setShowPdf3DModal] = useState(false);
@@ -919,7 +920,7 @@ export default function AnalyzeClient() {
     if (!meshyTaskId) return;
 
     const taskId = meshyTaskId;
-    const reportId = fullReportResult?.reportId;
+    const reportId = fullReportResult?.reportId ?? result?.reportId;
     let cancelled = false;
 
     async function pollMeshyStatus() {
@@ -948,7 +949,11 @@ export default function AnalyzeClient() {
         if (cancelled) return;
 
         if (data.glbUrl) {
-          setFullReportGlbUrl(data.glbUrl);
+          if (fullReportResult?.reportId) {
+            setFullReportGlbUrl(data.glbUrl);
+          } else {
+            setSingleViewGlbUrl(data.glbUrl);
+          }
           setMeshyTaskId(null);
           setMeshy3DError(null);
           return;
@@ -975,7 +980,7 @@ export default function AnalyzeClient() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [meshyTaskId, fullReportResult?.reportId]);
+  }, [meshyTaskId, fullReportResult?.reportId, result?.reportId]);
 
   useEffect(() => {
     if (!fullReportGlbUrl) return;
@@ -1038,6 +1043,9 @@ export default function AnalyzeClient() {
     setEmailError(null);
     setShowCommunitySharePrompt(false);
     shareEventIdRef.current = null;
+    setMeshyTaskId(null);
+    setSingleViewGlbUrl(null);
+    setMeshy3DError(null);
   }
 
   async function updateShareEventEquiformPage(sharedEquiformPage: boolean) {
@@ -1114,6 +1122,10 @@ export default function AnalyzeClient() {
     void clearSingleViewPhoto();
     void clearFullReportPhotos();
     setFullReportResult(null);
+    setMeshyTaskId(null);
+    setFullReportGlbUrl(null);
+    setSingleViewGlbUrl(null);
+    setMeshy3DError(null);
     setHorseName("");
     setLoading(false);
     setPdfLoading(false);
@@ -1334,6 +1346,9 @@ export default function AnalyzeClient() {
     setEmail("");
     setEmailSubmitted(false);
     setEmailError(null);
+    setMeshyTaskId(null);
+    setSingleViewGlbUrl(null);
+    setMeshy3DError(null);
 
     try {
       const {
@@ -1375,6 +1390,7 @@ export default function AnalyzeClient() {
         overlayUrl?: string;
         glbUrl?: string | null;
         disclaimer?: string;
+        meshyTaskId?: string | null;
       };
 
       console.log("API response:", result);
@@ -1408,6 +1424,10 @@ export default function AnalyzeClient() {
             ? displayError
             : new Error("Analysis failed");
         }
+      }
+
+      if (typeof result.meshyTaskId === "string" && result.meshyTaskId.trim()) {
+        setMeshyTaskId(result.meshyTaskId.trim());
       }
 
       if (session?.access_token && session.user) {
@@ -1489,7 +1509,8 @@ export default function AnalyzeClient() {
       return;
     }
 
-    if (result.glbUrl) {
+    const glbUrl = singleViewGlbUrl ?? result.glbUrl;
+    if (glbUrl) {
       setPdf3DModalMode("single");
       setShowPdf3DModal(true);
       return;
@@ -1694,7 +1715,13 @@ export default function AnalyzeClient() {
     fullReportUploadingView !== null ||
     (!authLoading && !hasFullReportAccess);
 
-  const is3DGenerating = Boolean(meshyTaskId && !fullReportGlbUrl);
+  const resolvedSingleViewGlbUrl = singleViewGlbUrl ?? result?.glbUrl ?? null;
+  const isFullReport3DGenerating = Boolean(
+    meshyTaskId && fullReportResult && !fullReportGlbUrl,
+  );
+  const isSingleView3DGenerating = Boolean(
+    meshyTaskId && result && emailSubmitted && !resolvedSingleViewGlbUrl,
+  );
 
   async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
@@ -2537,7 +2564,7 @@ export default function AnalyzeClient() {
 
               {fullReportResult ? (
                 <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-                  {is3DGenerating ? (
+                  {isFullReport3DGenerating ? (
                     <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b border-accent/30 bg-zinc-900/95 px-6 py-3 text-sm text-zinc-200 backdrop-blur">
                       ⏳ Your 3D model is being generated. The Download PDF button
                       will unlock when it&apos;s ready.
@@ -2765,14 +2792,14 @@ export default function AnalyzeClient() {
                           <button
                             type="button"
                             onClick={() => void handleDownloadFullReportPdf()}
-                            disabled={pdfLoading || is3DGenerating}
+                            disabled={pdfLoading || isFullReport3DGenerating}
                             className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             {pdfLoading
                               ? "Generating PDF…"
                               : "Download PDF Report"}
                           </button>
-                          {is3DGenerating ? (
+                          {isFullReport3DGenerating ? (
                             <p className="mt-2 text-xs text-zinc-500">
                               3D model still generating — PDF will be available when
                               complete
@@ -2837,7 +2864,14 @@ export default function AnalyzeClient() {
         ) : null}
 
         {result && emailSubmitted ? (
-          <section className="mt-8 space-y-8">
+          <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            {isSingleView3DGenerating ? (
+              <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b border-accent/30 bg-zinc-900/95 px-6 py-3 text-sm text-zinc-200 backdrop-blur">
+                ⏳ Your 3D model is being generated. The Download PDF button will
+                unlock when it&apos;s ready.
+              </div>
+            ) : null}
+            <div className="space-y-8">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
               <ReportHorseDetailsHeader
                 details={{
@@ -2849,15 +2883,21 @@ export default function AnalyzeClient() {
                   discipline,
                 }}
               />
-              <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+              <div className="mt-4 flex flex-col items-end gap-2">
                 <button
                   type="button"
                   onClick={() => void handleDownloadPdf()}
-                  disabled={pdfLoading}
+                  disabled={pdfLoading || isSingleView3DGenerating}
                   className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
                 </button>
+                {isSingleView3DGenerating ? (
+                  <p className="text-xs text-zinc-500">
+                    3D model still generating — PDF will be available when
+                    complete
+                  </p>
+                ) : null}
               </div>
               <p className="mt-4 text-center text-3xl font-bold text-accent">
                 {result.report.overall_score}
@@ -2928,13 +2968,26 @@ export default function AnalyzeClient() {
                 })}
               </ul>
 
-              {result.glbUrl ? (
+              {isSingleView3DGenerating ? (
+                <div className="mt-8 flex items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-6 py-10 text-sm text-zinc-400">
+                  <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
+                  Generating 3D model...
+                </div>
+              ) : null}
+
+              {meshy3DError ? (
+                <p className="mt-4 text-sm text-red-400" role="alert">
+                  {meshy3DError}
+                </p>
+              ) : null}
+
+              {resolvedSingleViewGlbUrl ? (
                 <>
                   <HorseViewer3D
                     ref={singleViewViewerRef}
                     className="mt-8"
                     landmarks={{ left: result.landmarks }}
-                    tripoGlbUrl={result.glbUrl}
+                    tripoGlbUrl={resolvedSingleViewGlbUrl}
                   />
                   {result.disclaimer ? (
                     <p className="mt-3 text-xs italic text-zinc-500">
@@ -2958,6 +3011,7 @@ export default function AnalyzeClient() {
               >
                 Analyze Another Horse
               </button>
+            </div>
             </div>
           </section>
         ) : null}
