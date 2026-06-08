@@ -1138,6 +1138,12 @@ export default function AnalyzeClient() {
     setSingleViewGlbUrl(null);
     setMeshy3DError(null);
     setHorseName("");
+    setBreed("");
+    setCoatColor("");
+    setAge("");
+    setSex("");
+    setDiscipline("");
+    setSingleViewUploadError(null);
     setLoading(false);
     setPdfLoading(false);
     setCheckoutLoading(false);
@@ -1341,6 +1347,10 @@ export default function AnalyzeClient() {
   }
 
   async function handleAnalyze() {
+    if (result) {
+      return;
+    }
+
     if (!singleViewPhoto?.supabaseUrl) {
       setError("Upload a photo first.");
       return;
@@ -1710,13 +1720,15 @@ export default function AnalyzeClient() {
     coatColor.trim() !== "" &&
     age.trim() !== "" &&
     sex.trim() !== "";
+  const singleViewReportComplete = analysisMode === "quick" && result !== null;
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !singleViewPhoto?.supabaseUrl ||
     !requiredHorseDetailsComplete ||
     loading ||
     singleViewUploading ||
-    (!authLoading && !hasAnalyzeAccess);
+    (!authLoading && !hasAnalyzeAccess) ||
+    singleViewReportComplete;
   const fullReportSubmitDisabled =
     typeof window === "undefined" ||
     !fullReportComplete ||
@@ -2220,15 +2232,27 @@ export default function AnalyzeClient() {
 
             <button
               type="button"
-              onClick={() => void handleAnalyze()}
-              disabled={analyzeButtonDisabled}
+              onClick={() =>
+                singleViewReportComplete
+                  ? handleAnalyzeAnotherHorse()
+                  : void handleAnalyze()
+              }
+              disabled={
+                singleViewReportComplete
+                  ? loading || pdfLoading
+                  : analyzeButtonDisabled
+              }
               className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
-                authLoading || hasAnalyzeAccess
+                singleViewReportComplete || authLoading || hasAnalyzeAccess
                   ? "bg-accent text-white hover:bg-accent-hover disabled:opacity-40"
                   : "cursor-not-allowed bg-zinc-700 text-zinc-400"
               }`}
             >
-              {loading ? "Analyzing…" : "Analyze This Horse"}
+              {loading
+                ? "Analyzing…"
+                : singleViewReportComplete
+                  ? "Analyze Another Horse"
+                  : "Analyze This Horse"}
             </button>
 
             {!authLoading && !isAdmin && !isLoggedIn ? (
