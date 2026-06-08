@@ -808,6 +808,7 @@ export default function AnalyzeClient() {
     null,
   );
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminGenerate3D, setAdminGenerate3D] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
@@ -1811,7 +1812,9 @@ export default function AnalyzeClient() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const shouldGenerate3D = (fullReport3DBalance ?? 0) > 0;
+      const shouldGenerate3D = isAdmin
+        ? adminGenerate3D
+        : (fullReport3DBalance ?? 0) > 0;
 
       const response = await fetch("/api/analyze-full", {
         method: "POST",
@@ -1879,8 +1882,10 @@ export default function AnalyzeClient() {
         }
       }
 
-      if (apiResult.meshyTaskId) {
+      if (apiResult.meshyTaskId && (!isAdmin || adminGenerate3D)) {
         setMeshyTaskId(apiResult.meshyTaskId);
+      } else {
+        setMeshyTaskId(null);
       }
 
       if (session?.access_token && session.user) {
@@ -2552,6 +2557,20 @@ export default function AnalyzeClient() {
                     Complete all 4 views to analyze — {FULL_REPORT_CREDIT_COST}{" "}
                     full report credit required
                   </p>
+                ) : null}
+
+                {isAdmin ? (
+                  <label className="mb-3 flex cursor-pointer items-center justify-center gap-2 text-sm font-medium text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={adminGenerate3D}
+                      onChange={(event) =>
+                        setAdminGenerate3D(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-accent focus:ring-accent"
+                    />
+                    Generate 3D Model
+                  </label>
                 ) : null}
 
                 <button
