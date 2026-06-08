@@ -602,6 +602,66 @@ function extractApiErrorMessage(value: unknown, fallback: string): string {
   return fallback;
 }
 
+function formatBalanceBadge(
+  count: number,
+  labelSingular: string,
+  labelPlural: string,
+): string {
+  const label = count === 1 ? labelSingular : labelPlural;
+  return `${count} ${label} remaining`;
+}
+
+function getBalanceBadges(balances: {
+  single_view_balance: number;
+  single_view_3d_balance: number;
+  full_report_balance: number;
+  full_report_3d_balance: number;
+}): string[] {
+  const badges: string[] = [];
+
+  if (balances.single_view_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.single_view_balance,
+        "Single View Report",
+        "Single View Reports",
+      ),
+    );
+  }
+
+  if (balances.single_view_3d_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.single_view_3d_balance,
+        "Single View + 3D Report",
+        "Single View + 3D Reports",
+      ),
+    );
+  }
+
+  if (balances.full_report_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.full_report_balance,
+        "Four-View Report",
+        "Four-View Reports",
+      ),
+    );
+  }
+
+  if (balances.full_report_3d_balance > 0) {
+    badges.push(
+      formatBalanceBadge(
+        balances.full_report_3d_balance,
+        "Four-View + 3D Report",
+        "Four-View + 3D Reports",
+      ),
+    );
+  }
+
+  return badges;
+}
+
 function parseViewReportValue(value: unknown): ConformationReport {
   let candidate: unknown = value;
 
@@ -1841,6 +1901,19 @@ export default function AnalyzeClient() {
     singleViewUploading ||
     (!authLoading && !hasAnalyzeAccess) ||
     singleViewReportComplete;
+  const balancesLoaded =
+    singleViewBalance !== null &&
+    singleView3DBalance !== null &&
+    fullReportBalance !== null &&
+    fullReport3DBalance !== null;
+  const creditBalanceBadges = balancesLoaded
+    ? getBalanceBadges({
+        single_view_balance: singleViewBalance,
+        single_view_3d_balance: singleView3DBalance,
+        full_report_balance: fullReportBalance,
+        full_report_3d_balance: fullReport3DBalance,
+      })
+    : [];
   const fullReportSubmitDisabled =
     typeof window === "undefined" ||
     !fullReportComplete ||
@@ -2111,6 +2184,44 @@ export default function AnalyzeClient() {
           {APP_SUBTITLE}
         </p>
       </header>
+
+      {!authLoading && isLoggedIn ? (
+        <div className="mt-6 flex flex-col items-center gap-3 px-6">
+          {isAdmin ? (
+            <p className="text-center text-xs text-accent">
+              <FileCheck
+                size={18}
+                className="inline-block shrink-0 align-middle text-accent"
+                aria-hidden
+              />{" "}
+              Unlimited credits (admin)
+            </p>
+          ) : balancesLoaded ? (
+            creditBalanceBadges.length > 0 ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                {creditBalanceBadges.map((badge) => (
+                  <span
+                    key={badge}
+                    className="rounded-full border border-accent/40 bg-accent/10 px-4 py-1.5 text-sm font-medium text-accent"
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-zinc-400">
+                You have no report credits remaining{" "}
+                <Link
+                  href="/buy-credits"
+                  className="font-medium text-accent underline transition hover:text-accent-hover"
+                >
+                  Buy report credits
+                </Link>
+              </p>
+            )
+          ) : null}
+        </div>
+      ) : null}
 
       <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
