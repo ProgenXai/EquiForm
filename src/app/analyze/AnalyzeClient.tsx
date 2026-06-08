@@ -3086,6 +3086,11 @@ export default function AnalyzeClient() {
                               ? "Generating PDF…"
                               : "Download PDF Report"}
                           </button>
+                          <p className="mt-2 flex items-center gap-1.5 text-sm text-zinc-400">
+                            <span aria-hidden="true">✅</span>
+                            Your report is automatically saved to My Reports for
+                            future access.
+                          </p>
                           {isFullReport3DGenerating ? (
                             <p className="mt-2 text-xs text-zinc-500">
                               3D model still generating — PDF will be available when
@@ -3179,6 +3184,11 @@ export default function AnalyzeClient() {
                 >
                   {pdfLoading ? "Generating PDF…" : "Download PDF Report"}
                 </button>
+                <p className="flex items-center gap-1.5 text-sm text-zinc-400">
+                  <span aria-hidden="true">✅</span>
+                  Your report is automatically saved to My Reports for future
+                  access.
+                </p>
                 {isSingleView3DGenerating ? (
                   <p className="text-xs text-zinc-500">
                     3D model still generating — PDF will be available when
