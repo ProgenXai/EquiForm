@@ -12,6 +12,8 @@ export default function Home() {
   const router = useRouter();
   const supabase = createClient();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [notifyUpdates, setNotifyUpdates] = useState(false);
@@ -25,6 +27,14 @@ export default function Home() {
     setLoading(true);
 
     const trimmedEmail = email.trim();
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+
+    if (mode === "signup" && (!trimmedFirstName || !trimmedLastName)) {
+      setLoading(false);
+      setError("First name and last name are required.");
+      return;
+    }
 
     const { error: authError } =
       mode === "login"
@@ -35,6 +45,12 @@ export default function Home() {
         : await supabase.auth.signUp({
             email: trimmedEmail,
             password,
+            options: {
+              data: {
+                first_name: trimmedFirstName,
+                last_name: trimmedLastName,
+              },
+            },
           });
 
     setLoading(false);
@@ -56,7 +72,11 @@ export default function Home() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ notifyUpdates }),
+          body: JSON.stringify({
+            notifyUpdates,
+            firstName: trimmedFirstName,
+            lastName: trimmedLastName,
+          }),
         });
       }
 
@@ -99,6 +119,51 @@ export default function Home() {
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+          {mode === "signup" ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="first-name"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  First name
+                </label>
+                <input
+                  id="first-name"
+                  type="text"
+                  value={firstName}
+                  onChange={(event) => {
+                    setFirstName(event.target.value);
+                    if (error) setError(null);
+                  }}
+                  autoComplete="given-name"
+                  required
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="last-name"
+                  className="mb-2 block text-xs font-medium text-zinc-400"
+                >
+                  Last name
+                </label>
+                <input
+                  id="last-name"
+                  type="text"
+                  value={lastName}
+                  onChange={(event) => {
+                    setLastName(event.target.value);
+                    if (error) setError(null);
+                  }}
+                  autoComplete="family-name"
+                  required
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : null}
+
           <div>
             <label htmlFor="email" className="mb-2 block text-xs font-medium text-zinc-400">
               Email

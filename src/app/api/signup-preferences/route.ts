@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 type SignupPreferencesBody = {
   notifyUpdates?: boolean;
+  firstName?: string;
+  lastName?: string;
 };
 
 export async function POST(request: Request) {
@@ -25,6 +27,10 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as SignupPreferencesBody;
   const notifyUpdates = body.notifyUpdates === true;
+  const firstName =
+    typeof body.firstName === "string" ? body.firstName.trim() : "";
+  const lastName =
+    typeof body.lastName === "string" ? body.lastName.trim() : "";
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -71,6 +77,23 @@ export async function POST(request: Request) {
     if (insertError) {
       console.error("[signup-preferences] insert failed:", insertError);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+  }
+
+  if (firstName && lastName) {
+    const { error: profileError } = await supabase.from("user_profiles").upsert(
+      {
+        user_id: user.id,
+        first_name: firstName,
+        last_name: lastName,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+    if (profileError) {
+      console.error("[signup-preferences] profile upsert failed:", profileError);
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
   }
 

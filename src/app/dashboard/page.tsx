@@ -107,7 +107,17 @@ export default function DashboardPage() {
         return;
       }
 
-      setWelcomeName(getWelcomeName(session.user));
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      const profileFirstName =
+        typeof profile?.first_name === "string" ? profile.first_name.trim() : "";
+      setWelcomeName(
+        profileFirstName || getWelcomeName(session.user),
+      );
 
       const { data: tokenRow } = await supabase
         .from("user_tokens")

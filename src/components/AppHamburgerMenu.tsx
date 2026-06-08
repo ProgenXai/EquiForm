@@ -7,11 +7,59 @@ import { useEffect, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 
+function capitalizeEmailPrefix(email: string): string {
+  const prefix = email.split("@")[0]?.trim() ?? "";
+  if (!prefix) return "Account";
+  return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+}
+
 export default function AppHamburgerMenu() {
   const router = useRouter();
   const supabase = createClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function loadProfileSummary() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        setDisplayName(null);
+        setAvatarUrl(null);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name, avatar_url")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      const firstName =
+        typeof profile?.first_name === "string" ? profile.first_name.trim() : "";
+      const metadataFirstName =
+        typeof session.user.user_metadata?.first_name === "string"
+          ? session.user.user_metadata.first_name.trim()
+          : "";
+
+      setDisplayName(
+        firstName ||
+          metadataFirstName ||
+          capitalizeEmailPrefix(session.user.email ?? ""),
+      );
+      setAvatarUrl(
+        typeof profile?.avatar_url === "string" && profile.avatar_url.trim()
+          ? profile.avatar_url.trim()
+          : null,
+      );
+    }
+
+    void loadProfileSummary();
+  }, [supabase]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -40,6 +88,19 @@ export default function AppHamburgerMenu() {
       </button>
       {menuOpen ? (
         <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
+          {displayName ? (
+            <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 px-4 py-2">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-full border border-zinc-700 object-cover"
+                />
+              ) : null}
+              <span className="text-sm font-semibold text-white">{displayName}</span>
+            </div>
+          ) : null}
           <Link
             href="/dashboard"
             className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
@@ -86,6 +147,13 @@ export default function AppHamburgerMenu() {
             onClick={() => setMenuOpen(false)}
           >
             My Horses
+          </Link>
+          <Link
+            href="/profile"
+            className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
+            onClick={() => setMenuOpen(false)}
+          >
+            My Profile
           </Link>
           <Link
             href="/contact"

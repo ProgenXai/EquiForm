@@ -72,7 +72,11 @@ export default function AuthPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ notifyUpdates }),
+          body: JSON.stringify({
+            notifyUpdates,
+            firstName: trimmedFirstName,
+            lastName: trimmedLastName,
+          }),
         });
       }
 
