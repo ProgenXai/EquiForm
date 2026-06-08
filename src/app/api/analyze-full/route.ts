@@ -790,7 +790,7 @@ async function atomicDeductCredit(
   amount: number,
 ): Promise<
   | { ok: true }
-  | { ok: false; reason: "insufficient" | "error"; message?: string }
+  | { ok: false; reason: "insufficient" | "no_account" | "error"; message?: string }
 > {
   const { data: tokenRow, error: fetchError } = await serviceClient
     .from("user_tokens")
@@ -803,11 +803,12 @@ async function atomicDeductCredit(
   }
 
   if (!tokenRow) {
-    return { ok: false, reason: "insufficient" };
+    return { ok: false, reason: "no_account" };
   }
 
-  const currentBalance = Number(tokenRow[balanceColumn as keyof typeof tokenRow]);
-  if (currentBalance < amount) {
+  const rawBalance = tokenRow[balanceColumn as keyof typeof tokenRow];
+  const currentBalance = Number(rawBalance);
+  if (!Number.isFinite(currentBalance) || currentBalance < amount) {
     return { ok: false, reason: "insufficient" };
   }
 
@@ -816,7 +817,7 @@ async function atomicDeductCredit(
     .update({ [balanceColumn]: currentBalance - amount })
     .eq("user_id", userId)
     .gte(balanceColumn, amount)
-    .eq(balanceColumn, currentBalance)
+    .eq(balanceColumn, rawBalance)
     .select("user_id");
 
   if (updateError) {
@@ -1057,6 +1058,16 @@ export async function POST(request: Request) {
     );
 
     if (!deductResult.ok) {
+      if (deductResult.reason === "no_account") {
+        return NextResponse.json(
+          {
+            error:
+              "No report credits were found for your account. Please contact support at EquiFormApp@gmail.com.",
+          },
+          { status: 401 },
+        );
+      }
+
       if (deductResult.reason === "insufficient") {
         return NextResponse.json({ error: insufficientCreditsError }, { status: 401 });
       }

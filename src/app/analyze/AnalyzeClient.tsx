@@ -570,6 +570,28 @@ function normalizeViewReport(report: ConformationReport): ConformationReport {
   };
 }
 
+function extractApiErrorMessage(value: unknown, fallback: string): string {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (value instanceof Error && value.message.trim()) {
+    return value.message.trim();
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message.trim();
+    }
+    if (typeof record.error === "string" && record.error.trim()) {
+      return record.error.trim();
+    }
+  }
+
+  return fallback;
+}
+
 function parseViewReportValue(value: unknown): ConformationReport {
   let candidate: unknown = value;
 
@@ -642,7 +664,7 @@ function parseAnalyzeApiResponse(
 
 function parseFullReportApiResponse(
   raw: FullReportApiResponse & {
-    error?: string;
+    error?: unknown;
     meshyTaskId?: string | null;
     glbUrl?: string | null;
   },
@@ -996,7 +1018,7 @@ export default function AnalyzeClient() {
         const data = (await response.json()) as {
           status?: string;
           glbUrl?: string;
-          error?: string;
+          error?: unknown;
         };
 
         if (cancelled) return;
@@ -1013,7 +1035,9 @@ export default function AnalyzeClient() {
         }
 
         if (!response.ok || data.status === "FAILED") {
-          setMeshy3DError(data.error ?? "3D model generation failed");
+          setMeshy3DError(
+            extractApiErrorMessage(data.error, "3D model generation failed"),
+          );
           setMeshyTaskId(null);
         }
       } catch {
@@ -1888,7 +1912,7 @@ export default function AnalyzeClient() {
       const isJson = contentType.includes("application/json");
 
       let apiResult: FullReportApiResponse & {
-        error?: string;
+        error?: unknown;
         meshyTaskId?: string | null;
       };
 
@@ -1899,7 +1923,7 @@ export default function AnalyzeClient() {
         }
 
         apiResult = (await response.json()) as FullReportApiResponse & {
-          error?: string;
+          error?: unknown;
           meshyTaskId?: string | null;
         };
       } catch (parseError) {
@@ -1911,7 +1935,12 @@ export default function AnalyzeClient() {
       }
 
       if (!response.ok) {
-        throw new Error(apiResult.error ?? "Full report analysis failed");
+        throw new Error(
+          extractApiErrorMessage(
+            apiResult.error,
+            "Full report analysis failed",
+          ),
+        );
       }
 
       const savedReportId =
@@ -1948,7 +1977,7 @@ export default function AnalyzeClient() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Full report analysis failed",
+        extractApiErrorMessage(err, "Full report analysis failed"),
       );
     } finally {
       setLoading(false);
