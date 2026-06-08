@@ -28,6 +28,7 @@ import {
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { sendFirstReportEmail } from "@/lib/email/templates";
+import { formatDisciplineList } from "@/lib/format-discipline";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -489,7 +490,7 @@ export async function POST(request: Request) {
       : null;
   const discipline =
     typeof body.discipline === "string" && body.discipline.trim()
-      ? body.discipline.trim()
+      ? formatDisciplineList(body.discipline)
       : null;
   const age =
     typeof body.age === "string" && body.age.trim() ? body.age.trim() : null;

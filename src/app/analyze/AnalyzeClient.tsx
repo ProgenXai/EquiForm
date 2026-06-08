@@ -16,6 +16,7 @@ import type {
 import { extractJsonObject } from "@/lib/analyze/landmark-parser";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import { LANDMARKS } from "@/lib/calibration/landmarks";
+import { formatDisciplineList } from "@/lib/format-discipline";
 import type { Session } from "@supabase/supabase-js";
 
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
@@ -479,6 +480,15 @@ function TypeaheadInput({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onBlur={() => {
+          if (appendOnSelect && value.trim()) {
+            const formatted = formatDisciplineList(value);
+            if (formatted !== value) {
+              onChange(formatted);
+            }
+          }
+          setOpen(false);
+        }}
         placeholder={placeholder}
         required={required}
         autoComplete="off"
@@ -813,7 +823,7 @@ function ReportHorseDetailsHeader({ details }: { details: ReportHorseDetails }) 
   ].filter((part): part is string => part !== null);
   const metaLine = metaParts.length > 0 ? metaParts.join(" · ") : null;
   const disciplineLine = details.discipline.trim()
-    ? `Discipline: ${details.discipline.trim()}`
+    ? `Discipline: ${formatDisciplineList(details.discipline)}`
     : null;
 
   return (
@@ -1493,7 +1503,7 @@ export default function AnalyzeClient() {
           coatColor: coatColor.trim(),
           age: age.trim(),
           sex: sex.trim(),
-          discipline: discipline.trim(),
+          discipline: formatDisciplineList(discipline),
           horseName: horseName.trim(),
           ...(shouldGenerate3D ? { generate3D: true } : {}),
         }),
@@ -1602,7 +1612,7 @@ export default function AnalyzeClient() {
           age,
           sex,
           coat_color: coatColor,
-          discipline,
+          discipline: formatDisciplineList(discipline),
           ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
         }),
       });
@@ -1716,7 +1726,7 @@ export default function AnalyzeClient() {
           age,
           sex,
           coat_color: coatColor,
-          discipline,
+          discipline: formatDisciplineList(discipline),
           ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
         }),
       });
@@ -1902,7 +1912,7 @@ export default function AnalyzeClient() {
           coatColor: coatColor.trim(),
           age: age.trim(),
           sex: sex.trim(),
-          discipline: discipline.trim(),
+          discipline: formatDisciplineList(discipline),
           horseName: horseName.trim(),
           ...(shouldGenerate3D ? { generate3D: true } : {}),
         }),
@@ -2753,7 +2763,7 @@ export default function AnalyzeClient() {
                             age,
                             sex,
                             coatColor,
-                            discipline,
+                            discipline: formatDisciplineList(discipline),
                           }}
                         />
 
@@ -3046,7 +3056,7 @@ export default function AnalyzeClient() {
                   age,
                   sex,
                   coatColor,
-                  discipline,
+                  discipline: formatDisciplineList(discipline),
                 }}
               />
               <div className="mt-4 flex flex-col items-end gap-2">

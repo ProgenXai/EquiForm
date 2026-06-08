@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import type { ConformationReport } from "@/lib/analyze/types";
+import { formatDisciplineList } from "@/lib/format-discipline";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
@@ -119,7 +120,7 @@ function formatHorseDetailLines(report: {
     report.age?.trim() ? `Age: ${report.age.trim()}` : null,
     report.sex?.trim() ? `Sex: ${report.sex.trim()}` : null,
     report.discipline?.trim()
-      ? `Discipline: ${report.discipline.trim()}`
+      ? `Discipline: ${formatDisciplineList(report.discipline)}`
       : null,
   ].filter((line): line is string => line !== null);
 }

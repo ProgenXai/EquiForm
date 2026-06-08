@@ -12,6 +12,7 @@ import {
 } from "pdf-lib";
 
 import type { ConformationReport } from "@/lib/analyze/types";
+import { formatDisciplineList } from "@/lib/format-discipline";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const require = createRequire(import.meta.url);
@@ -268,13 +269,14 @@ function measureFullReportOverlayBlock(
   image: PDFImage,
   font: PDFFont,
   label: string,
+  maxHeight: number,
 ): number {
   const labelSize = 9;
   const labelGap = 6;
   const bottomGap = 10;
   const scale = Math.min(
     CONTENT_WIDTH / image.width,
-    FULL_REPORT_OVERLAY_MAX_HEIGHT / image.height,
+    maxHeight / image.height,
   );
   const imageHeight = image.height * scale;
   return imageHeight + labelGap + labelSize + bottomGap;
@@ -286,13 +288,14 @@ function drawFullReportOverlay(
   image: PDFImage,
   label: string,
   font: PDFFont,
+  maxHeight: number,
 ): number {
   const labelSize = 9;
   const labelGap = 6;
   const bottomGap = 10;
   const scale = Math.min(
     CONTENT_WIDTH / image.width,
-    FULL_REPORT_OVERLAY_MAX_HEIGHT / image.height,
+    maxHeight / image.height,
   );
   const imageWidth = image.width * scale;
   const imageHeight = image.height * scale;
@@ -374,7 +377,9 @@ function getReportHorseDetailTextLines(body: PdfRequestBody): string[] {
   }
 
   const discipline =
-    typeof body.discipline === "string" ? body.discipline.trim() : "";
+    typeof body.discipline === "string"
+      ? formatDisciplineList(body.discipline)
+      : "";
   if (discipline) {
     lines.push(`Discipline: ${discipline}`);
   }
@@ -674,11 +679,21 @@ export async function POST(request: Request) {
     drawCenteredText(page, overallText, y, fontBold, 16, ACCENT_RGB);
     y -= 28;
 
-    let scoresDrawnOnPage1 = false;
     const MIN_CONTENT_Y_PAGE1 = MARGIN + 32;
+    const scoresBlockHeight = measureConformationScoresHeight();
+    const photoRowHeight = isFullReport ? measureHorizontalPhotoRowHeight() : 0;
+    const gapBeforeScores = 8;
+    const reservedBelowOverlay =
+      photoRowHeight + scoresBlockHeight + gapBeforeScores;
+    const availableOverlayHeight = y - MIN_CONTENT_Y_PAGE1 - reservedBelowOverlay;
+    const overlayMaxHeight = Math.max(
+      80,
+      isFullReport
+        ? Math.min(FULL_REPORT_OVERLAY_MAX_HEIGHT, availableOverlayHeight)
+        : availableOverlayHeight,
+    );
 
     if (!isFullReport) {
-      const overlayMaxHeight = Math.max(200, y - MARGIN - 40);
       const imageScale = Math.min(
         CONTENT_WIDTH / overlayImage!.width,
         overlayMaxHeight / overlayImage!.height,
@@ -693,18 +708,28 @@ export async function POST(request: Request) {
         height: imageHeight,
       });
       y -= imageHeight + 20;
-    } else if (fullReportOverlayImage) {
-      const overlayLabel = getFullReportOverlayLabel(body.better_side);
-      y = drawFullReportOverlay(
+
+      y -= gapBeforeScores;
+      y = drawConformationScoresSection(
         page,
         y,
-        fullReportOverlayImage,
-        overlayLabel,
+        report,
+        fontBold,
         fontRegular,
       );
-    }
+    } else {
+      if (fullReportOverlayImage) {
+        const overlayLabel = getFullReportOverlayLabel(body.better_side);
+        y = drawFullReportOverlay(
+          page,
+          y,
+          fullReportOverlayImage,
+          overlayLabel,
+          fontRegular,
+          overlayMaxHeight,
+        );
+      }
 
-    if (isFullReport) {
       const photoLabels = FULL_REPORT_IMAGE_FIELDS.map(({ label }) => label);
       y = drawHorizontalPhotoRow(
         page,
@@ -714,18 +739,14 @@ export async function POST(request: Request) {
         fontRegular,
       );
 
-      const scoresBlockHeight = measureConformationScoresHeight();
-      if (y - scoresBlockHeight >= MIN_CONTENT_Y_PAGE1) {
-        y -= 8;
-        y = drawConformationScoresSection(
-          page,
-          y,
-          report,
-          fontBold,
-          fontRegular,
-        );
-        scoresDrawnOnPage1 = true;
-      }
+      y -= gapBeforeScores;
+      y = drawConformationScoresSection(
+        page,
+        y,
+        report,
+        fontBold,
+        fontRegular,
+      );
     }
 
     drawFooter(page, fontRegular);
@@ -738,11 +759,6 @@ export async function POST(request: Request) {
       drawFooter(page, fontRegular);
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       y = PAGE_HEIGHT - MARGIN;
-    };
-
-    const ensureSpace = (needed: number) => {
-      if (y - needed >= MIN_CONTENT_Y) return;
-      forceNewPage();
     };
 
     const ensureLineSpace = (lineHeight: number) => {
@@ -762,18 +778,6 @@ export async function POST(request: Request) {
       y -= 12;
     };
 
-    ensureSpace(120);
-    if (!scoresDrawnOnPage1) {
-      y = drawConformationScoresSection(
-        page,
-        y,
-        report,
-        fontBold,
-        fontRegular,
-      );
-    }
-
-    ensureSpace(36);
     page.drawText("Written Report", {
       x: MARGIN,
       y,
@@ -818,16 +822,14 @@ export async function POST(request: Request) {
     }
 
     if (model3dSnapshotImage) {
-      y -= 24;
+      forceNewPage();
 
-      ensureSpace(28);
       drawCenteredText(page, "3D Model View", y, fontBold, 16, rgb(0.1, 0.1, 0.1));
       y -= 28;
 
       const horseName =
         typeof body.horse_name === "string" ? body.horse_name.trim() : "";
       if (horseName) {
-        ensureSpace(26);
         drawCenteredText(page, horseName, y, fontBold, 20, rgb(0.1, 0.1, 0.1));
         y -= 26;
       }
@@ -835,28 +837,23 @@ export async function POST(request: Request) {
       const detailLines = getReportHorseDetailTextLines(body);
 
       for (const line of detailLines) {
-        ensureSpace(14);
         drawCenteredText(page, line, y, fontRegular, 10, rgb(0.35, 0.35, 0.35));
         y -= 14;
       }
 
       y -= 10;
-      ensureSpace(28);
       const model3dOverallText = `Overall Score: ${report.overall_score}/100`;
       drawCenteredText(page, model3dOverallText, y, fontBold, 14, ACCENT_RGB);
       y -= 28;
 
-      const snapshotMaxHeight = 480;
-      const availableSnapshotHeight = Math.max(120, y - MIN_CONTENT_Y - 20);
+      const snapshotMaxHeight = y - MIN_CONTENT_Y - 20;
       const snapshotScale = Math.min(
         CONTENT_WIDTH / model3dSnapshotImage.width,
-        Math.min(snapshotMaxHeight, availableSnapshotHeight) /
-          model3dSnapshotImage.height,
+        snapshotMaxHeight / model3dSnapshotImage.height,
       );
       const snapshotWidth = model3dSnapshotImage.width * snapshotScale;
       const snapshotHeight = model3dSnapshotImage.height * snapshotScale;
 
-      ensureSpace(snapshotHeight + 20);
       page.drawImage(model3dSnapshotImage, {
         x: MARGIN + (CONTENT_WIDTH - snapshotWidth) / 2,
         y: y - snapshotHeight,

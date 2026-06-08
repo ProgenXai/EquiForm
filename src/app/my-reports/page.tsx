@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import type { ConformationReport } from "@/lib/analyze/types";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
+import { formatDisciplineList } from "@/lib/format-discipline";
 
 type ReportRow = {
   id: string;
@@ -45,7 +46,7 @@ function formatHorseDetailLines(report: {
     report.age?.trim() ? `Age: ${report.age.trim()}` : null,
     report.sex?.trim() ? `Sex: ${report.sex.trim()}` : null,
     report.discipline?.trim()
-      ? `Discipline: ${report.discipline.trim()}`
+      ? `Discipline: ${formatDisciplineList(report.discipline)}`
       : null,
   ].filter((line): line is string => line !== null);
 }

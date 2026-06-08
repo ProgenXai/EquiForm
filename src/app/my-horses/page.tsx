@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { formatDisciplineList } from "@/lib/format-discipline";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
 type HorseRow = {
@@ -24,7 +25,9 @@ function formatHorseDetailLines(horse: HorseRow): string[] {
     horse.coat_color?.trim() ? `Coat Color: ${horse.coat_color.trim()}` : null,
     horse.age?.trim() ? `Age: ${horse.age.trim()}` : null,
     horse.sex?.trim() ? `Sex: ${horse.sex.trim()}` : null,
-    horse.discipline?.trim() ? `Discipline: ${horse.discipline.trim()}` : null,
+    horse.discipline?.trim()
+      ? `Discipline: ${formatDisciplineList(horse.discipline)}`
+      : null,
   ].filter((line): line is string => line !== null);
 }
 
