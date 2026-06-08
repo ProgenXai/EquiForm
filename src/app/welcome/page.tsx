@@ -127,8 +127,8 @@ export default function WelcomePage() {
             </p>
             <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
               <Image
-                src={step3.image}
-                alt={step3.imageAlt}
+                src="/onboarding/step3-report.png"
+                alt="EquiForm sample report PDF preview"
                 width={1200}
                 height={800}
                 className="h-auto w-full object-contain"
