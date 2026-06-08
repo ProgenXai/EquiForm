@@ -85,7 +85,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmedEmail }),
       });
-      router.push("/buy-credits");
+      router.push("/welcome");
       return;
     }
 
