@@ -6,11 +6,48 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DEMO_USERS = [
-  { email: "demo1@equiform.app", password: "EquiForm20261" },
-  { email: "demo2@equiform.app", password: "EquiForm20262" },
-  { email: "demo3@equiform.app", password: "EquiForm20263" },
-  { email: "demo4@equiform.app", password: "EquiForm20264" },
-  { email: "demo5@equiform.app", password: "EquiForm20265" },
+  {
+    email: "demo1@equiform.app",
+    password: "EquiForm20261",
+    single_view_3d_balance: 1,
+    full_report_3d_balance: 1,
+  },
+  {
+    email: "demo2@equiform.app",
+    password: "EquiForm20262",
+    single_view_3d_balance: 1,
+    full_report_3d_balance: 1,
+  },
+  {
+    email: "demo3@equiform.app",
+    password: "EquiForm20263",
+    single_view_3d_balance: 1,
+    full_report_3d_balance: 1,
+  },
+  {
+    email: "demo4@equiform.app",
+    password: "EquiForm20264",
+    single_view_3d_balance: 1,
+    full_report_3d_balance: 1,
+  },
+  {
+    email: "demo5@equiform.app",
+    password: "EquiForm20265",
+    single_view_3d_balance: 1,
+    full_report_3d_balance: 1,
+  },
+  {
+    email: "demo6@equiform.app",
+    password: "EquiForm20266",
+    single_view_3d_balance: 2,
+    full_report_3d_balance: 2,
+  },
+  {
+    email: "demo7@equiform.app",
+    password: "EquiForm20267",
+    single_view_3d_balance: 2,
+    full_report_3d_balance: 2,
+  },
 ] as const;
 
 type CreatedDemoUser = { email: string; userId: string };
@@ -54,9 +91,9 @@ export async function POST(request: Request) {
     const { error: tokenError } = await supabaseAdmin.from("user_tokens").insert({
       user_id: authData.user.id,
       single_view_balance: 0,
-      single_view_3d_balance: 1,
+      single_view_3d_balance: demoUser.single_view_3d_balance,
       full_report_balance: 0,
-      full_report_3d_balance: 1,
+      full_report_3d_balance: demoUser.full_report_3d_balance,
     });
 
     if (tokenError) {
