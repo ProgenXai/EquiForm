@@ -14,6 +14,7 @@ export default function Home() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [notifyUpdates, setNotifyUpdates] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,6 +45,21 @@ export default function Home() {
     }
 
     if (mode === "signup") {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.access_token) {
+        void fetch("/api/signup-preferences", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ notifyUpdates }),
+        });
+      }
+
       void fetch("/api/email/welcome", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,6 +148,20 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {mode === "signup" ? (
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                checked={notifyUpdates}
+                onChange={(event) => setNotifyUpdates(event.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-950 text-accent focus:ring-accent"
+              />
+              <span className="text-sm text-zinc-400">
+                Notify me about new features and updates to EquiForm.
+              </span>
+            </label>
+          ) : null}
 
           {error ? (
             <p className="text-sm text-red-400" role="alert">
