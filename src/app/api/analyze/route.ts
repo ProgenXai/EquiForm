@@ -329,6 +329,96 @@ async function persistMeshyGlbToSupabase(
   }
 }
 
+type TokenBalanceColumn =
+  | "single_view_balance"
+  | "single_view_3d_balance";
+
+async function atomicDeductCredit(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  balanceColumn: TokenBalanceColumn,
+  amount: number,
+): Promise<
+  | { ok: true }
+  | { ok: false; reason: "insufficient" | "error"; message?: string }
+> {
+  const { data: tokenRow, error: fetchError } = await serviceClient
+    .from("user_tokens")
+    .select(balanceColumn)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, reason: "error", message: fetchError.message };
+  }
+
+  if (!tokenRow) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  const currentBalance = Number(tokenRow[balanceColumn as keyof typeof tokenRow]);
+  if (currentBalance < amount) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  const { data: updated, error: updateError } = await serviceClient
+    .from("user_tokens")
+    .update({ [balanceColumn]: currentBalance - amount })
+    .eq("user_id", userId)
+    .gte(balanceColumn, amount)
+    .eq(balanceColumn, currentBalance)
+    .select("user_id");
+
+  if (updateError) {
+    return { ok: false, reason: "error", message: updateError.message };
+  }
+
+  if (!updated || updated.length === 0) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  return { ok: true };
+}
+
+async function refundCredit(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  balanceColumn: TokenBalanceColumn,
+  amount: number,
+): Promise<{ ok: true } | { ok: false; message?: string }> {
+  const { data: tokenRow, error: fetchError } = await serviceClient
+    .from("user_tokens")
+    .select(balanceColumn)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, message: fetchError.message };
+  }
+
+  if (!tokenRow) {
+    return { ok: false, message: "User token row not found" };
+  }
+
+  const currentBalance = Number(tokenRow[balanceColumn as keyof typeof tokenRow]);
+
+  const { data: updated, error: updateError } = await serviceClient
+    .from("user_tokens")
+    .update({ [balanceColumn]: currentBalance + amount })
+    .eq("user_id", userId)
+    .select("user_id");
+
+  if (updateError) {
+    return { ok: false, message: updateError.message };
+  }
+
+  if (!updated || updated.length === 0) {
+    return { ok: false, message: "Refund update affected 0 rows" };
+  }
+
+  return { ok: true };
+}
+
 export async function POST(request: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -421,34 +511,30 @@ export async function POST(request: Request) {
     generate3D = true;
   }
 
-  const balanceColumn = generate3D
+  const balanceColumn: TokenBalanceColumn = generate3D
     ? "single_view_3d_balance"
     : "single_view_balance";
   const serviceClient = createServiceRoleClient();
+  const insufficientCreditsError = generate3D
+    ? "Insufficient single view + 3D credits."
+    : "Insufficient single view credits.";
 
   if (!isAdmin) {
-    const { data: tokenRow, error: balanceError } = await serviceClient
-      .from("user_tokens")
-      .select("single_view_balance, single_view_3d_balance")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const deductResult = await atomicDeductCredit(
+      serviceClient,
+      user.id,
+      balanceColumn,
+      1,
+    );
 
-    if (balanceError) {
-      return NextResponse.json({ error: balanceError.message }, { status: 500 });
-    }
+    if (!deductResult.ok) {
+      if (deductResult.reason === "insufficient") {
+        return NextResponse.json({ error: insufficientCreditsError }, { status: 401 });
+      }
 
-    const currentBalance = generate3D
-      ? (tokenRow?.single_view_3d_balance ?? 0)
-      : (tokenRow?.single_view_balance ?? 0);
-
-    if (currentBalance < 1) {
       return NextResponse.json(
-        {
-          error: generate3D
-            ? "Insufficient single view + 3D credits."
-            : "Insufficient single view credits.",
-        },
-        { status: 401 },
+        { error: deductResult.message ?? "Failed to deduct analysis credit." },
+        { status: 500 },
       );
     }
   }
@@ -740,6 +826,43 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("[analyze] failed to save report:", insertError);
+
+      if (!isAdmin) {
+        console.error(
+          "[analyze] CRITICAL: analysis credit was deducted but report save failed",
+          { userId: user.id, balanceColumn, insertError },
+        );
+
+        const refundResult = await refundCredit(
+          serviceClient,
+          user.id,
+          balanceColumn,
+          1,
+        );
+
+        if (refundResult.ok) {
+          console.error(
+            "[analyze] CRITICAL: credit refund succeeded after report save failure",
+            { userId: user.id, balanceColumn },
+          );
+        } else {
+          console.error(
+            "[analyze] CRITICAL: credit refund failed after report save failure",
+            { userId: user.id, balanceColumn, message: refundResult.message },
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: refundResult.ok
+              ? "Your report could not be saved, but your analysis credit was automatically returned. Please try again."
+              : "Your report could not be saved and your analysis credit could not be automatically returned. Please contact support at EquiFormApp@gmail.com.",
+            code: "REPORT_SAVE_FAILED_AFTER_CREDIT_DEDUCTION",
+            creditRefunded: refundResult.ok,
+          },
+          { status: 500 },
+        );
+      }
     } else {
       reportId = savedReport.id;
 
@@ -769,35 +892,6 @@ export async function POST(request: Request) {
           });
         } catch (emailError) {
           console.error("[analyze] first-report email failed:", emailError);
-        }
-      }
-    }
-
-    if (reportId && !isAdmin && user) {
-      const { data: tokenRow, error: fetchError } = await serviceClient
-        .from("user_tokens")
-        .select("single_view_balance, single_view_3d_balance")
-        .eq("user_id", user.id)
-        .gt(balanceColumn, 0)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error("[analyze] failed to deduct token:", fetchError);
-      } else if (tokenRow) {
-        const currentBalance = generate3D
-          ? tokenRow.single_view_3d_balance
-          : tokenRow.single_view_balance;
-
-        const { error: deductError } = await serviceClient
-          .from("user_tokens")
-          .update({
-            [balanceColumn]: currentBalance - 1,
-          })
-          .eq("user_id", user.id)
-          .gt(balanceColumn, 0);
-
-        if (deductError) {
-          console.error("[analyze] failed to deduct token:", deductError);
         }
       }
     }

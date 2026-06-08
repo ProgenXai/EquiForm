@@ -753,6 +753,96 @@ async function generateTripo3DModel(
   }
 }
 
+type FullReportBalanceColumn =
+  | "full_report_balance"
+  | "full_report_3d_balance";
+
+async function atomicDeductCredit(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  balanceColumn: FullReportBalanceColumn,
+  amount: number,
+): Promise<
+  | { ok: true }
+  | { ok: false; reason: "insufficient" | "error"; message?: string }
+> {
+  const { data: tokenRow, error: fetchError } = await serviceClient
+    .from("user_tokens")
+    .select(balanceColumn)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, reason: "error", message: fetchError.message };
+  }
+
+  if (!tokenRow) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  const currentBalance = Number(tokenRow[balanceColumn as keyof typeof tokenRow]);
+  if (currentBalance < amount) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  const { data: updated, error: updateError } = await serviceClient
+    .from("user_tokens")
+    .update({ [balanceColumn]: currentBalance - amount })
+    .eq("user_id", userId)
+    .gte(balanceColumn, amount)
+    .eq(balanceColumn, currentBalance)
+    .select("user_id");
+
+  if (updateError) {
+    return { ok: false, reason: "error", message: updateError.message };
+  }
+
+  if (!updated || updated.length === 0) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  return { ok: true };
+}
+
+async function refundCredit(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  balanceColumn: FullReportBalanceColumn,
+  amount: number,
+): Promise<{ ok: true } | { ok: false; message?: string }> {
+  const { data: tokenRow, error: fetchError } = await serviceClient
+    .from("user_tokens")
+    .select(balanceColumn)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, message: fetchError.message };
+  }
+
+  if (!tokenRow) {
+    return { ok: false, message: "User token row not found" };
+  }
+
+  const currentBalance = Number(tokenRow[balanceColumn as keyof typeof tokenRow]);
+
+  const { data: updated, error: updateError } = await serviceClient
+    .from("user_tokens")
+    .update({ [balanceColumn]: currentBalance + amount })
+    .eq("user_id", userId)
+    .select("user_id");
+
+  if (updateError) {
+    return { ok: false, message: updateError.message };
+  }
+
+  if (!updated || updated.length === 0) {
+    return { ok: false, message: "Refund update affected 0 rows" };
+  }
+
+  return { ok: true };
+}
+
 export async function POST(request: Request) {
   console.log("[analyze-full] POST handler entered");
 
@@ -918,34 +1008,30 @@ export async function POST(request: Request) {
   isAdmin = roleData?.is_admin === true;
 
   const generate3D = body.generate3D === true;
-  const balanceColumn = generate3D
+  const balanceColumn: FullReportBalanceColumn = generate3D
     ? "full_report_3d_balance"
     : "full_report_balance";
   const serviceClient = createServiceRoleClient();
+  const insufficientCreditsError = generate3D
+    ? `Insufficient four-view + 3D credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`
+    : `Insufficient full report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`;
 
   if (!isAdmin) {
-    const { data: tokenRow, error: balanceError } = await serviceClient
-      .from("user_tokens")
-      .select("full_report_balance, full_report_3d_balance")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const deductResult = await atomicDeductCredit(
+      serviceClient,
+      user.id,
+      balanceColumn,
+      FULL_REPORT_CREDIT_COST,
+    );
 
-    if (balanceError) {
-      return NextResponse.json({ error: balanceError.message }, { status: 500 });
-    }
+    if (!deductResult.ok) {
+      if (deductResult.reason === "insufficient") {
+        return NextResponse.json({ error: insufficientCreditsError }, { status: 401 });
+      }
 
-    const currentBalance = generate3D
-      ? (tokenRow?.full_report_3d_balance ?? 0)
-      : (tokenRow?.full_report_balance ?? 0);
-
-    if (currentBalance < FULL_REPORT_CREDIT_COST) {
       return NextResponse.json(
-        {
-          error: generate3D
-            ? `Insufficient four-view + 3D credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`
-            : `Insufficient full report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`,
-        },
-        { status: 401 },
+        { error: deductResult.message ?? "Failed to deduct analysis credit." },
+        { status: 500 },
       );
     }
   }
@@ -1400,6 +1486,43 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Report save error:", error.message, error.code, error.details);
       console.error("[analyze-full] failed to save report:", error);
+
+      if (!isAdmin) {
+        console.error(
+          "[analyze-full] CRITICAL: analysis credit was deducted but report save failed",
+          { userId, balanceColumn, error },
+        );
+
+        const refundResult = await refundCredit(
+          serviceClient,
+          userId,
+          balanceColumn,
+          FULL_REPORT_CREDIT_COST,
+        );
+
+        if (refundResult.ok) {
+          console.error(
+            "[analyze-full] CRITICAL: credit refund succeeded after report save failure",
+            { userId, balanceColumn },
+          );
+        } else {
+          console.error(
+            "[analyze-full] CRITICAL: credit refund failed after report save failure",
+            { userId, balanceColumn, message: refundResult.message },
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: refundResult.ok
+              ? "Your report could not be saved, but your analysis credit was automatically returned. Please try again."
+              : "Your report could not be saved and your analysis credit could not be automatically returned. Please contact support at EquiFormApp@gmail.com.",
+            code: "REPORT_SAVE_FAILED_AFTER_CREDIT_DEDUCTION",
+            creditRefunded: refundResult.ok,
+          },
+          { status: 500 },
+        );
+      }
     } else {
       if (savedReport && userId && horseName) {
         console.log("[analyze-full] linkReportToHorse starting:", {
@@ -1486,50 +1609,24 @@ export async function POST(request: Request) {
         console.error("First report email failed:", emailError);
         // Don't throw — email failure should not break the report
       }
-    }
 
-    if (!error && savedReport && !isAdmin) {
-      const { data: tokenRow, error: fetchError } = await serviceClient
-        .from("user_tokens")
-        .select("full_report_balance, full_report_3d_balance")
-        .eq("user_id", user.id)
-        .gte(balanceColumn, FULL_REPORT_CREDIT_COST)
-        .maybeSingle();
+      if (!isAdmin) {
+        const { error: transactionError } = await serviceClient
+          .from("token_transactions")
+          .insert({
+            user_id: user.id,
+            amount: -FULL_REPORT_CREDIT_COST,
+            type: "usage",
+            description: generate3D
+              ? "Four-view + 3D report analysis"
+              : "Full report analysis",
+          });
 
-      if (fetchError) {
-        console.error("[analyze-full] failed to fetch credits:", fetchError);
-      } else if (tokenRow) {
-        const currentBalance = generate3D
-          ? tokenRow.full_report_3d_balance
-          : tokenRow.full_report_balance;
-        const newBalance = currentBalance - FULL_REPORT_CREDIT_COST;
-
-        const { error: deductError } = await serviceClient
-          .from("user_tokens")
-          .update({ [balanceColumn]: newBalance })
-          .eq("user_id", user.id)
-          .gte(balanceColumn, FULL_REPORT_CREDIT_COST);
-
-        if (deductError) {
-          console.error("[analyze-full] failed to deduct credits:", deductError);
-        } else {
-          const { error: transactionError } = await serviceClient
-            .from("token_transactions")
-            .insert({
-              user_id: user.id,
-              amount: -FULL_REPORT_CREDIT_COST,
-              type: "usage",
-              description: generate3D
-                ? "Four-view + 3D report analysis"
-                : "Full report analysis",
-            });
-
-          if (transactionError) {
-            console.error(
-              "[analyze-full] token_transactions insert failed:",
-              transactionError,
-            );
-          }
+        if (transactionError) {
+          console.error(
+            "[analyze-full] token_transactions insert failed:",
+            transactionError,
+          );
         }
       }
     }
