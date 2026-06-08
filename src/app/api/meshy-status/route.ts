@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
@@ -89,7 +90,21 @@ export async function GET(request: Request) {
     );
 
     if (!statusResponse.ok) {
-      console.error("[meshy-status] poll failed:", await statusResponse.text());
+      const pollError = await statusResponse.text();
+      console.error("[meshy-status] poll failed:", pollError);
+      void sendAdminAlert(
+        "Meshy 3D generation failed",
+        [
+          "What failed: Meshy task status poll failed",
+          `User ID: ${user.id}`,
+          user.email ? `User email: ${user.email}` : null,
+          reportId ? `Report ID: ${reportId}` : null,
+          `Task ID: ${taskId}`,
+          `Error details: ${pollError}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
       return NextResponse.json(
         { error: "Failed to fetch Meshy task status" },
         { status: 502 },
@@ -146,7 +161,36 @@ export async function GET(request: Request) {
     }
 
     if (status === "FAILED") {
-      console.log("[meshy-status] failure detail:", JSON.stringify(taskData));
+      const failureDetail = JSON.stringify(taskData);
+      console.log("[meshy-status] failure detail:", failureDetail);
+
+      let horseName: string | null = null;
+      if (reportId) {
+        const serviceClient = createServiceRoleClient();
+        const { data: reportRow } = await serviceClient
+          .from("reports")
+          .select("horse_name")
+          .eq("id", reportId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        horseName = reportRow?.horse_name ?? null;
+      }
+
+      void sendAdminAlert(
+        "Meshy 3D generation failed",
+        [
+          "What failed: Meshy task returned FAILED status",
+          `User ID: ${user.id}`,
+          user.email ? `User email: ${user.email}` : null,
+          horseName ? `Horse name: ${horseName}` : null,
+          reportId ? `Report ID: ${reportId}` : null,
+          `Task ID: ${taskId}`,
+          `Error details: ${failureDetail}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+
       return NextResponse.json(
         { status, error: "3D model generation failed" },
         { status: 502 },
@@ -155,7 +199,20 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ status });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[meshy-status] failed:", error);
+    void sendAdminAlert(
+      "Meshy 3D generation failed",
+      [
+        "What failed: Meshy status check unexpected error",
+        `User ID: ${user.id}`,
+        user.email ? `User email: ${user.email}` : null,
+        taskId ? `Task ID: ${taskId}` : null,
+        `Error details: ${message}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     return NextResponse.json(
       { error: "Failed to check Meshy task status" },
       { status: 500 },

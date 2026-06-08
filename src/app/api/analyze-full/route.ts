@@ -27,6 +27,7 @@ import {
   drawHindConformationOverlay,
 } from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
+import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -530,9 +531,29 @@ async function submitMeshy3DTask(
   leftUrl: string,
   hindUrl: string,
   rightUrl: string,
+  alertContext?: {
+    userId?: string;
+    userEmail?: string | null;
+    horseName?: string | null;
+  },
 ): Promise<string | null> {
   const apiKey = process.env.MESHY_API_KEY?.trim();
   if (!apiKey) return null;
+
+  const sendMeshyAlert = (whatFailed: string, errorDetails: string) => {
+    void sendAdminAlert(
+      "Meshy 3D generation failed",
+      [
+        `What failed: ${whatFailed}`,
+        alertContext?.userId ? `User ID: ${alertContext.userId}` : null,
+        alertContext?.userEmail ? `User email: ${alertContext.userEmail}` : null,
+        alertContext?.horseName ? `Horse name: ${alertContext.horseName}` : null,
+        `Error details: ${errorDetails}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  };
 
   try {
     const meshyPayload = {
@@ -558,6 +579,7 @@ async function submitMeshy3DTask(
     if (!submitResponse.ok) {
       const text = await submitResponse.text();
       console.error("[meshy] submit failed:", text);
+      sendMeshyAlert("Meshy task submit failed", text);
       return null;
     }
 
@@ -566,7 +588,9 @@ async function submitMeshy3DTask(
     };
 
     if (!submitData.result) {
-      console.error("[meshy] submit error:", JSON.stringify(submitData));
+      const submitError = JSON.stringify(submitData);
+      console.error("[meshy] submit error:", submitError);
+      sendMeshyAlert("Meshy task submit returned no task ID", submitError);
       return null;
     }
 
@@ -574,7 +598,9 @@ async function submitMeshy3DTask(
     console.log("[meshy] task submitted:", taskId);
     return taskId;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[meshy] unexpected error:", error);
+    sendMeshyAlert("Meshy unexpected error", message);
     return null;
   }
 }
@@ -904,6 +930,12 @@ export async function POST(request: Request) {
       imageUrls.left,
       imageUrls.hind,
       imageUrls.right,
+      {
+        userId: user.id,
+        userEmail: user.email,
+        horseName:
+          typeof body.horseName === "string" ? body.horseName.trim() : null,
+      },
     );
 
     const placeholderSection = {
@@ -1028,6 +1060,25 @@ export async function POST(request: Request) {
       if (deductResult.reason === "insufficient") {
         return NextResponse.json({ error: insufficientCreditsError }, { status: 401 });
       }
+
+      console.error("[analyze-full] CRITICAL: upfront credit deduction failed", {
+        userId: user.id,
+        balanceColumn,
+        message: deductResult.message,
+      });
+      void sendAdminAlert(
+        "Four-view credit deduction failed",
+        [
+          "What failed: Atomic upfront credit deduction",
+          `User ID: ${user.id}`,
+          user.email ? `User email: ${user.email}` : null,
+          deductResult.message
+            ? `Error message: ${deductResult.message}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
 
       return NextResponse.json(
         { error: deductResult.message ?? "Failed to deduct analysis credit." },
@@ -1310,6 +1361,11 @@ export async function POST(request: Request) {
       imageUrls.left,
       imageUrls.hind,
       imageUrls.right,
+      {
+        userId: user.id,
+        userEmail: user.email,
+        horseName,
+      },
     );
 
     const combinedScore = calculateCombinedScore(
@@ -1492,6 +1548,19 @@ export async function POST(request: Request) {
           "[analyze-full] CRITICAL: analysis credit was deducted but report save failed",
           { userId, balanceColumn, error },
         );
+        void sendAdminAlert(
+          "Four-view report save failed",
+          [
+            "What failed: Report save after upfront credit deduction",
+            `User ID: ${userId}`,
+            userEmail ? `User email: ${userEmail}` : null,
+            horseName ? `Horse name: ${horseName}` : null,
+            error.code ? `Error code: ${error.code}` : null,
+            `Error message: ${error.message}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
 
         const refundResult = await refundCredit(
           serviceClient,
@@ -1509,6 +1578,20 @@ export async function POST(request: Request) {
           console.error(
             "[analyze-full] CRITICAL: credit refund failed after report save failure",
             { userId, balanceColumn, message: refundResult.message },
+          );
+          void sendAdminAlert(
+            "Four-view credit refund failed",
+            [
+              "What failed: Automatic credit refund after report save failure",
+              `User ID: ${userId}`,
+              userEmail ? `User email: ${userEmail}` : null,
+              horseName ? `Horse name: ${horseName}` : null,
+              refundResult.message
+                ? `Error message: ${refundResult.message}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join("\n"),
           );
         }
 

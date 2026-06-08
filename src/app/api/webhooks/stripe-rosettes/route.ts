@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { findRosettePack } from "@/lib/stripe/rosette-packs";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -76,7 +77,16 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[stripe-rosettes] signature verification failed:", error);
+    void sendAdminAlert(
+      "Stripe webhook processing failed",
+      [
+        "What failed: Webhook signature verification",
+        "Event type: unknown",
+        `Error message: ${message}`,
+      ].join("\n"),
+    );
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -90,6 +100,19 @@ export async function POST(request: Request) {
 
   if (!packId || !userId) {
     console.error("[stripe-rosettes] missing metadata:", session.metadata);
+    void sendAdminAlert(
+      "Stripe payment fulfillment failed",
+      [
+        "What failed: Missing checkout session metadata",
+        `Event type: ${event.type}`,
+        session.customer_email
+          ? `User email: ${session.customer_email}`
+          : null,
+        `Error message: Missing packId or userId in session metadata`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     return NextResponse.json({ error: "Missing session metadata" }, { status: 400 });
   }
 
@@ -98,6 +121,21 @@ export async function POST(request: Request) {
 
   if (!balanceColumn) {
     console.error("[stripe-rosettes] unknown packId:", packId);
+    void sendAdminAlert(
+      "Stripe payment fulfillment failed",
+      [
+        "What failed: Unknown pack ID",
+        `Event type: ${event.type}`,
+        `User ID: ${userId}`,
+        session.customer_email
+          ? `User email: ${session.customer_email}`
+          : null,
+        `Pack ID: ${packId}`,
+        `Error message: No balance column mapping for packId`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
   }
 
@@ -105,6 +143,21 @@ export async function POST(request: Request) {
 
   if (credits <= 0) {
     console.error("[stripe-rosettes] invalid packId:", packId);
+    void sendAdminAlert(
+      "Stripe payment fulfillment failed",
+      [
+        "What failed: Invalid pack credit amount",
+        `Event type: ${event.type}`,
+        `User ID: ${userId}`,
+        session.customer_email
+          ? `User email: ${session.customer_email}`
+          : null,
+        `Pack ID: ${packId}`,
+        `Error message: Pack resolves to zero or negative credits`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
   }
 
@@ -118,6 +171,21 @@ export async function POST(request: Request) {
 
   if (lookupError) {
     console.error("[stripe-rosettes] user_tokens lookup failed:", lookupError);
+    void sendAdminAlert(
+      "Stripe payment fulfillment failed",
+      [
+        "What failed: user_tokens lookup",
+        `Event type: ${event.type}`,
+        `User ID: ${userId}`,
+        session.customer_email
+          ? `User email: ${session.customer_email}`
+          : null,
+        `Pack ID: ${packId}`,
+        `Error message: ${lookupError.message}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     return NextResponse.json({ error: lookupError.message }, { status: 500 });
   }
 
@@ -132,6 +200,21 @@ export async function POST(request: Request) {
 
     if (updateError) {
       console.error("[stripe-rosettes] user_tokens update failed:", updateError);
+      void sendAdminAlert(
+        "Stripe payment fulfillment failed",
+        [
+          "What failed: user_tokens balance update",
+          `Event type: ${event.type}`,
+          `User ID: ${userId}`,
+          session.customer_email
+            ? `User email: ${session.customer_email}`
+            : null,
+          `Pack ID: ${packId}`,
+          `Error message: ${updateError.message}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
   } else {
@@ -149,6 +232,21 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("[stripe-rosettes] user_tokens insert failed:", insertError);
+      void sendAdminAlert(
+        "Stripe payment fulfillment failed",
+        [
+          "What failed: user_tokens insert",
+          `Event type: ${event.type}`,
+          `User ID: ${userId}`,
+          session.customer_email
+            ? `User email: ${session.customer_email}`
+            : null,
+          `Pack ID: ${packId}`,
+          `Error message: ${insertError.message}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
   }
@@ -164,6 +262,21 @@ export async function POST(request: Request) {
 
   if (transactionError) {
     console.error("[stripe-rosettes] token_transactions insert failed:", transactionError);
+    void sendAdminAlert(
+      "Stripe payment fulfillment failed",
+      [
+        "What failed: token_transactions insert",
+        `Event type: ${event.type}`,
+        `User ID: ${userId}`,
+        session.customer_email
+          ? `User email: ${session.customer_email}`
+          : null,
+        `Pack ID: ${packId}`,
+        `Error message: ${transactionError.message}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     return NextResponse.json({ error: transactionError.message }, { status: 500 });
   }
 
