@@ -137,6 +137,8 @@ export default function Home() {
                     if (error) setError(null);
                   }}
                   autoComplete="given-name"
+                  autoCapitalize="words"
+                  autocapitalize="words"
                   required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
@@ -157,6 +159,8 @@ export default function Home() {
                     if (error) setError(null);
                   }}
                   autoComplete="family-name"
+                  autoCapitalize="words"
+                  autocapitalize="words"
                   required
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
                 />
@@ -281,10 +285,6 @@ export default function Home() {
           )}
         </p>
       </section>
-
-      <p className="mt-8 text-xs text-zinc-600">
-        AQHA-style conformation scoring with landmark overlay
-      </p>
     </div>
   );
 }
