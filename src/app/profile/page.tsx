@@ -42,6 +42,15 @@ function getAvatarExtension(file: File): string {
   }
 }
 
+function capitalizeNameWords(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -190,8 +199,8 @@ function ProfilePageContent() {
 
     if (!userId) return;
 
-    const trimmedFirstName = firstName.trim();
-    const trimmedLastName = lastName.trim();
+    const trimmedFirstName = capitalizeNameWords(firstName);
+    const trimmedLastName = capitalizeNameWords(lastName);
 
     if (!trimmedFirstName || !trimmedLastName) {
       setError("First name and last name are required.");

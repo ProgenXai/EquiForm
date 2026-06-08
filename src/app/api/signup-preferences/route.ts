@@ -7,6 +7,15 @@ type SignupPreferencesBody = {
   lastName?: string;
 };
 
+function capitalizeNameWords(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export async function POST(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -28,9 +37,11 @@ export async function POST(request: Request) {
   const body = (await request.json()) as SignupPreferencesBody;
   const notifyUpdates = body.notifyUpdates === true;
   const firstName =
-    typeof body.firstName === "string" ? body.firstName.trim() : "";
+    typeof body.firstName === "string"
+      ? capitalizeNameWords(body.firstName)
+      : "";
   const lastName =
-    typeof body.lastName === "string" ? body.lastName.trim() : "";
+    typeof body.lastName === "string" ? capitalizeNameWords(body.lastName) : "";
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
