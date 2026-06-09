@@ -56,7 +56,7 @@ const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
 
 const FRONT_VIEW_DO = [
   "Horse facing directly toward the camera",
-  "Standing square, all four feet visible on level ground",
+  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
   "Camera at chest height",
   "Step back so full horse fills about 2/3 of the frame",
   "Stand back and zoom in — getting too close makes the head appear oversized and distorts proportions",
@@ -64,7 +64,7 @@ const FRONT_VIEW_DO = [
 
 const DO_GUIDELINES = [
   "Full side profile, head to hoof fully visible",
-  "Standing square on level ground",
+  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
   "All four feet planted naturally",
   "Good lighting, horse clearly visible against background",
   "One horse only, no obstructions",

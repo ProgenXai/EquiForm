@@ -203,7 +203,7 @@ const FULL_REPORT_SLOTS: { view: FullReportView; label: string }[] = [
 
 const SIDE_PROFILE_DO = [
   "Full side profile, head to hoof fully visible",
-  "Standing square on level ground",
+  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
   "All four feet planted naturally",
   "Good lighting, horse clearly visible against background",
   "Step back so full horse fills about 2/3 of the frame",
@@ -218,7 +218,7 @@ const SIDE_PROFILE_DONT = [
 
 const FRONT_VIEW_DO = [
   "Horse facing directly toward the camera",
-  "Standing square, all four feet visible on level ground",
+  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
   "Camera at chest height",
   "Step back so full horse fills about 2/3 of the frame",
   "Stand back and zoom in — getting too close makes the head appear oversized and distorts proportions",
@@ -234,7 +234,7 @@ const FRONT_VIEW_DONT = [
 const HIND_VIEW_DO = [
   "Horse facing directly away from the camera",
   "Tail tied or braided up — hind legs fully visible",
-  "Standing square, all four feet visible on level ground",
+  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
   "Camera at hip height",
   "Step back so full horse fills about 2/3 of the frame",
 ] as const;
