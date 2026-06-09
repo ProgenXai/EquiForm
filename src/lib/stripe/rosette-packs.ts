@@ -20,7 +20,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 1500,
     priceDisplay: "$15.00",
     perReport: "$15.00 per report",
-    stripePriceId: "price_1Te0Ud6SA5I9u4voauwQN15m",
+    stripePriceId: "price_1TgT6W8GXemQ32esIlNOq58o",
   },
   {
     id: "sv-3",
@@ -30,7 +30,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "3-pack",
     perReport: "3 reports",
-    stripePriceId: "price_1Te0VY6SA5I9u4voomqK0K79",
+    stripePriceId: "price_1TgT6W8GXemQ32esbLIWni35",
   },
   {
     id: "sv-5",
@@ -40,7 +40,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "5-pack",
     perReport: "5 reports",
-    stripePriceId: "price_1Tg5YP6SA5I9u4vo8y5rw8Zj",
+    stripePriceId: "price_1TgT6X8GXemQ32eslRSVBKre",
   },
   {
     id: "sv3d-1",
@@ -50,7 +50,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 2000,
     priceDisplay: "$20.00",
     perReport: "$20.00 per report",
-    stripePriceId: "price_1Tfko06SA5I9u4voN5wAjmyL",
+    stripePriceId: "price_1TgT6Y8GXemQ32esnix8ekz8",
   },
   {
     id: "sv3d-3",
@@ -60,7 +60,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "3-pack",
     perReport: "3 reports",
-    stripePriceId: "price_1Tfl9m6SA5I9u4vova2WOBwA",
+    stripePriceId: "price_1TgT6Y8GXemQ32est3K9t4bo",
   },
   {
     id: "sv3d-5",
@@ -70,7 +70,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "5-pack",
     perReport: "5 reports",
-    stripePriceId: "price_1TflAL6SA5I9u4vogzOdxkCE",
+    stripePriceId: "price_1TgT6Z8GXemQ32es1LMh10Ug",
   },
   {
     id: "fv-1",
@@ -80,7 +80,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 2500,
     priceDisplay: "$25.00",
     perReport: "$25.00 per report",
-    stripePriceId: "price_1TflJp6SA5I9u4voV2oFs2vV",
+    stripePriceId: "price_1TgT6Z8GXemQ32esZsNcDoJk",
   },
   {
     id: "fv-3",
@@ -90,7 +90,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "3-pack",
     perReport: "3 reports",
-    stripePriceId: "price_1Tg5Tp6SA5I9u4vofHjsvjpG",
+    stripePriceId: "price_1TgT6a8GXemQ32esm53NHDly",
   },
   {
     id: "fv-5",
@@ -100,7 +100,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "5-pack",
     perReport: "5 reports",
-    stripePriceId: "price_1Te0Wz6SA5I9u4vodJfb7npV",
+    stripePriceId: "price_1TgT6a8GXemQ32estqs3Q1Ij",
   },
   {
     id: "fv3d-1",
@@ -110,7 +110,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 3000,
     priceDisplay: "$30.00",
     perReport: "$30.00 per report",
-    stripePriceId: "price_1Tfkoa6SA5I9u4votsxJVd3S",
+    stripePriceId: "price_1TgT6b8GXemQ32esQjdIPpLM",
   },
   {
     id: "fv3d-3",
@@ -120,7 +120,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "3-pack",
     perReport: "3 reports",
-    stripePriceId: "price_1Te0Wj6SA5I9u4vou6vVxgF9",
+    stripePriceId: "price_1TgT6c8GXemQ32esAOt4zXdm",
   },
   {
     id: "fv3d-5",
@@ -130,7 +130,7 @@ export const ROSETTE_PACKS: RosettePack[] = [
     price: 0,
     priceDisplay: "5-pack",
     perReport: "5 reports",
-    stripePriceId: "price_1TflB16SA5I9u4voSUfusvYf",
+    stripePriceId: "price_1TgT6c8GXemQ32esFj0jG54M",
   },
 ];
 

@@ -37,13 +37,13 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "sv-1",
         reportCount: 1,
-        stripePriceId: "price_1Te0Ud6SA5I9u4voauwQN15m",
+        stripePriceId: "price_1TgT6W8GXemQ32esIlNOq58o",
         label: "1 Report",
       },
       {
         packId: "sv-3",
         reportCount: 3,
-        stripePriceId: "price_1Te0VY6SA5I9u4voomqK0K79",
+        stripePriceId: "price_1TgT6W8GXemQ32esbLIWni35",
         label: "3 Reports",
         priceDisplay: "$38",
         savingsDisplay: "$7",
@@ -51,7 +51,7 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "sv-5",
         reportCount: 5,
-        stripePriceId: "price_1Tg5YP6SA5I9u4vo8y5rw8Zj",
+        stripePriceId: "price_1TgT6X8GXemQ32eslRSVBKre",
         label: "5 Reports",
         priceDisplay: "$60",
         savingsDisplay: "$15",
@@ -69,13 +69,13 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "sv3d-1",
         reportCount: 1,
-        stripePriceId: "price_1Tfko06SA5I9u4voN5wAjmyL",
+        stripePriceId: "price_1TgT6Y8GXemQ32esnix8ekz8",
         label: "1 Report",
       },
       {
         packId: "sv3d-3",
         reportCount: 3,
-        stripePriceId: "price_1Tfl9m6SA5I9u4vova2WOBwA",
+        stripePriceId: "price_1TgT6Y8GXemQ32est3K9t4bo",
         label: "3 Reports",
         priceDisplay: "$50",
         savingsDisplay: "$10",
@@ -83,7 +83,7 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "sv3d-5",
         reportCount: 5,
-        stripePriceId: "price_1TflAL6SA5I9u4vogzOdxkCE",
+        stripePriceId: "price_1TgT6Z8GXemQ32es1LMh10Ug",
         label: "5 Reports",
         priceDisplay: "$80",
         savingsDisplay: "$20",
@@ -101,13 +101,13 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "fv-1",
         reportCount: 1,
-        stripePriceId: "price_1TflJp6SA5I9u4voV2oFs2vV",
+        stripePriceId: "price_1TgT6Z8GXemQ32esZsNcDoJk",
         label: "1 Report",
       },
       {
         packId: "fv-3",
         reportCount: 3,
-        stripePriceId: "price_1Tg5Tp6SA5I9u4vofHjsvjpG",
+        stripePriceId: "price_1TgT6a8GXemQ32esm53NHDly",
         label: "3 Reports",
         priceDisplay: "$63",
         savingsDisplay: "$12",
@@ -115,7 +115,7 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "fv-5",
         reportCount: 5,
-        stripePriceId: "price_1Te0Wz6SA5I9u4vodJfb7npV",
+        stripePriceId: "price_1TgT6a8GXemQ32estqs3Q1Ij",
         label: "5 Reports",
         priceDisplay: "$100",
         savingsDisplay: "$25",
@@ -134,13 +134,13 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "fv3d-1",
         reportCount: 1,
-        stripePriceId: "price_1Tfkoa6SA5I9u4votsxJVd3S",
+        stripePriceId: "price_1TgT6b8GXemQ32esQjdIPpLM",
         label: "1 Report",
       },
       {
         packId: "fv3d-3",
         reportCount: 3,
-        stripePriceId: "price_1Te0Wj6SA5I9u4vou6vVxgF9",
+        stripePriceId: "price_1TgT6c8GXemQ32esAOt4zXdm",
         label: "3 Reports",
         priceDisplay: "$75",
         savingsDisplay: "$15",
@@ -148,7 +148,7 @@ export const REPORT_TIERS: ReportTier[] = [
       {
         packId: "fv3d-5",
         reportCount: 5,
-        stripePriceId: "price_1TflB16SA5I9u4voSUfusvYf",
+        stripePriceId: "price_1TgT6c8GXemQ32esFj0jG54M",
         label: "5 Reports",
         priceDisplay: "$120",
         savingsDisplay: "$30",
