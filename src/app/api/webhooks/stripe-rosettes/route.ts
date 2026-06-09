@@ -13,6 +13,18 @@ type BalanceColumn =
   | "full_report_balance"
   | "full_report_3d_balance";
 
+type CartItem = {
+  packId: string;
+  quantity: number;
+};
+
+type FulfillmentLine = {
+  packId: string;
+  balanceColumn: BalanceColumn;
+  credits: number;
+  description: string;
+};
+
 const PACK_ID_TO_BALANCE_COLUMN: Record<string, BalanceColumn> = {
   single_view_no3d_1: "single_view_balance",
   single_view_no3d_3: "single_view_balance",
@@ -50,6 +62,99 @@ function getCreditsForPackId(
 
   const suffixMatch = packId.match(/(?:^|[_-])(\d+)$/);
   return suffixMatch ? Number(suffixMatch[1]) : 0;
+}
+
+function parseCartItems(session: Stripe.Checkout.Session): CartItem[] | null {
+  const cartItemsRaw = session.metadata?.cartItems?.trim();
+
+  if (cartItemsRaw) {
+    try {
+      const parsed = JSON.parse(cartItemsRaw) as unknown;
+
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+
+      const items: CartItem[] = [];
+
+      for (const value of parsed) {
+        if (!value || typeof value !== "object") {
+          continue;
+        }
+
+        const record = value as { packId?: unknown; quantity?: unknown };
+        const packId =
+          typeof record.packId === "string" ? record.packId.trim() : "";
+        const quantity =
+          typeof record.quantity === "number" && Number.isFinite(record.quantity)
+            ? Math.floor(record.quantity)
+            : 1;
+
+        if (!packId || quantity <= 0) {
+          continue;
+        }
+
+        items.push({ packId, quantity });
+      }
+
+      return items.length > 0 ? items : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const packId = session.metadata?.packId?.trim();
+  if (packId) {
+    return [{ packId, quantity: 1 }];
+  }
+
+  return null;
+}
+
+function buildFulfillmentLines(items: CartItem[]): FulfillmentLine[] | null {
+  const lines: FulfillmentLine[] = [];
+
+  for (const item of items) {
+    const pack = findRosettePack(item.packId);
+    const balanceColumn = PACK_ID_TO_BALANCE_COLUMN[item.packId];
+    const creditsPerPack = getCreditsForPackId(item.packId, pack);
+
+    if (!balanceColumn || creditsPerPack <= 0) {
+      return null;
+    }
+
+    lines.push({
+      packId: item.packId,
+      balanceColumn,
+      credits: creditsPerPack * item.quantity,
+      description: pack?.name ?? item.packId,
+    });
+  }
+
+  return lines.length > 0 ? lines : null;
+}
+
+async function sendFulfillmentAlert(
+  session: Stripe.Checkout.Session,
+  eventType: string,
+  userId: string | undefined,
+  message: string,
+  packIds?: string[],
+) {
+  void sendAdminAlert(
+    "Stripe payment fulfillment failed",
+    [
+      `What failed: ${message}`,
+      `Event type: ${eventType}`,
+      userId ? `User ID: ${userId}` : null,
+      session.customer_email
+        ? `User email: ${session.customer_email}`
+        : null,
+      packIds?.length ? `Pack IDs: ${packIds.join(", ")}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 }
 
 export async function POST(request: Request) {
@@ -95,68 +200,31 @@ export async function POST(request: Request) {
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
-  const packId = session.metadata?.packId?.trim();
   const userId = session.metadata?.userId?.trim();
+  const cartItems = parseCartItems(session);
+  const packIds = cartItems?.map((item) => item.packId);
 
-  if (!packId || !userId) {
+  if (!userId || !cartItems) {
     console.error("[stripe-rosettes] missing metadata:", session.metadata);
-    void sendAdminAlert(
-      "Stripe payment fulfillment failed",
-      [
-        "What failed: Missing checkout session metadata",
-        `Event type: ${event.type}`,
-        session.customer_email
-          ? `User email: ${session.customer_email}`
-          : null,
-        `Error message: Missing packId or userId in session metadata`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
+    await sendFulfillmentAlert(
+      session,
+      event.type,
+      userId,
+      "Missing checkout session metadata",
     );
     return NextResponse.json({ error: "Missing session metadata" }, { status: 400 });
   }
 
-  const pack = findRosettePack(packId);
-  const balanceColumn = PACK_ID_TO_BALANCE_COLUMN[packId];
+  const fulfillmentLines = buildFulfillmentLines(cartItems);
 
-  if (!balanceColumn) {
-    console.error("[stripe-rosettes] unknown packId:", packId);
-    void sendAdminAlert(
-      "Stripe payment fulfillment failed",
-      [
-        "What failed: Unknown pack ID",
-        `Event type: ${event.type}`,
-        `User ID: ${userId}`,
-        session.customer_email
-          ? `User email: ${session.customer_email}`
-          : null,
-        `Pack ID: ${packId}`,
-        `Error message: No balance column mapping for packId`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
-    return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
-  }
-
-  const credits = getCreditsForPackId(packId, pack);
-
-  if (credits <= 0) {
-    console.error("[stripe-rosettes] invalid packId:", packId);
-    void sendAdminAlert(
-      "Stripe payment fulfillment failed",
-      [
-        "What failed: Invalid pack credit amount",
-        `Event type: ${event.type}`,
-        `User ID: ${userId}`,
-        session.customer_email
-          ? `User email: ${session.customer_email}`
-          : null,
-        `Pack ID: ${packId}`,
-        `Error message: Pack resolves to zero or negative credits`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
+  if (!fulfillmentLines) {
+    console.error("[stripe-rosettes] invalid cart items:", cartItems);
+    await sendFulfillmentAlert(
+      session,
+      event.type,
+      userId,
+      "Invalid pack ID or credit amount in cart items",
+      packIds,
     );
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
   }
@@ -171,113 +239,90 @@ export async function POST(request: Request) {
 
   if (lookupError) {
     console.error("[stripe-rosettes] user_tokens lookup failed:", lookupError);
-    void sendAdminAlert(
-      "Stripe payment fulfillment failed",
-      [
-        "What failed: user_tokens lookup",
-        `Event type: ${event.type}`,
-        `User ID: ${userId}`,
-        session.customer_email
-          ? `User email: ${session.customer_email}`
-          : null,
-        `Pack ID: ${packId}`,
-        `Error message: ${lookupError.message}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
+    await sendFulfillmentAlert(
+      session,
+      event.type,
+      userId,
+      "user_tokens lookup",
+      packIds,
     );
     return NextResponse.json({ error: lookupError.message }, { status: 500 });
   }
 
-  const currentBalance = existing?.[balanceColumn] ?? 0;
-  const newBalance = currentBalance + credits;
+  const balanceUpdates: Record<BalanceColumn, number> = {
+    single_view_balance: existing?.single_view_balance ?? 0,
+    single_view_3d_balance: existing?.single_view_3d_balance ?? 0,
+    full_report_balance: existing?.full_report_balance ?? 0,
+    full_report_3d_balance: existing?.full_report_3d_balance ?? 0,
+  };
+
+  for (const line of fulfillmentLines) {
+    balanceUpdates[line.balanceColumn] += line.credits;
+  }
 
   if (existing) {
     const { error: updateError } = await supabaseAdmin
       .from("user_tokens")
-      .update({ [balanceColumn]: newBalance })
+      .update(balanceUpdates)
       .eq("user_id", userId);
 
     if (updateError) {
       console.error("[stripe-rosettes] user_tokens update failed:", updateError);
-      void sendAdminAlert(
-        "Stripe payment fulfillment failed",
-        [
-          "What failed: user_tokens balance update",
-          `Event type: ${event.type}`,
-          `User ID: ${userId}`,
-          session.customer_email
-            ? `User email: ${session.customer_email}`
-            : null,
-          `Pack ID: ${packId}`,
-          `Error message: ${updateError.message}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
+      await sendFulfillmentAlert(
+        session,
+        event.type,
+        userId,
+        "user_tokens balance update",
+        packIds,
       );
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
   } else {
     const { error: insertError } = await supabaseAdmin.from("user_tokens").insert({
       user_id: userId,
-      single_view_balance:
-        balanceColumn === "single_view_balance" ? credits : 0,
-      single_view_3d_balance:
-        balanceColumn === "single_view_3d_balance" ? credits : 0,
-      full_report_balance:
-        balanceColumn === "full_report_balance" ? credits : 0,
-      full_report_3d_balance:
-        balanceColumn === "full_report_3d_balance" ? credits : 0,
+      ...balanceUpdates,
     });
 
     if (insertError) {
       console.error("[stripe-rosettes] user_tokens insert failed:", insertError);
-      void sendAdminAlert(
-        "Stripe payment fulfillment failed",
-        [
-          "What failed: user_tokens insert",
-          `Event type: ${event.type}`,
-          `User ID: ${userId}`,
-          session.customer_email
-            ? `User email: ${session.customer_email}`
-            : null,
-          `Pack ID: ${packId}`,
-          `Error message: ${insertError.message}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
+      await sendFulfillmentAlert(
+        session,
+        event.type,
+        userId,
+        "user_tokens insert",
+        packIds,
       );
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
   }
 
-  const { error: transactionError } = await supabaseAdmin
-    .from("token_transactions")
-    .insert({
-      user_id: userId,
-      amount: credits,
-      type: "purchase",
-      description: pack?.name ?? packId,
-    });
+  for (const line of fulfillmentLines) {
+    const { error: transactionError } = await supabaseAdmin
+      .from("token_transactions")
+      .insert({
+        user_id: userId,
+        amount: line.credits,
+        type: "purchase",
+        description: line.description,
+      });
 
-  if (transactionError) {
-    console.error("[stripe-rosettes] token_transactions insert failed:", transactionError);
-    void sendAdminAlert(
-      "Stripe payment fulfillment failed",
-      [
-        "What failed: token_transactions insert",
-        `Event type: ${event.type}`,
-        `User ID: ${userId}`,
-        session.customer_email
-          ? `User email: ${session.customer_email}`
-          : null,
-        `Pack ID: ${packId}`,
-        `Error message: ${transactionError.message}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
-    return NextResponse.json({ error: transactionError.message }, { status: 500 });
+    if (transactionError) {
+      console.error(
+        "[stripe-rosettes] token_transactions insert failed:",
+        transactionError,
+      );
+      await sendFulfillmentAlert(
+        session,
+        event.type,
+        userId,
+        "token_transactions insert",
+        packIds,
+      );
+      return NextResponse.json(
+        { error: transactionError.message },
+        { status: 500 },
+      );
+    }
   }
 
   return NextResponse.json({ received: true });

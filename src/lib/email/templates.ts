@@ -56,28 +56,17 @@ function button(href: string, label: string, primary = true): string {
   </p>`;
 }
 
-export function welcomeEmailHtml(name?: string): string {
-  const greeting = name?.trim()
-    ? `Welcome, ${name.trim()}!`
-    : "Welcome to EquiForm!";
+export function welcomeEmailHtml(_name?: string): string {
 
   const body = `
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${TEXT};">Welcome to EquiForm 🐴</h1>
-    <p style="margin:0 0 16px;color:${MUTED};">${greeting}</p>
     <p style="margin:0 0 16px;color:${MUTED};">
-      Thanks for joining EquiForm. Upload one or more photos of your horse and receive a detailed AI-powered
-      conformation analysis with landmark overlays, section scores for Balance, Shoulder Angle, Hip Angle,
-      Topline Quality, and Leg Alignment, plus a written report for every view.
-    </p>
-    <p style="margin:0 0 16px;color:${MUTED};">
-      Before your first analysis, review our photo guidelines so you get the best results from your upload.
+      Thanks for joining EquiForm! Please verify your email to get started.
     </p>
     ${button("https://equiform.app/verify-email", "Verify Your Email", false)}
     <p style="margin:8px 0 0;text-align:center;color:${MUTED};font-size:13px;">
       Verifying your email helps ensure you receive your reports and account updates.
     </p>
-    ${button("https://equiform.app/examples", "Review Photo Guidelines")}
-    ${button("https://equiform.app/analyze", "Analyze Your Horse")}
   `;
 
   return emailLayout("Welcome to EquiForm", body);

@@ -2,16 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthError } from "@/lib/user-facing-errors";
 
 export default function VerifyEmailPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [hasSession, setHasSession] = useState(false);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
-  const [alreadyVerified, setAlreadyVerified] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialSendDone = useRef(false);
@@ -48,8 +49,7 @@ export default function VerifyEmailPage() {
       setSessionEmail(session.user.email);
 
       if (session.user.email_confirmed_at) {
-        setAlreadyVerified(true);
-        setLoading(false);
+        router.replace("/auth");
         return;
       }
 
@@ -68,7 +68,20 @@ export default function VerifyEmailPage() {
     }
 
     void init();
-  }, []);
+
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email_confirmed_at) {
+        router.replace("/auth");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   async function handleResend() {
     if (!sessionEmail) return;
@@ -118,21 +131,6 @@ export default function VerifyEmailPage() {
                 className="mt-6 inline-block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 Log In
-              </Link>
-            </>
-          ) : alreadyVerified ? (
-            <>
-              <h1 className="text-lg font-semibold text-white">Email Verified</h1>
-              <p className="mt-4 text-sm text-zinc-400">
-                Your email address{" "}
-                <span className="font-medium text-zinc-200">{sessionEmail}</span>{" "}
-                is already verified.
-              </p>
-              <Link
-                href="/dashboard"
-                className="mt-6 inline-block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
-              >
-                Back to Dashboard
               </Link>
             </>
           ) : (
