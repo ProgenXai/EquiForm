@@ -2278,7 +2278,6 @@ export default function AnalyzeClient() {
               </>
             ) : null}
 
-            {console.log("isAdmin value: " + isAdmin)}
             {isAdmin ? (
               <label className="mb-3 flex cursor-pointer items-center justify-center gap-2 text-sm font-medium text-zinc-200">
                 <input
