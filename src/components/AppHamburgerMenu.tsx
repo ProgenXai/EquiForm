@@ -13,16 +13,74 @@ function capitalizeEmailPrefix(email: string): string {
   return prefix.charAt(0).toUpperCase() + prefix.slice(1);
 }
 
+function buildProfileDisplayName(
+  profile: {
+    first_name?: string | null;
+    last_name?: string | null;
+  } | null,
+  user: {
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  },
+): string {
+  const profileFirstName =
+    typeof profile?.first_name === "string" ? profile.first_name.trim() : "";
+  const profileLastName =
+    typeof profile?.last_name === "string" ? profile.last_name.trim() : "";
+  const metadataFirstName =
+    typeof user.user_metadata?.first_name === "string"
+      ? user.user_metadata.first_name.trim()
+      : "";
+  const metadataLastName =
+    typeof user.user_metadata?.last_name === "string"
+      ? user.user_metadata.last_name.trim()
+      : "";
+
+  const firstName = profileFirstName || metadataFirstName;
+  const lastName = profileLastName || metadataLastName;
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+  if (fullName) {
+    return fullName;
+  }
+
+  return capitalizeEmailPrefix(user.email ?? "");
+}
+
 export default function AppHamburgerMenu() {
   const router = useRouter();
-  const supabase = createClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadProfileSummary() {
+    const supabase = createClient();
+
+    async function loadProfileSummary(user: {
+      id: string;
+      email?: string;
+      user_metadata?: Record<string, unknown>;
+    }) {
+      const { data: profile, error: profileError } = await supabase
+        .from("user_profiles")
+        .select("first_name, last_name, avatar_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("[AppHamburgerMenu] failed to load user profile:", profileError);
+      }
+
+      setDisplayName(buildProfileDisplayName(profile, user));
+      setAvatarUrl(
+        typeof profile?.avatar_url === "string" && profile.avatar_url.trim()
+          ? profile.avatar_url.trim()
+          : null,
+      );
+    }
+
+    async function syncProfileFromSession() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -33,33 +91,27 @@ export default function AppHamburgerMenu() {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("first_name, avatar_url")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-
-      const firstName =
-        typeof profile?.first_name === "string" ? profile.first_name.trim() : "";
-      const metadataFirstName =
-        typeof session.user.user_metadata?.first_name === "string"
-          ? session.user.user_metadata.first_name.trim()
-          : "";
-
-      setDisplayName(
-        firstName ||
-          metadataFirstName ||
-          capitalizeEmailPrefix(session.user.email ?? ""),
-      );
-      setAvatarUrl(
-        typeof profile?.avatar_url === "string" && profile.avatar_url.trim()
-          ? profile.avatar_url.trim()
-          : null,
-      );
+      await loadProfileSummary(session.user);
     }
 
-    void loadProfileSummary();
-  }, [supabase]);
+    void syncProfileFromSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setDisplayName(null);
+        setAvatarUrl(null);
+        return;
+      }
+
+      void loadProfileSummary(session.user);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -166,6 +218,7 @@ export default function AppHamburgerMenu() {
             type="button"
             onClick={async () => {
               setMenuOpen(false);
+              const supabase = createClient();
               await supabase.auth.signOut();
               router.push("/");
             }}
