@@ -21,7 +21,7 @@ const SIDE_GOOD_CAPTIONS = [
 
 const FRONT_GOOD_CAPTIONS = [
   "Facing camera straight on, standing square, all four feet visible on level ground",
-  "AI landmark detection — clean front view produces accurate shoulder and leg alignment analysis",
+  "Standing square and facing directly toward the camera — this angle produces the most accurate shoulder, chest, and front leg alignment analysis",
 ] as const;
 
 const HIND_GOOD_CAPTIONS = [
@@ -49,7 +49,7 @@ const FRONT_BAD_CAPTIONS: Record<(typeof FRONT_BAD)[number], string> = {
 
 const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
   "bad-7.jpg":
-    "Tail covering the hind legs — tie or braid tail to the side so legs are fully visible",
+    "Tail covering the hind legs — braid or tie tail up so both hind legs are fully visible",
   "bad-8.jpg":
     "Horse is angled — must be standing square with hindquarters facing directly toward the camera",
 };
