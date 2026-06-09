@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: USER_FACING.payment }, { status: 400 });
   }
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  const lineItems = [] as Parameters<Stripe['checkout']['sessions']['create']>[0]['line_items'] & [];
 
   for (const item of items) {
     const pack = findRosettePack(item.packId);
