@@ -549,6 +549,68 @@ function drawModel3dPageHeader(
   return y - 28;
 }
 
+function measureModel3dHeaderHeight(body: ReportPdfRequestBody): number {
+  let height = 28;
+
+  const horseName =
+    typeof body.horse_name === "string" ? body.horse_name.trim() : "";
+  if (horseName) {
+    height += 26;
+  }
+
+  height += getReportHorseDetailTextLines(body).length * 14;
+  height += 10 + 28;
+
+  return height;
+}
+
+function measureSnapshotImageHeight(
+  image: PDFImage,
+  maxHeight: number,
+): number {
+  if (maxHeight <= 0) {
+    return 0;
+  }
+
+  const scale = Math.min(
+    CONTENT_WIDTH / image.width,
+    maxHeight / image.height,
+  );
+  return image.height * scale;
+}
+
+function measureModel3dSnapshotSectionHeight(
+  body: ReportPdfRequestBody,
+  snapshotImage: PDFImage,
+  startY: number,
+  minContentY: number,
+): number {
+  const headerHeight = measureModel3dHeaderHeight(body);
+  const yAfterHeader = startY - headerHeight;
+  const maxImageHeight = yAfterHeader - minContentY - 20;
+  const imageHeight = measureSnapshotImageHeight(snapshotImage, maxImageHeight);
+
+  return headerHeight + imageHeight + 20;
+}
+
+function measureWrappedParagraphHeight(
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  maxWidth: number,
+  lineHeight: number,
+): number {
+  return wrapText(text, font, fontSize, maxWidth).length * lineHeight;
+}
+
+function hasSpaceForModel3dSection(
+  startY: number,
+  sectionHeight: number,
+  minContentY: number,
+): boolean {
+  return startY - minContentY >= sectionHeight;
+}
+
 export async function generateReportPdfBytes(
   body: ReportPdfRequestBody,
 ): Promise<Uint8Array> {
@@ -764,7 +826,17 @@ export async function generateReportPdfBytes(
   }
 
   if (model3dSnapshotImage) {
-    forceNewPage();
+    const snapshotSectionHeight = measureModel3dSnapshotSectionHeight(
+      body,
+      model3dSnapshotImage,
+      y,
+      MIN_CONTENT_Y,
+    );
+
+    if (!hasSpaceForModel3dSection(y, snapshotSectionHeight, MIN_CONTENT_Y)) {
+      forceNewPage();
+    }
+
     y = drawModel3dPageHeader(page, y, body, report, fontBold, fontRegular);
 
     const snapshotMaxHeight = y - MIN_CONTENT_Y - 20;
@@ -783,7 +855,22 @@ export async function generateReportPdfBytes(
     });
     y -= snapshotHeight + 20;
   } else if (body.model3d_placeholder) {
-    forceNewPage();
+    const headerHeight = measureModel3dHeaderHeight(body);
+    const placeholderHeight = measureWrappedParagraphHeight(
+      MODEL3D_PLACEHOLDER_TEXT,
+      fontRegular,
+      11,
+      CONTENT_WIDTH,
+      14,
+    );
+    const placeholderSectionHeight = headerHeight + placeholderHeight;
+
+    if (
+      !hasSpaceForModel3dSection(y, placeholderSectionHeight, MIN_CONTENT_Y)
+    ) {
+      forceNewPage();
+    }
+
     y = drawModel3dPageHeader(page, y, body, report, fontBold, fontRegular);
     y = drawWrappedParagraph(
       page,

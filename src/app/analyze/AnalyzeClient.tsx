@@ -2650,9 +2650,19 @@ export default function AnalyzeClient() {
               {fullReportResult ? (
                 <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
                   {isFullReport3DGenerating ? (
-                    <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b border-accent/30 bg-zinc-900/95 px-6 py-3 text-sm text-zinc-200 backdrop-blur">
-                      ⏳ Your 3D model is being generated. The Download PDF button
-                      will unlock when it&apos;s ready.
+                    <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b-2 border-yellow-600 bg-yellow-400 px-6 py-3">
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="shrink-0 text-3xl leading-none"
+                          aria-hidden="true"
+                        >
+                          ⏳
+                        </span>
+                        <p className="text-lg font-bold leading-snug text-zinc-900">
+                          Your 3D model is being generated. The Download PDF button
+                          will unlock when it&apos;s ready.
+                        </p>
+                      </div>
                     </div>
                   ) : null}
                   {(() => {
@@ -2957,9 +2967,19 @@ export default function AnalyzeClient() {
         {result && emailSubmitted ? (
           <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
             {isSingleView3DGenerating ? (
-              <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b border-accent/30 bg-zinc-900/95 px-6 py-3 text-sm text-zinc-200 backdrop-blur">
-                ⏳ Your 3D model is being generated. The Download PDF button will
-                unlock when it&apos;s ready.
+              <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b-2 border-yellow-600 bg-yellow-400 px-6 py-3">
+                <div className="flex items-start gap-3">
+                  <span
+                    className="shrink-0 text-3xl leading-none"
+                    aria-hidden="true"
+                  >
+                    ⏳
+                  </span>
+                  <p className="text-lg font-bold leading-snug text-zinc-900">
+                    Your 3D model is being generated. The Download PDF button will
+                    unlock when it&apos;s ready.
+                  </p>
+                </div>
               </div>
             ) : null}
             <div className="space-y-8">

@@ -72,6 +72,10 @@ export function welcomeEmailHtml(name?: string): string {
     <p style="margin:0 0 16px;color:${MUTED};">
       Before your first analysis, review our photo guidelines so you get the best results from your upload.
     </p>
+    ${button("https://equiform.app/verify-email", "Verify Your Email", false)}
+    <p style="margin:8px 0 0;text-align:center;color:${MUTED};font-size:13px;">
+      Verifying your email helps ensure you receive your reports and account updates.
+    </p>
     ${button("https://equiform.app/examples", "Review Photo Guidelines")}
     ${button("https://equiform.app/analyze", "Analyze Your Horse")}
   `;
