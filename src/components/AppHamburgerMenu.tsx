@@ -160,7 +160,7 @@ export default function AppHamburgerMenu() {
             className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
             onClick={() => setMenuOpen(false)}
           >
-            Contact Us
+            Contact & Feedback
           </Link>
           <button
             type="button"
