@@ -27,7 +27,7 @@ import {
 } from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
-import { deliverReportReadyEmail } from "@/lib/email/deliver-report-ready-email";
+import { deliverReportReadyEmail, scheduleDelayedReportEmail } from "@/lib/email/deliver-report-ready-email";
 import { sendFirstReportEmail } from "@/lib/email/templates";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
@@ -961,24 +961,27 @@ export async function POST(request: Request) {
 
     if (reportId && user?.email && user?.id) {
       try {
-        await deliverReportReadyEmail({
-          serviceClient,
-          userId: user.id,
-          userEmail: user.email,
-          reportId,
-          horseName: horseName?.trim() || "Your Horse",
-          pdfBody: {
-            overlayUrl,
-            report,
-            horse_name: horseName ?? undefined,
-            breed: breed || undefined,
-            age: age ?? undefined,
-            sex: sex ?? undefined,
-            coat_color: coatColor ?? undefined,
-            discipline: discipline ? formatDisciplineList(discipline) : undefined,
-            ...(generate3D ? { model3d_placeholder: true } : {}),
-          },
-        });
+        if (generate3D) {
+          await scheduleDelayedReportEmail(serviceClient, reportId);
+        } else {
+          await deliverReportReadyEmail({
+            serviceClient,
+            userId: user.id,
+            userEmail: user.email,
+            reportId,
+            horseName: horseName?.trim() || "Your Horse",
+            pdfBody: {
+              overlayUrl,
+              report,
+              horse_name: horseName ?? undefined,
+              breed: breed || undefined,
+              age: age ?? undefined,
+              sex: sex ?? undefined,
+              coat_color: coatColor ?? undefined,
+              discipline: discipline ? formatDisciplineList(discipline) : undefined,
+            },
+          });
+        }
       } catch (emailError) {
         console.error("[analyze] report-ready email failed:", emailError);
       }

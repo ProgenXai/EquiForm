@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-import { getEmailGreetingName, getUserFirstName } from "@/lib/email/get-user-first-name";
-import { sendReportEmail } from "@/lib/email/templates";
+import { deliverReportReadyEmail } from "@/lib/email/deliver-report-ready-email";
 import {
   generateReportPdfBytes,
   persistReportPdf,
@@ -24,16 +23,6 @@ type PdfRequestBody = ReportPdfRequestBody & {
   reportId?: string;
   sendEmail?: boolean;
 };
-
-function sanitizePdfFilename(horseName: string): string {
-  const sanitized = horseName
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .slice(0, 80);
-
-  return sanitized ? `EquiForm-Report-${sanitized}.pdf` : "EquiForm-Report.pdf";
-}
 
 export async function POST(request: Request) {
   let body: PdfRequestBody;
@@ -79,7 +68,7 @@ export async function POST(request: Request) {
   const { data: existingReport, error: existingReportError } =
     await serviceClient
       .from("reports")
-      .select("pdf_url, horse_name")
+      .select("pdf_url, horse_name, report_email_sent_at")
       .eq("id", reportId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -99,7 +88,7 @@ export async function POST(request: Request) {
     Boolean(body.model3d_snapshot?.trim()) || body.model3d_placeholder === true;
 
   if (existingReport.pdf_url && !shouldRegenerate) {
-    if (body.sendEmail) {
+    if (body.sendEmail && !existingReport.report_email_sent_at) {
       try {
         const pdfResponse = await fetch(existingReport.pdf_url);
         if (!pdfResponse.ok) {
@@ -107,8 +96,6 @@ export async function POST(request: Request) {
         }
 
         const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
-        const firstName = await getUserFirstName(serviceClient, user.id);
-        const greetingName = getEmailGreetingName(firstName, user.email);
         const horseName =
           typeof body.horse_name === "string" && body.horse_name.trim()
             ? body.horse_name.trim()
@@ -117,12 +104,14 @@ export async function POST(request: Request) {
               ? existingReport.horse_name.trim()
               : "Your Horse";
 
-        await sendReportEmail({
-          email: user.email,
-          greetingName,
+        await deliverReportReadyEmail({
+          serviceClient,
+          userId: user.id,
+          userEmail: user.email,
+          reportId,
           horseName,
-          pdfBase64: Buffer.from(pdfBytes).toString("base64"),
-          pdfFilename: sanitizePdfFilename(horseName),
+          pdfBytes,
+          persistPdf: false,
         });
       } catch (emailError) {
         console.error("[analyze/pdf] report-ready email failed:", emailError);
@@ -145,10 +134,8 @@ export async function POST(request: Request) {
       serviceClient,
     );
 
-    if (body.sendEmail) {
+    if (body.sendEmail && !existingReport.report_email_sent_at) {
       try {
-        const firstName = await getUserFirstName(serviceClient, user.id);
-        const greetingName = getEmailGreetingName(firstName, user.email);
         const horseName =
           typeof body.horse_name === "string" && body.horse_name.trim()
             ? body.horse_name.trim()
@@ -157,12 +144,15 @@ export async function POST(request: Request) {
               ? existingReport.horse_name.trim()
               : "Your Horse";
 
-        await sendReportEmail({
-          email: user.email,
-          greetingName,
+        await deliverReportReadyEmail({
+          serviceClient,
+          userId: user.id,
+          userEmail: user.email,
+          reportId,
           horseName,
-          pdfBase64: Buffer.from(pdfBytes).toString("base64"),
-          pdfFilename: sanitizePdfFilename(horseName),
+          pdfBody: body,
+          pdfBytes,
+          persistPdf: false,
         });
       } catch (emailError) {
         console.error("[analyze/pdf] report-ready email failed:", emailError);

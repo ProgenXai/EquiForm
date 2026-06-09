@@ -28,7 +28,7 @@ import {
 } from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
-import { deliverReportReadyEmail } from "@/lib/email/deliver-report-ready-email";
+import { deliverReportReadyEmail, scheduleDelayedReportEmail } from "@/lib/email/deliver-report-ready-email";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
 import { buildFullReportPdfReport } from "@/lib/pdf/build-full-report-pdf-report";
@@ -1519,6 +1519,14 @@ export async function POST(request: Request) {
       coatColor: detectedCoatColor,
       markings,
       markingsDescription,
+      pdfAssets: {
+        frontOverlayUrl,
+        hindOverlayUrl,
+        leftImage: imageUrls.left,
+        rightImage: imageUrls.right,
+        frontImage: imageUrls.front,
+        hindImage: imageUrls.hind,
+      },
     });
 
     console.log("Attempting report save for user:", userId, userEmail);
@@ -1656,37 +1664,40 @@ export async function POST(request: Request) {
 
       if (savedReport?.id && userEmail && userId) {
         try {
-          await deliverReportReadyEmail({
-            serviceClient,
-            userId,
-            userEmail,
-            reportId: savedReport.id,
-            horseName: horseName?.trim() || "Your Horse",
-            pdfBody: {
-              overlayUrl,
-              frontOverlayUrl,
-              hindOverlayUrl,
-              better_side: betterSide,
-              leftImage: imageUrls.left,
-              rightImage: imageUrls.right,
-              frontImage: imageUrls.front,
-              hindImage: imageUrls.hind,
-              report: buildFullReportPdfReport({
-                combinedScore,
-                leftReport,
-                rightReport,
-                frontReport,
-                hindReport,
-              }),
-              horse_name: horseName ?? undefined,
-              breed: breed || undefined,
-              age: age ?? undefined,
-              sex: sex ?? undefined,
-              coat_color: coatColor ?? undefined,
-              discipline: discipline ? formatDisciplineList(discipline) : undefined,
-              ...(generate3D ? { model3d_placeholder: true } : {}),
-            },
-          });
+          if (generate3D) {
+            await scheduleDelayedReportEmail(serviceClient, savedReport.id);
+          } else {
+            await deliverReportReadyEmail({
+              serviceClient,
+              userId,
+              userEmail,
+              reportId: savedReport.id,
+              horseName: horseName?.trim() || "Your Horse",
+              pdfBody: {
+                overlayUrl,
+                frontOverlayUrl,
+                hindOverlayUrl,
+                better_side: betterSide,
+                leftImage: imageUrls.left,
+                rightImage: imageUrls.right,
+                frontImage: imageUrls.front,
+                hindImage: imageUrls.hind,
+                report: buildFullReportPdfReport({
+                  combinedScore,
+                  leftReport,
+                  rightReport,
+                  frontReport,
+                  hindReport,
+                }),
+                horse_name: horseName ?? undefined,
+                breed: breed || undefined,
+                age: age ?? undefined,
+                sex: sex ?? undefined,
+                coat_color: coatColor ?? undefined,
+                discipline: discipline ? formatDisciplineList(discipline) : undefined,
+              },
+            });
+          }
         } catch (emailError) {
           console.error("[analyze-full] report-ready email failed:", emailError);
         }
