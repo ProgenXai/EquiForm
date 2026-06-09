@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+import { formatContactError } from "@/lib/user-facing-errors";
 
 const SUBJECT_OPTIONS = [
   "General Question",
@@ -46,12 +47,12 @@ export default function ContactPage() {
       const data = (await response.json()) as { error?: string; success?: boolean };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Failed to send message");
+        throw new Error(formatContactError(data.error));
       }
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
+      setError(formatContactError(err));
     } finally {
       setLoading(false);
     }

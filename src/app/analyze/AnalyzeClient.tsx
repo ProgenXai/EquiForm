@@ -26,6 +26,14 @@ import {
   BREED_SUGGESTIONS,
   DISCIPLINE_SUGGESTIONS,
 } from "@/lib/horse-form-suggestions";
+import {
+  formatAnalysisError,
+  formatMesh3DError,
+  formatPaymentError,
+  formatPdfError,
+  formatUploadError,
+  USER_FACING,
+} from "@/lib/user-facing-errors";
 
 const HorseViewer3D = dynamic(
   () => import("@/components/HorseViewer3D"),
@@ -369,28 +377,6 @@ function normalizeViewReport(report: ConformationReport): ConformationReport {
     ),
     summary: coerceReportText(report.summary),
   };
-}
-
-function extractApiErrorMessage(value: unknown, fallback: string): string {
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
-  }
-
-  if (value instanceof Error && value.message.trim()) {
-    return value.message.trim();
-  }
-
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (typeof record.message === "string" && record.message.trim()) {
-      return record.message.trim();
-    }
-    if (typeof record.error === "string" && record.error.trim()) {
-      return record.error.trim();
-    }
-  }
-
-  return fallback;
 }
 
 function formatBalanceBadge(
@@ -896,14 +882,12 @@ export default function AnalyzeClient() {
         }
 
         if (!response.ok || data.status === "FAILED") {
-          setMeshy3DError(
-            extractApiErrorMessage(data.error, "3D model generation failed"),
-          );
+          setMeshy3DError(formatMesh3DError(data.error));
           setMeshyTaskId(null);
         }
       } catch {
         if (!cancelled) {
-          setMeshy3DError("Failed to check 3D model status");
+          setMeshy3DError(USER_FACING.mesh3d);
           setMeshyTaskId(null);
         }
       }
@@ -1169,11 +1153,7 @@ export default function AnalyzeClient() {
         storagePath,
       });
     } catch (err) {
-      setSingleViewUploadError(
-        err instanceof Error
-          ? `Failed to upload photo: ${err.message}`
-          : "Failed to upload photo. Please try another.",
-      );
+      setSingleViewUploadError(formatUploadError(err));
     } finally {
       setSingleViewUploading(false);
     }
@@ -1277,11 +1257,7 @@ export default function AnalyzeClient() {
         FULL_REPORT_SLOTS.find((slot) => slot.view === failedView)?.label ??
         "photo";
 
-      setError(
-        err instanceof Error
-          ? `Failed to upload ${slotLabel} photo: ${err.message}`
-          : `Failed to upload ${slotLabel} photo. Please try another.`,
-      );
+      setError(formatUploadError(err));
     } finally {
       setFullReportUploadingViews(new Set());
     }
@@ -1428,7 +1404,7 @@ export default function AnalyzeClient() {
         await refreshSingleView3DBalance(session.user.id);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed");
+      setError(formatAnalysisError(err));
     } finally {
       setLoading(false);
     }
@@ -1441,7 +1417,7 @@ export default function AnalyzeClient() {
     if (!result) return;
 
     if (!result.reportId) {
-      setError("PDF generation failed. Report ID is missing.");
+      setError(USER_FACING.pdf);
       return;
     }
 
@@ -1488,7 +1464,7 @@ export default function AnalyzeClient() {
       );
       window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF generation failed");
+      setError(formatPdfError(err));
     } finally {
       setPdfLoading(false);
     }
@@ -1544,7 +1520,7 @@ export default function AnalyzeClient() {
     if (!fullReportResult) return;
 
     if (!fullReportResult.reportId) {
-      setError("PDF generation failed. Report ID is missing.");
+      setError(USER_FACING.pdf);
       return;
     }
 
@@ -1554,7 +1530,7 @@ export default function AnalyzeClient() {
     const hindImage = fullReportPhotos.hind?.supabaseUrl;
 
     if (!leftImage || !rightImage || !frontImage || !hindImage) {
-      setError("PDF generation failed. One or more photos are missing.");
+      setError(USER_FACING.pdf);
       return;
     }
 
@@ -1609,7 +1585,7 @@ export default function AnalyzeClient() {
       );
       window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF generation failed");
+      setError(formatPdfError(err));
     } finally {
       setPdfLoading(false);
     }
@@ -1659,16 +1635,14 @@ export default function AnalyzeClient() {
       const data = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !data.url) {
-        setEmailError(data.error ?? "Unable to start checkout. Please try again.");
+        setEmailError(formatPaymentError(data.error));
         setCheckoutLoading(false);
         return;
       }
 
       window.location.href = data.url;
     } catch (err) {
-      setEmailError(
-        err instanceof Error ? err.message : "Unable to start checkout. Please try again.",
-      );
+      setEmailError(formatPaymentError(err));
       setCheckoutLoading(false);
     }
   }
@@ -1831,12 +1805,7 @@ export default function AnalyzeClient() {
       }
 
       if (!response.ok) {
-        throw new Error(
-          extractApiErrorMessage(
-            apiResult.error,
-            "Full report analysis failed",
-          ),
-        );
+        throw new Error(formatAnalysisError(apiResult.error));
       }
 
       const savedReportId =
@@ -1872,9 +1841,7 @@ export default function AnalyzeClient() {
         await refreshFullReport3DBalance(session.user.id);
       }
     } catch (err) {
-      setError(
-        extractApiErrorMessage(err, "Full report analysis failed"),
-      );
+      setError(formatAnalysisError(err));
     } finally {
       setLoading(false);
     }
@@ -2353,7 +2320,7 @@ export default function AnalyzeClient() {
           {error ? (
             <div className="mt-4">
               <p className="text-sm text-red-400" role="alert">
-                {error}
+                {formatAnalysisError(error)}
               </p>
               {!result && !loading ? (
                 <button
@@ -2636,7 +2603,7 @@ export default function AnalyzeClient() {
                 ) : error ? (
                   <div className="mt-4">
                     <p className="text-sm text-red-400" role="alert">
-                      {error}
+                      {formatAnalysisError(error)}
                     </p>
                   </div>
                 ) : null}

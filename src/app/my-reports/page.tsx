@@ -9,6 +9,7 @@ import type { ConformationReport } from "@/lib/analyze/types";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
 import { formatDisciplineList } from "@/lib/format-discipline";
+import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
 
 type ReportRow = {
   id: string;
@@ -198,7 +199,7 @@ export default function MyReportsPage() {
     const pdfReport = buildReportForPdf(report);
 
     if (!overlayUrl || !pdfReport) {
-      setDownloadError("Unable to generate PDF for this report.");
+      setDownloadError(USER_FACING.pdfUnavailable);
       return;
     }
 
@@ -243,9 +244,7 @@ export default function MyReportsPage() {
       );
       window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setDownloadError(
-        err instanceof Error ? err.message : "PDF generation failed",
-      );
+      setDownloadError(formatPdfError(err));
     } finally {
       setDownloadingId(null);
     }

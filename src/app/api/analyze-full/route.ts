@@ -30,6 +30,7 @@ import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { deliverReportReadyEmail, scheduleDelayedReportEmail } from "@/lib/email/deliver-report-ready-email";
 import { formatDisciplineList } from "@/lib/format-discipline";
+import { formatAnalysisError, USER_FACING } from "@/lib/user-facing-errors";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
 import { buildFullReportPdfReport } from "@/lib/pdf/build-full-report-pdf-report";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -135,7 +136,7 @@ function toUserFacingFullReportError(error: unknown): string {
   if (isRoboflowLandmarkFailure(error) || message.includes("Roboflow")) {
     return LANDMARK_DETECTION_USER_ERROR;
   }
-  return message;
+  return formatAnalysisError(error);
 }
 
 function isRoboflowLandmarkFailure(error: unknown): error is Error {
@@ -880,7 +881,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as FullReportRequestBody & { debugMode?: boolean };
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 400 });
   }
 
   if (body.debugMode === true) {
@@ -900,7 +901,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Authentication required for full report analysis" },
+        { error: USER_FACING.signInRequired },
         { status: 401 },
       );
     }
@@ -912,7 +913,7 @@ export async function POST(request: Request) {
       const rawUrl = body[urlField];
       if (typeof rawUrl !== "string" || !rawUrl.trim()) {
         return NextResponse.json(
-          { error: `Missing ${view} view photo URL` },
+          { error: USER_FACING.upload },
           { status: 400 },
         );
       }
@@ -921,7 +922,7 @@ export async function POST(request: Request) {
       const storagePath = validateTempImageUrl(trimmedUrl, user.id);
       if (!storagePath) {
         return NextResponse.json(
-          { error: `Invalid ${view} view photo URL` },
+          { error: USER_FACING.upload },
           { status: 400 },
         );
       }
@@ -1030,7 +1031,7 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json(
-      { error: "Authentication required for full report analysis" },
+      { error: USER_FACING.signInRequired },
       { status: 401 },
     );
   }
@@ -1049,8 +1050,8 @@ export async function POST(request: Request) {
     : "full_report_balance";
   const serviceClient = createServiceRoleClient();
   const insufficientCreditsError = generate3D
-    ? `Insufficient four-view + 3D credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`
-    : `Insufficient full report credits. Full report requires ${FULL_REPORT_CREDIT_COST} credit.`;
+    ? USER_FACING.insufficientFullReport3d
+    : USER_FACING.insufficientFullReport;
 
   if (!isAdmin) {
     const deductResult = await atomicDeductCredit(
@@ -1063,10 +1064,7 @@ export async function POST(request: Request) {
     if (!deductResult.ok) {
       if (deductResult.reason === "no_account") {
         return NextResponse.json(
-          {
-            error:
-              "No report credits were found for your account. Please contact support at EquiFormApp@gmail.com.",
-          },
+          { error: USER_FACING.noCreditsAccount },
           { status: 401 },
         );
       }
@@ -1094,10 +1092,7 @@ export async function POST(request: Request) {
           .join("\n"),
       );
 
-      return NextResponse.json(
-        { error: deductResult.message ?? "Failed to deduct analysis credit." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: USER_FACING.generic }, { status: 500 });
     }
   }
 
@@ -1137,7 +1132,7 @@ export async function POST(request: Request) {
       const rawUrl = body[urlField];
       if (typeof rawUrl !== "string" || !rawUrl.trim()) {
         return NextResponse.json(
-          { error: `Missing ${view} view photo URL` },
+          { error: USER_FACING.upload },
           { status: 400 },
         );
       }
@@ -1146,7 +1141,7 @@ export async function POST(request: Request) {
       const storagePath = validateTempImageUrl(trimmedUrl, user.id);
       if (!storagePath) {
         return NextResponse.json(
-          { error: `Invalid ${view} view photo URL` },
+          { error: USER_FACING.upload },
           { status: 400 },
         );
       }
@@ -1620,8 +1615,8 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error: refundResult.ok
-              ? "Your report could not be saved, but your analysis credit was automatically returned. Please try again."
-              : "Your report could not be saved and your analysis credit could not be automatically returned. Please contact support at EquiFormApp@gmail.com.",
+              ? USER_FACING.saveReport
+              : USER_FACING.saveReportNoRefund,
             code: "REPORT_SAVE_FAILED_AFTER_CREDIT_DEDUCTION",
             creditRefunded: refundResult.ok,
           },

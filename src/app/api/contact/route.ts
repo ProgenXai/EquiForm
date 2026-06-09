@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { EMAIL_FROM } from "@/lib/email/templates";
 import { getResendClient } from "@/lib/email/resend";
+import { USER_FACING } from "@/lib/user-facing-errors";
 
 const CONTACT_TO = "EquiFormApp@gmail.com";
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as ContactRequestBody;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 400 });
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -59,10 +60,7 @@ export async function POST(request: Request) {
 
   const resend = getResendClient();
   if (!resend) {
-    return NextResponse.json(
-      { error: "Email service is not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: USER_FACING.contact }, { status: 500 });
   }
 
   const html = `
@@ -83,10 +81,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error("[contact] failed:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to send message" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: USER_FACING.contact }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

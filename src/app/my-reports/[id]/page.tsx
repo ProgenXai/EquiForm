@@ -12,6 +12,7 @@ import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
+import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
 
 const HorseViewer3D = dynamic(
   () => import("@/components/HorseViewer3D"),
@@ -467,7 +468,7 @@ export default function ReportDetailPage() {
     const pdfReport = buildReportForPdf(report, parsedReport);
 
     if (!overlayUrl || !pdfReport) {
-      setPdfError("Unable to generate PDF for this report.");
+      setPdfError(USER_FACING.pdfUnavailable);
       return;
     }
 
@@ -515,9 +516,7 @@ export default function ReportDetailPage() {
       );
       window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setPdfError(
-        err instanceof Error ? err.message : "PDF generation failed",
-      );
+      setPdfError(formatPdfError(err));
     } finally {
       setPdfLoading(false);
     }

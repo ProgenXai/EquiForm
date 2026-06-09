@@ -30,6 +30,7 @@ import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { deliverReportReadyEmail, scheduleDelayedReportEmail } from "@/lib/email/deliver-report-ready-email";
 import { sendFirstReportEmail } from "@/lib/email/templates";
 import { formatDisciplineList } from "@/lib/format-discipline";
+import { formatAnalysisError, USER_FACING } from "@/lib/user-facing-errors";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -146,13 +147,10 @@ function getRoboflowModelIdEnvVarName(viewMode: CalibrationViewMode): string {
 }
 
 function toUserFacingAnalyzeError(error: unknown): string {
-  if (error instanceof Error) {
-    if (error.message.includes("Roboflow")) {
-      return LANDMARK_DETECTION_USER_ERROR;
-    }
-    return error.message;
+  if (error instanceof Error && error.message.includes("Roboflow")) {
+    return LANDMARK_DETECTION_USER_ERROR;
   }
-  return "Analysis failed";
+  return formatAnalysisError(error);
 }
 
 function getConformationReportPrompt(viewMode: CalibrationViewMode): string {
@@ -454,17 +452,14 @@ async function refundCredit(
 
 export async function POST(request: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "Anthropic API key is not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 500 });
   }
 
   let body: AnalyzeRequestBody;
   try {
     body = (await request.json()) as AnalyzeRequestBody;
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 400 });
   }
 
   const viewMode = parseViewMode(body.viewMode);
@@ -504,7 +499,7 @@ export async function POST(request: Request) {
   }
 
   if (!photoUrl) {
-    return NextResponse.json({ error: "Missing photo URL" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
   }
 
   const authHeader = request.headers.get("Authorization");
@@ -521,14 +516,14 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json(
-      { error: "Authentication required for analysis" },
+      { error: USER_FACING.signInRequired },
       { status: 401 },
     );
   }
 
   const storagePath = validateTempImageUrl(photoUrl, user.id);
   if (!storagePath) {
-    return NextResponse.json({ error: "Invalid photo URL" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
   }
 
   let isAdmin = false;
@@ -545,8 +540,8 @@ export async function POST(request: Request) {
     : "single_view_balance";
   const serviceClient = createServiceRoleClient();
   const insufficientCreditsError = generate3D
-    ? "Insufficient single view + 3D credits."
-    : "Insufficient single view credits.";
+    ? USER_FACING.insufficientSingleView3d
+    : USER_FACING.insufficientSingleView;
 
   if (!isAdmin) {
     const deductResult = await atomicDeductCredit(
@@ -580,25 +575,19 @@ export async function POST(request: Request) {
           .join("\n"),
       );
 
-      return NextResponse.json(
-        { error: deductResult.message ?? "Failed to deduct analysis credit." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: USER_FACING.generic }, { status: 500 });
     }
   }
 
   try {
     const imageResponse = await fetch(photoUrl);
     if (!imageResponse.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch photo" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
     }
 
     const inputBuffer = Buffer.from(await imageResponse.arrayBuffer());
     if (inputBuffer.length === 0) {
-      return NextResponse.json({ error: "Photo is empty" }, { status: 400 });
+      return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
     }
 
     if (inputBuffer.length > MAX_BYTES) {
@@ -625,10 +614,7 @@ export async function POST(request: Request) {
     const metadata = await sharp(inputBuffer).metadata();
 
     if (!metadata.width || !metadata.height) {
-      return NextResponse.json(
-        { error: "Could not read image dimensions" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
     }
 
     const ANTHROPIC_MAX_BYTES = 3145728;
@@ -755,7 +741,7 @@ export async function POST(request: Request) {
 
     if (!reportText) {
       return NextResponse.json(
-        { error: "Empty report response from vision model" },
+        { error: USER_FACING.analysisPhoto },
         { status: 502 },
       );
     }
@@ -932,8 +918,8 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error: refundResult.ok
-              ? "Your report could not be saved, but your analysis credit was automatically returned. Please try again."
-              : "Your report could not be saved and your analysis credit could not be automatically returned. Please contact support at EquiFormApp@gmail.com.",
+              ? USER_FACING.saveReport
+              : USER_FACING.saveReportNoRefund,
             code: "REPORT_SAVE_FAILED_AFTER_CREDIT_DEDUCTION",
             creditRefunded: refundResult.ok,
           },

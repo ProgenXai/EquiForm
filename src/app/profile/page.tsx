@@ -12,6 +12,7 @@ import {
   DISCIPLINE_SUGGESTIONS,
 } from "@/lib/horse-form-suggestions";
 import { createClient } from "@/lib/supabase/client";
+import { formatProfileError } from "@/lib/user-facing-errors";
 
 const AVATAR_BUCKET = "avatars";
 const ALLOWED_AVATAR_TYPES = new Set([
@@ -95,7 +96,7 @@ function ProfilePageContent() {
         .maybeSingle();
 
       if (profileError) {
-        setError("Failed to load profile.");
+        setError(formatProfileError(null, "load"));
         setLoading(false);
         return;
       }
@@ -188,7 +189,7 @@ function ProfilePageContent() {
       setAvatarUrl(nextAvatarUrl);
       setSuccessMessage("Profile photo updated.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload profile photo.");
+      setError(formatProfileError(err, "upload"));
     } finally {
       setUploadingAvatar(false);
     }
@@ -252,7 +253,7 @@ function ProfilePageContent() {
 
       setSuccessMessage("Profile saved successfully.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save profile.");
+      setError(formatProfileError(err, "save"));
     } finally {
       setSaving(false);
     }

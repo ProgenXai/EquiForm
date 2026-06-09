@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { USER_FACING } from "@/lib/user-facing-errors";
 
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
 
@@ -61,22 +62,19 @@ export async function GET(request: Request) {
   } = await supabaseAuth.auth.getUser(token);
 
   if (!user) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return NextResponse.json({ error: USER_FACING.signInRequired }, { status: 401 });
   }
 
   const taskId = new URL(request.url).searchParams.get("taskId")?.trim();
   if (!taskId) {
-    return NextResponse.json({ error: "Missing taskId" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.mesh3d }, { status: 400 });
   }
 
   const reportId = new URL(request.url).searchParams.get("reportId")?.trim();
 
   const apiKey = process.env.MESHY_API_KEY?.trim();
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "Meshy API key is not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: USER_FACING.mesh3d }, { status: 500 });
   }
 
   try {
@@ -105,10 +103,7 @@ export async function GET(request: Request) {
           .filter(Boolean)
           .join("\n"),
       );
-      return NextResponse.json(
-        { error: "Failed to fetch Meshy task status" },
-        { status: 502 },
-      );
+      return NextResponse.json({ error: USER_FACING.mesh3d }, { status: 502 });
     }
 
     const taskData = (await statusResponse.json()) as {
@@ -123,7 +118,7 @@ export async function GET(request: Request) {
       const meshyGlbUrl = taskData.model_urls?.glb ?? null;
       if (!meshyGlbUrl) {
         return NextResponse.json(
-          { status, error: "Meshy task succeeded but no GLB URL was returned" },
+          { status, error: USER_FACING.mesh3d },
           { status: 502 },
         );
       }
@@ -137,7 +132,7 @@ export async function GET(request: Request) {
 
       if (!glbUrl) {
         return NextResponse.json(
-          { status, error: "Failed to store 3D model" },
+          { status, error: USER_FACING.mesh3d },
           { status: 500 },
         );
       }
@@ -192,7 +187,7 @@ export async function GET(request: Request) {
       );
 
       return NextResponse.json(
-        { status, error: "3D model generation failed" },
+        { status, error: USER_FACING.mesh3d },
         { status: 502 },
       );
     }
@@ -214,7 +209,7 @@ export async function GET(request: Request) {
         .join("\n"),
     );
     return NextResponse.json(
-      { error: "Failed to check Meshy task status" },
+      { error: USER_FACING.mesh3d },
       { status: 500 },
     );
   }

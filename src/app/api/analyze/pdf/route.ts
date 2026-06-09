@@ -8,6 +8,7 @@ import {
   type ReportPdfRequestBody,
 } from "@/lib/pdf/generate-report-pdf";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { USER_FACING } from "@/lib/user-facing-errors";
 
 export const maxDuration = 30;
 
@@ -30,14 +31,14 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as PdfRequestBody;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 400 });
   }
 
   const reportId =
     typeof body.reportId === "string" ? body.reportId.trim() : "";
 
   if (!reportId) {
-    return NextResponse.json({ error: "reportId is required" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.pdf }, { status: 400 });
   }
 
   const authHeader = request.headers.get("Authorization");
@@ -54,13 +55,13 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json(
-      { error: "Authentication required" },
+      { error: USER_FACING.signInRequired },
       { status: 401 },
     );
   }
 
   if (!user.email) {
-    return NextResponse.json({ error: "User email is required" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 400 });
   }
 
   const serviceClient = createServiceRoleClient();
@@ -74,14 +75,11 @@ export async function POST(request: Request) {
       .maybeSingle();
 
   if (existingReportError) {
-    return NextResponse.json(
-      { error: "Failed to load report" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: USER_FACING.generic }, { status: 500 });
   }
 
   if (!existingReport) {
-    return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    return NextResponse.json({ error: USER_FACING.reportNotFound }, { status: 404 });
   }
 
   const shouldRegenerate =
@@ -122,7 +120,7 @@ export async function POST(request: Request) {
   }
 
   if (!body.report) {
-    return NextResponse.json({ error: "report is required" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.pdf }, { status: 400 });
   }
 
   try {
@@ -163,8 +161,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[analyze/pdf] PDF generation failed:", error);
 
-    const message =
-      error instanceof Error ? error.message : "PDF generation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.pdf }, { status: 500 });
   }
 }

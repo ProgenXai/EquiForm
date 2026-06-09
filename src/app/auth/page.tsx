@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { formatAuthError } from "@/lib/user-facing-errors";
 
 type AuthMode = "login" | "signup";
 
@@ -56,7 +57,7 @@ export default function AuthPage() {
     setLoading(false);
 
     if (authError) {
-      setError(authError.message);
+      setError(formatAuthError(authError.message));
       return;
     }
 

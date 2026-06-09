@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { ReportPackageOption, ReportTier } from "@/lib/stripe/report-tiers";
 import { REPORT_TIERS } from "@/lib/stripe/report-tiers";
 import { createClient } from "@/lib/supabase/client";
+import { formatPaymentError } from "@/lib/user-facing-errors";
 
 type PurchaseTierGridProps = {
   authRedirectPath?: string;
@@ -129,12 +130,12 @@ export default function PurchaseTierGrid({
       const data = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Unable to start checkout");
+        throw new Error(formatPaymentError(data.error));
       }
 
       window.location.href = data.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to start checkout");
+      setError(formatPaymentError(err));
       setLoadingPriceId(null);
     }
   }

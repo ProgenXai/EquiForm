@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { USER_FACING } from "@/lib/user-facing-errors";
+
 type CreateCheckoutBody = {
   email?: string;
 };
@@ -10,11 +12,11 @@ export async function POST(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   if (!secretKey) {
-    return NextResponse.json({ error: "Stripe is not configured" }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
   }
 
   if (!appUrl) {
-    return NextResponse.json({ error: "App URL is not configured" }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
   }
 
   const body = (await request.json()) as CreateCheckoutBody;
@@ -47,17 +49,12 @@ export async function POST(request: Request) {
     });
 
     if (!session.url) {
-      return NextResponse.json(
-        { error: "Failed to create checkout session" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
     }
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("[create-checkout-session] failed:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to create checkout session";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
   }
 }

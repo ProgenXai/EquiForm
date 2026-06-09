@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { findRosettePackByPriceId } from "@/lib/stripe/rosette-packs";
+import { USER_FACING } from "@/lib/user-facing-errors";
 
 type CheckoutBody = {
   priceId?: string;
@@ -13,11 +14,11 @@ export async function POST(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   if (!secretKey) {
-    return NextResponse.json({ error: "Stripe is not configured" }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
   }
 
   if (!appUrl) {
-    return NextResponse.json({ error: "App URL is not configured" }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
   }
 
   const body = (await request.json()) as CheckoutBody;
@@ -25,17 +26,17 @@ export async function POST(request: Request) {
   const userId = typeof body.userId === "string" ? body.userId.trim() : "";
 
   if (!priceId) {
-    return NextResponse.json({ error: "priceId is required" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 400 });
   }
 
   if (!userId) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 400 });
   }
 
   const pack = findRosettePackByPriceId(priceId);
 
   if (!pack) {
-    return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 400 });
   }
 
   try {
@@ -59,17 +60,12 @@ export async function POST(request: Request) {
     });
 
     if (!session.url) {
-      return NextResponse.json(
-        { error: "Failed to create checkout session" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
     }
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("[stripe/checkout] failed:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to create checkout session";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: USER_FACING.payment }, { status: 500 });
   }
 }
