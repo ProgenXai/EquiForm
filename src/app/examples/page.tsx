@@ -54,6 +54,14 @@ const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
     "Horse is angled — must be standing square with hindquarters facing directly toward the camera",
 };
 
+const FRONT_VIEW_DO = [
+  "Horse facing directly toward the camera",
+  "Standing square, all four feet visible on level ground",
+  "Camera at chest height",
+  "Step back so full horse fills about 2/3 of the frame",
+  "Stand back and zoom in — getting too close makes the head appear oversized and distorts proportions",
+] as const;
+
 const DO_GUIDELINES = [
   "Full side profile, head to hoof fully visible",
   "Standing square on level ground",
@@ -85,11 +93,13 @@ function ExamplePhotoGrid({
   goodCaptions,
   badExamples,
   badCaptions,
+  doItems,
 }: {
   goodExamples: readonly string[];
   goodCaptions: readonly string[];
   badExamples: readonly string[];
   badCaptions: Record<string, string>;
+  doItems?: readonly string[];
 }) {
   return (
     <div className="grid gap-8 md:grid-cols-2">
@@ -113,6 +123,24 @@ function ExamplePhotoGrid({
             </div>
           ))}
         </div>
+        {doItems ? (
+          <>
+            <h4 className="mt-6 text-sm font-semibold text-green-400">Do</h4>
+            <ul className="mt-3 space-y-3">
+              {doItems.map((item) => (
+                <li
+                  key={item}
+                  className="flex gap-2 text-sm leading-relaxed text-zinc-300"
+                >
+                  <span className="shrink-0" aria-hidden="true">
+                    ✅
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
@@ -146,12 +174,14 @@ function ViewSection({
   goodCaptions,
   badExamples,
   badCaptions,
+  doItems,
 }: {
   title: string;
   goodExamples: readonly string[];
   goodCaptions: readonly string[];
   badExamples: readonly string[];
   badCaptions: Record<string, string>;
+  doItems?: readonly string[];
 }) {
   return (
     <section className="mb-12">
@@ -161,6 +191,7 @@ function ViewSection({
         goodCaptions={goodCaptions}
         badExamples={badExamples}
         badCaptions={badCaptions}
+        doItems={doItems}
       />
     </section>
   );
@@ -249,6 +280,7 @@ export default function ExamplesPage() {
           goodCaptions={FRONT_GOOD_CAPTIONS}
           badExamples={FRONT_BAD}
           badCaptions={FRONT_BAD_CAPTIONS}
+          doItems={FRONT_VIEW_DO}
         />
 
         <ViewSection

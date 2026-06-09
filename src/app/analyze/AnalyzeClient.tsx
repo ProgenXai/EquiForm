@@ -221,6 +221,7 @@ const FRONT_VIEW_DO = [
   "Standing square, all four feet visible on level ground",
   "Camera at chest height",
   "Step back so full horse fills about 2/3 of the frame",
+  "Stand back and zoom in — getting too close makes the head appear oversized and distorts proportions",
 ] as const;
 
 const FRONT_VIEW_DONT = [
