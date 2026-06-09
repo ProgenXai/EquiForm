@@ -1432,7 +1432,10 @@ export default function AnalyzeClient() {
     }
   }
 
-  async function submitSingleViewPdfDownload(model3dSnapshot?: string) {
+  async function submitSingleViewPdfDownload(
+    model3dSnapshot?: string,
+    options?: { sendEmail?: boolean },
+  ) {
     if (!result) return;
 
     if (!result.reportId) {
@@ -1464,7 +1467,11 @@ export default function AnalyzeClient() {
           sex,
           coat_color: coatColor,
           discipline: formatDisciplineList(discipline),
+          sendEmail: options?.sendEmail === true,
           ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
+          ...(options?.sendEmail && !model3dSnapshot
+            ? { model3d_placeholder: true }
+            : {}),
         }),
       });
 
@@ -1516,11 +1523,11 @@ export default function AnalyzeClient() {
     setPdf3DModalMode(null);
 
     if (mode === "single") {
-      await submitSingleViewPdfDownload(snapshot ?? undefined);
+      await submitSingleViewPdfDownload(snapshot ?? undefined, { sendEmail: true });
       return;
     }
 
-    await submitFullReportPdfDownload(snapshot ?? undefined);
+    await submitFullReportPdfDownload(snapshot ?? undefined, { sendEmail: true });
   }
 
   function handleCancelPdf3DModal() {
@@ -1528,7 +1535,10 @@ export default function AnalyzeClient() {
     setPdf3DModalMode(null);
   }
 
-  async function submitFullReportPdfDownload(model3dSnapshot?: string) {
+  async function submitFullReportPdfDownload(
+    model3dSnapshot?: string,
+    options?: { sendEmail?: boolean },
+  ) {
     if (!fullReportResult) return;
 
     if (!fullReportResult.reportId) {
@@ -1578,7 +1588,11 @@ export default function AnalyzeClient() {
           sex,
           coat_color: coatColor,
           discipline: formatDisciplineList(discipline),
+          sendEmail: options?.sendEmail === true,
           ...(model3dSnapshot ? { model3d_snapshot: model3dSnapshot } : {}),
+          ...(options?.sendEmail && !model3dSnapshot
+            ? { model3d_placeholder: true }
+            : {}),
         }),
       });
 

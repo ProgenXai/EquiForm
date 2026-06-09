@@ -28,8 +28,10 @@ import {
 } from "@/lib/calibration/draw-overlay";
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
+import { deliverReportReadyEmail } from "@/lib/email/deliver-report-ready-email";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
+import { buildFullReportPdfReport } from "@/lib/pdf/build-full-report-pdf-report";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -1649,6 +1651,44 @@ export async function POST(request: Request) {
                 ? { name: linkError.name, message: linkError.message, stack: linkError.stack }
                 : linkError,
           });
+        }
+      }
+
+      if (savedReport?.id && userEmail && userId) {
+        try {
+          await deliverReportReadyEmail({
+            serviceClient,
+            userId,
+            userEmail,
+            reportId: savedReport.id,
+            horseName: horseName?.trim() || "Your Horse",
+            pdfBody: {
+              overlayUrl,
+              frontOverlayUrl,
+              hindOverlayUrl,
+              better_side: betterSide,
+              leftImage: imageUrls.left,
+              rightImage: imageUrls.right,
+              frontImage: imageUrls.front,
+              hindImage: imageUrls.hind,
+              report: buildFullReportPdfReport({
+                combinedScore,
+                leftReport,
+                rightReport,
+                frontReport,
+                hindReport,
+              }),
+              horse_name: horseName ?? undefined,
+              breed: breed || undefined,
+              age: age ?? undefined,
+              sex: sex ?? undefined,
+              coat_color: coatColor ?? undefined,
+              discipline: discipline ? formatDisciplineList(discipline) : undefined,
+              ...(generate3D ? { model3d_placeholder: true } : {}),
+            },
+          });
+        } catch (emailError) {
+          console.error("[analyze-full] report-ready email failed:", emailError);
         }
       }
 

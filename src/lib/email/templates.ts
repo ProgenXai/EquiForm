@@ -108,6 +108,31 @@ export const WELCOME_EMAIL_SUBJECT = "Welcome to EquiForm 🐴";
 export const FIRST_REPORT_EMAIL_SUBJECT =
   "Your EquiForm Report is Ready — How Did It Go?";
 
+export function reportReadyEmailSubject(horseName: string): string {
+  const name = horseName.trim() || "Your Horse";
+  return `Your EquiForm Report is Ready — ${name}`;
+}
+
+export function reportReadyEmailHtml(
+  greetingName: string,
+  horseName: string,
+): string {
+  const horse = horseName.trim() || "your horse";
+  const greeting = greetingName === "there" ? "Hi there," : `Hi ${greetingName},`;
+
+  const body = `
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${TEXT};">Your Report is Ready</h1>
+    <p style="margin:0 0 16px;color:${MUTED};">${greeting}</p>
+    <p style="margin:0 0 16px;color:${MUTED};">
+      Your conformation analysis for <strong style="color:${TEXT};">${horse}</strong> is complete!
+      Your report is attached. You can also view and download it anytime from My Reports.
+    </p>
+    ${button("https://equiform.app/my-reports", "View in My Reports")}
+  `;
+
+  return emailLayout("Your EquiForm Report is Ready", body);
+}
+
 export async function sendWelcomeEmail(options: {
   email: string;
   name?: string;
@@ -145,6 +170,40 @@ export async function sendFirstReportEmail(options: {
     to: options.email,
     subject: FIRST_REPORT_EMAIL_SUBJECT,
     html: firstReportEmailHtml(options.horseName),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { id: data?.id };
+}
+
+export async function sendReportEmail(options: {
+  email: string;
+  greetingName: string;
+  horseName: string;
+  pdfBase64: string;
+  pdfFilename: string;
+}): Promise<{ id?: string }> {
+  const resend = getResendClient();
+  if (!resend) {
+    throw new Error("Resend is not configured");
+  }
+
+  const horseName = options.horseName.trim() || "Your Horse";
+
+  const { data, error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: options.email,
+    subject: reportReadyEmailSubject(horseName),
+    html: reportReadyEmailHtml(options.greetingName, horseName),
+    attachments: [
+      {
+        filename: options.pdfFilename,
+        content: options.pdfBase64,
+      },
+    ],
   });
 
   if (error) {
