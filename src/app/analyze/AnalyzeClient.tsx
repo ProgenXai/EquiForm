@@ -1339,7 +1339,9 @@ export default function AnalyzeClient() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const shouldGenerate3D = (singleView3DBalance ?? 0) > 0;
+      const shouldGenerate3D = isAdmin
+        ? adminGenerate3D
+        : (singleView3DBalance ?? 0) > 0;
 
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -1735,7 +1737,9 @@ export default function AnalyzeClient() {
   const isSingleView3DGenerating = Boolean(
     meshyTaskId && result && emailSubmitted && !resolvedSingleViewGlbUrl,
   );
-  const shouldGenerateSingleView3D = (singleView3DBalance ?? 0) > 0;
+  const shouldGenerateSingleView3D = isAdmin
+    ? adminGenerate3D
+    : (singleView3DBalance ?? 0) > 0;
   const shouldGenerateFullReport3D = isAdmin
     ? adminGenerate3D
     : (fullReport3DBalance ?? 0) > 0;
@@ -2272,6 +2276,20 @@ export default function AnalyzeClient() {
                   </p>
                 ) : null}
               </>
+            ) : null}
+
+            {isAdmin ? (
+              <label className="mb-3 flex cursor-pointer items-center justify-center gap-2 text-sm font-medium text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={adminGenerate3D}
+                  onChange={(event) =>
+                    setAdminGenerate3D(event.target.checked)
+                  }
+                  className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-accent focus:ring-accent"
+                />
+                Generate 3D Model
+              </label>
             ) : null}
 
             <button

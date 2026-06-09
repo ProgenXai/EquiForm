@@ -540,10 +540,6 @@ export async function POST(request: Request) {
 
   isAdmin = roleData?.is_admin === true;
 
-  if (isAdmin) {
-    generate3D = true;
-  }
-
   const balanceColumn: TokenBalanceColumn = generate3D
     ? "single_view_3d_balance"
     : "single_view_balance";
