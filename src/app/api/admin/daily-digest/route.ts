@@ -168,6 +168,87 @@ function formatRevenueBreakdown(revenue: RevenueByType): string {
     .join("\n");
 }
 
+type NewSignup = {
+  email: string;
+  createdAt: string;
+};
+
+function formatSignupTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function formatNewSignupsSection(signups: NewSignup[]): string {
+  const lines = [
+    "New user signups (last 24 hours)",
+    `Total new signups: ${signups.length}`,
+  ];
+
+  if (signups.length === 0) {
+    lines.push("- None");
+  } else {
+    for (const signup of signups) {
+      lines.push(`- ${signup.email} — ${formatSignupTime(signup.createdAt)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+async function fetchNewSignupsInLast24Hours(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  since: string,
+): Promise<NewSignup[]> {
+  const sinceMs = Date.parse(since);
+  const signups: NewSignup[] = [];
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } = await serviceClient.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const users = data.users;
+    if (!users.length) {
+      break;
+    }
+
+    let reachedOlderUsers = false;
+
+    for (const user of users) {
+      const createdAt = user.created_at;
+      const createdMs = createdAt ? Date.parse(createdAt) : Number.NaN;
+
+      if (!Number.isFinite(createdMs) || createdMs < sinceMs) {
+        reachedOlderUsers = true;
+        break;
+      }
+
+      signups.push({
+        email: user.email ?? "(no email)",
+        createdAt,
+      });
+    }
+
+    if (reachedOlderUsers || users.length < perPage) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return signups;
+}
+
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim();
   const authHeader = request.headers.get("authorization");
@@ -201,6 +282,17 @@ export async function GET(request: Request) {
     (sum, count) => sum + count,
     0,
   );
+
+  let newSignups: NewSignup[] = [];
+
+  try {
+    newSignups = await fetchNewSignupsInLast24Hours(serviceClient, since);
+  } catch (signupsError) {
+    console.error("[daily-digest] failed to query auth.users:", signupsError);
+    const message =
+      signupsError instanceof Error ? signupsError.message : String(signupsError);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   const { data: purchases, error: purchasesError } = await serviceClient
     .from("token_transactions")
@@ -257,6 +349,8 @@ export async function GET(request: Request) {
     "Reports (last 24 hours)",
     `Total reports run: ${totalReports}`,
     formatReportBreakdown(reportCounts),
+    "",
+    formatNewSignupsSection(newSignups),
     "",
     "Credit purchase revenue (last 24 hours)",
     `Total revenue: ${formatCurrency(totalRevenueCents)}`,

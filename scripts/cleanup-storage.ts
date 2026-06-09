@@ -1,5 +1,8 @@
 /**
- * One-time cleanup: delete all files under selected prefixes in horse-photos.
+ * Storage cleanup for horse-photos:
+ * - Deletes all files under reference/, tripo-input/, and full-report-temp/
+ * - Deletes orphaned GLB files under 3d-models/ not referenced by any report glb_url
+ *
  * Run locally:
  *   npx ts-node --project tsconfig.json scripts/cleanup-storage.ts
  *
@@ -13,7 +16,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const BUCKET = "horse-photos";
 const FOLDERS_TO_CLEAN = ["reference", "tripo-input", "full-report-temp"] as const;
+const GLB_MODELS_PREFIX = "3d-models";
 const LIST_PAGE_SIZE = 1000;
+const REMOVE_BATCH_SIZE = 1000;
 
 function loadEnvFile(filePath: string): Record<string, string> {
   if (!fs.existsSync(filePath)) return {};
@@ -131,6 +136,119 @@ async function deletePrefixRecursive(
   return deletedCount;
 }
 
+function extractFilenameFromGlbUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const last = segments[segments.length - 1];
+    return last ? decodeURIComponent(last) : null;
+  } catch {
+    const lastSlash = trimmed.lastIndexOf("/");
+    if (lastSlash === -1) return trimmed;
+    return decodeURIComponent(trimmed.slice(lastSlash + 1)) || null;
+  }
+}
+
+async function listAllFilePaths(
+  supabase: SupabaseClient,
+  prefix: string,
+): Promise<string[]> {
+  const items = await listAllItems(supabase, prefix);
+  const paths: string[] = [];
+
+  for (const item of items) {
+    const itemPath = joinStoragePath(prefix, item.name);
+
+    if (isFolder(item)) {
+      paths.push(...(await listAllFilePaths(supabase, itemPath)));
+      continue;
+    }
+
+    paths.push(itemPath);
+  }
+
+  return paths;
+}
+
+async function fetchReferencedGlbFilenames(
+  supabase: SupabaseClient,
+): Promise<Set<string>> {
+  const filenames = new Set<string>();
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("glb_url")
+      .not("glb_url", "is", null)
+      .range(offset, offset + LIST_PAGE_SIZE - 1);
+
+    if (error) {
+      throw new Error(`Failed to query reports glb_url: ${error.message}`);
+    }
+
+    if (!data?.length) {
+      break;
+    }
+
+    for (const row of data) {
+      const glbUrl = typeof row.glb_url === "string" ? row.glb_url.trim() : "";
+      if (!glbUrl) continue;
+
+      const filename = extractFilenameFromGlbUrl(glbUrl);
+      if (filename) {
+        filenames.add(filename);
+      }
+    }
+
+    if (data.length < LIST_PAGE_SIZE) {
+      break;
+    }
+
+    offset += LIST_PAGE_SIZE;
+  }
+
+  return filenames;
+}
+
+async function cleanupOrphanedGlbFiles(supabase: SupabaseClient): Promise<number> {
+  console.log(`\nChecking orphaned GLB files under "${GLB_MODELS_PREFIX}/"...`);
+
+  const referencedFilenames = await fetchReferencedGlbFilenames(supabase);
+  const storagePaths = await listAllFilePaths(supabase, GLB_MODELS_PREFIX);
+
+  const orphanedPaths = storagePaths.filter((storagePath) => {
+    const filename = storagePath.split("/").pop();
+    return filename && !referencedFilenames.has(filename);
+  });
+
+  if (orphanedPaths.length === 0) {
+    console.log(`${GLB_MODELS_PREFIX}/ — deleted 0 orphaned GLB file(s)`);
+    return 0;
+  }
+
+  let deletedCount = 0;
+
+  for (let i = 0; i < orphanedPaths.length; i += REMOVE_BATCH_SIZE) {
+    const batch = orphanedPaths.slice(i, i + REMOVE_BATCH_SIZE);
+    const { error } = await supabase.storage.from(BUCKET).remove(batch);
+
+    if (error) {
+      throw new Error(`Failed to delete orphaned GLB files: ${error.message}`);
+    }
+
+    deletedCount += batch.length;
+  }
+
+  console.log(
+    `${GLB_MODELS_PREFIX}/ — deleted ${deletedCount} orphaned GLB file(s)`,
+  );
+  return deletedCount;
+}
+
 async function main() {
   const supabase = getSupabaseClient();
 
@@ -144,6 +262,8 @@ async function main() {
     totalDeleted += deleted;
     console.log(`${folder}/ — deleted ${deleted} file(s)`);
   }
+
+  totalDeleted += await cleanupOrphanedGlbFiles(supabase);
 
   console.log(`\nDone. Deleted ${totalDeleted} file(s) total.`);
 }
