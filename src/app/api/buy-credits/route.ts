@@ -30,7 +30,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: USER_FACING.payment }, { status: 400 });
   }
 
-  const lineItems = [] as Parameters<Stripe['checkout']['sessions']['create']>[0]['line_items'] & [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lineItems: any[] = [];
 
   for (const item of items) {
     const pack = findRosettePack(item.packId);
