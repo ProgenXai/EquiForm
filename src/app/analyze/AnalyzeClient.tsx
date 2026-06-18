@@ -20,6 +20,7 @@ import { formatDisciplineList } from "@/lib/format-discipline";
 import type { Session } from "@supabase/supabase-js";
 
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import TypeaheadInput from "@/components/TypeaheadInput";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -729,7 +730,6 @@ export default function AnalyzeClient() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
   const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
   const [singleViewGlbUrl, setSingleViewGlbUrl] = useState<string | null>(null);
@@ -740,7 +740,6 @@ export default function AnalyzeClient() {
     null,
   );
   const [singlePdfModalSlideIn, setSinglePdfModalSlideIn] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const shareEventIdRef = useRef<string | null>(null);
   const singleViewViewerRef = useRef<HorseViewer3DHandle>(null);
   const fullReportViewerRef = useRef<HorseViewer3DHandle>(null);
@@ -772,19 +771,6 @@ export default function AnalyzeClient() {
 
     setFullReport3DBalance(tokenRow?.full_report_3d_balance ?? 0);
   }
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuOpen]);
 
   async function deleteFullReportStorageFiles(paths: string[]) {
     if (paths.length === 0) return;
@@ -1868,87 +1854,7 @@ export default function AnalyzeClient() {
           ← Back
         </button>
       ) : null}
-      <div ref={menuRef} className="fixed top-4 right-4 z-[100]">
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          className="relative z-[100] text-white text-2xl font-bold bg-zinc-800 rounded px-2 py-1"
-          aria-expanded={menuOpen}
-          aria-haspopup="true"
-          aria-label="Menu"
-        >
-          ☰
-        </button>
-        {menuOpen ? (
-          <div className="absolute right-0 top-full z-[100] mt-2 min-w-[12rem] rounded-lg border border-zinc-800 bg-zinc-900 py-2 shadow-lg">
-            <Link
-              href="/dashboard"
-              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              href="/buy-credits"
-              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              Buy Report Credits{" "}
-              <FileCheck
-                size={18}
-                className="inline-block shrink-0 align-middle text-accent"
-                aria-hidden
-              />
-            </Link>
-            <Link
-              href="/examples"
-              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              Examples
-            </Link>
-            <Link
-              href="/analyze"
-              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              Analyze a Horse
-            </Link>
-            <Link
-              href="/my-reports"
-              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              My Reports
-            </Link>
-            <Link
-              href="/my-horses"
-              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              My Horses
-            </Link>
-            <Link
-              href="/contact"
-              className="block px-4 py-2 text-sm font-semibold text-accent transition hover:bg-zinc-800 hover:text-accent-hover"
-              onClick={() => setMenuOpen(false)}
-            >
-              Contact Us
-            </Link>
-            <button
-              type="button"
-              onClick={async () => {
-                setMenuOpen(false);
-                await supabase.auth.signOut();
-                router.push("/");
-              }}
-              className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Sign Out
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <AppHamburgerMenu />
       <div className="relative max-w-5xl mx-auto w-full">
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">

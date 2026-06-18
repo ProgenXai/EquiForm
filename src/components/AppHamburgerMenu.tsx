@@ -127,7 +127,7 @@ export default function AppHamburgerMenu() {
   }, [menuOpen]);
 
   return (
-    <div ref={menuRef} className="fixed top-4 right-4 z-[100]">
+    <div ref={menuRef} className="fixed top-4 right-4 sm:right-[18%] z-[100]">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
