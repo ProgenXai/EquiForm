@@ -1868,7 +1868,7 @@ export default function AnalyzeClient() {
           ← Back
         </button>
       ) : null}
-      <div ref={menuRef} className="fixed top-4 right-[18%] z-[100]">
+      <div ref={menuRef} className="fixed top-4 right-4 z-[100]">
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
@@ -2313,7 +2313,7 @@ export default function AnalyzeClient() {
             <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
               <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
               {shouldGenerateSingleView3D
-                ? "Analyzing your horse and generating 3D model — this may take 3–5 minutes. Please don't close this tab."
+                ? "Analyzing your horse and generating 3D model — this may take 3–5 minutes. Do not close this tab or your 3D model will not be saved."
                 : "Analyzing your horse..."}
             </div>
           ) : null}
@@ -2643,7 +2643,7 @@ export default function AnalyzeClient() {
                 <div className="mt-4 flex items-center justify-center gap-3 text-sm text-zinc-400">
                   <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
                   {shouldGenerateFullReport3D
-                    ? "Analyzing your horse and generating 3D model — this may take 3–5 minutes. Please don't close this tab."
+                    ? "Analyzing your horse and generating 3D model — this may take 3–5 minutes. Do not close this tab or your 3D model will not be saved."
                     : "Analyzing your horse..."}
                 </div>
               ) : null}
