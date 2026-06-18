@@ -12,74 +12,52 @@ const FRONT_BAD = ["bad-5.jpg", "bad-6.jpg"] as const;
 const HIND_GOOD = ["good-7.jpg", "good-8.jpg"] as const;
 const HIND_BAD = ["bad-7.jpg", "bad-8.jpg"] as const;
 
-const SIDE_GOOD_CAPTIONS = [
-  "Clean side profile, standing square on level ground, all four feet visible",
-  "Full body visible from head to hoof, good contrast against background",
-  "Horse standing still and square, no obstructions, clear lighting",
-  "Full side view, relaxed natural stance, legs and topline clearly visible",
-] as const;
-
-const FRONT_GOOD_CAPTIONS = [
-  "Facing camera straight on, standing square, all four feet visible on level ground",
-  "Standing square and facing directly toward the camera — this angle produces the most accurate shoulder, chest, and front leg alignment analysis",
-] as const;
-
-const HIND_GOOD_CAPTIONS = [
-  "Tail tied up, standing square — hocks and hind legs clearly visible",
-  "Square stance, tail out of the way, unobstructed view of hindquarters and hooves",
-] as const;
-
-const SIDE_BAD_CAPTIONS: Record<(typeof BAD_EXAMPLES)[number], string> = {
-  "bad-1.jpg":
-    "Dim lighting and barn clutter — horse is hard to see clearly against the background",
-  "bad-2.jpg":
-    "Head down eating hay — angled view, not standing square on level ground",
-  "bad-3.jpg":
-    "Busy background and uneven stance — horse not standing square for analysis",
-  "bad-4.jpg":
-    "Head down in hay net inside a stall — not standing square on level ground",
-};
-
-const FRONT_BAD_CAPTIONS: Record<(typeof FRONT_BAD)[number], string> = {
-  "bad-5.jpg":
-    "Horse is angled — must be standing square and facing directly toward the camera",
-  "bad-6.jpg":
-    "Wrong angle and feet partially obscured — horse must face the camera straight on with all four feet visible",
-};
-
-const HIND_BAD_CAPTIONS: Record<(typeof HIND_BAD)[number], string> = {
-  "bad-7.jpg":
-    "Tail covering the hind legs — braid or tie tail up so both hind legs are fully visible",
-  "bad-8.jpg":
-    "Horse is angled — must be standing square with hindquarters facing directly toward the camera",
-};
-
-const FRONT_VIEW_DO = [
-  "Horse facing directly toward the camera",
-  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
-  "Camera at chest height",
-  "Step back so full horse fills about 2/3 of the frame",
-  "Stand back and zoom in — getting too close makes the head appear oversized and distorts proportions",
-] as const;
-
-const DO_GUIDELINES = [
+const SIDE_PROFILE_DO = [
   "Full side profile, head to hoof fully visible",
-  "Standing square on level ground — even if your horse is traditionally shown parked or extended, a natural square stance gives the most accurate analysis",
+  "Standing square on level ground",
   "All four feet planted naturally",
   "Good lighting, horse clearly visible against background",
   "One horse only, no obstructions",
-  "Tail tied or braided up for hind view",
   "In focus, high resolution photo",
 ] as const;
 
-const DONT_GUIDELINES = [
-  "Angled, 3/4, or front-facing photos for side profile",
-  "Motion, cocked legs, stretched halter poses, or camped-out stance",
+const SIDE_PROFILE_DONT = [
+  "Angled, 3/4, or front-facing photos",
+  "Head down or not standing square",
   "Dark horses in dark settings or heavy shadows",
-  "Watermarks, logos, or graphics overlaid on the horse's body",
+  "Busy or cluttered background",
   "Multiple horses in the frame",
   "Blurry, pixelated, or video screenshot photos",
-  "Tail covering hind legs in hind view",
+] as const;
+
+const FRONT_VIEW_DO = [
+  "Horse facing directly toward the camera",
+  "Standing square on level ground",
+  "Camera at chest height",
+  "Step back so full horse fills about 2/3 of the frame",
+  "All four feet visible",
+] as const;
+
+const FRONT_VIEW_DONT = [
+  "Angled or off-center — must face camera straight on",
+  "Camera too high or too low",
+  "Feet partially obscured or off level ground",
+  "Motion or unnatural stance",
+] as const;
+
+const HIND_VIEW_DO = [
+  "Hindquarters facing directly toward the camera",
+  "Tail tied or braided up — both hind legs fully visible",
+  "Standing square on level ground",
+  "Camera at hip height",
+  "Step back so full horse fills about 2/3 of the frame",
+] as const;
+
+const HIND_VIEW_DONT = [
+  "Tail covering the hind legs",
+  "Angled — must face directly away from camera",
+  "Camera too high or too low",
+  "Feet partially obscured or off level ground",
 ] as const;
 
 const EXAMPLE_IMAGE_CLASS =
@@ -90,16 +68,14 @@ const EXAMPLE_IMAGE_CONTAINER_CLASS =
 
 function ExamplePhotoGrid({
   goodExamples,
-  goodCaptions,
   badExamples,
-  badCaptions,
   doItems,
+  dontItems,
 }: {
   goodExamples: readonly string[];
-  goodCaptions: readonly string[];
   badExamples: readonly string[];
-  badCaptions: Record<string, string>;
-  doItems?: readonly string[];
+  doItems: readonly string[];
+  dontItems: readonly string[];
 }) {
   return (
     <div className="grid gap-8 md:grid-cols-2">
@@ -107,103 +83,20 @@ function ExamplePhotoGrid({
         <h3 className="text-lg font-semibold text-green-400">Good Examples</h3>
         <div className="mt-4 grid grid-cols-2 gap-3">
           {goodExamples.map((filename, index) => (
-            <div key={filename}>
-              <div className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
-                <Image
-                  src={`/examples/${filename}`}
-                  alt={`Good example ${index + 1}`}
-                  width={400}
-                  height={300}
-                  className={EXAMPLE_IMAGE_CLASS}
-                />
-              </div>
-              <p className="mt-1 text-xs text-green-500">
-                {goodCaptions[index]}
-              </p>
+            <div key={filename} className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
+              <Image
+                src={`/examples/${filename}`}
+                alt={`Good example ${index + 1}`}
+                width={400}
+                height={300}
+                className={EXAMPLE_IMAGE_CLASS}
+              />
             </div>
           ))}
         </div>
-        {doItems ? (
-          <>
-            <h4 className="mt-6 text-sm font-semibold text-green-400">Do</h4>
-            <ul className="mt-3 space-y-3">
-              {doItems.map((item) => (
-                <li
-                  key={item}
-                  className="flex gap-2 text-sm leading-relaxed text-zinc-300"
-                >
-                  <span className="shrink-0" aria-hidden="true">
-                    ✅
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </section>
-
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h3 className="text-lg font-semibold text-red-400">Bad Examples</h3>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {badExamples.map((filename, index) => (
-            <div key={filename}>
-              <div className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
-                <Image
-                  src={`/examples/${filename}`}
-                  alt={`Bad example ${index + 1}`}
-                  width={400}
-                  height={300}
-                  className={EXAMPLE_IMAGE_CLASS}
-                />
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-red-400">
-                {badCaptions[filename]}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ViewSection({
-  title,
-  goodExamples,
-  goodCaptions,
-  badExamples,
-  badCaptions,
-  doItems,
-}: {
-  title: string;
-  goodExamples: readonly string[];
-  goodCaptions: readonly string[];
-  badExamples: readonly string[];
-  badCaptions: Record<string, string>;
-  doItems?: readonly string[];
-}) {
-  return (
-    <section className="mb-12">
-      <h2 className="mb-6 text-xl font-semibold text-zinc-300">{title}</h2>
-      <ExamplePhotoGrid
-        goodExamples={goodExamples}
-        goodCaptions={goodCaptions}
-        badExamples={badExamples}
-        badCaptions={badCaptions}
-        doItems={doItems}
-      />
-    </section>
-  );
-}
-
-function PhotoGuidelinesCards() {
-  return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h3 className="text-lg font-semibold text-green-400">Do</h3>
-        <ul className="mt-4 space-y-3">
-          {DO_GUIDELINES.map((item) => (
+        <h4 className="mt-6 text-sm font-semibold text-green-400">Do</h4>
+        <ul className="mt-3 space-y-3">
+          {doItems.map((item) => (
             <li
               key={item}
               className="flex gap-2 text-sm leading-relaxed text-zinc-300"
@@ -218,9 +111,23 @@ function PhotoGuidelinesCards() {
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h3 className="text-lg font-semibold text-red-400">Don&apos;t</h3>
-        <ul className="mt-4 space-y-3">
-          {DONT_GUIDELINES.map((item) => (
+        <h3 className="text-lg font-semibold text-red-400">Bad Examples</h3>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {badExamples.map((filename, index) => (
+            <div key={filename} className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
+              <Image
+                src={`/examples/${filename}`}
+                alt={`Bad example ${index + 1}`}
+                width={400}
+                height={300}
+                className={EXAMPLE_IMAGE_CLASS}
+              />
+            </div>
+          ))}
+        </div>
+        <h4 className="mt-6 text-sm font-semibold text-red-400">Don&apos;t</h4>
+        <ul className="mt-3 space-y-3">
+          {dontItems.map((item) => (
             <li
               key={item}
               className="flex gap-2 text-sm leading-relaxed text-zinc-300"
@@ -234,6 +141,32 @@ function PhotoGuidelinesCards() {
         </ul>
       </section>
     </div>
+  );
+}
+
+function ViewSection({
+  title,
+  goodExamples,
+  badExamples,
+  doItems,
+  dontItems,
+}: {
+  title: string;
+  goodExamples: readonly string[];
+  badExamples: readonly string[];
+  doItems: readonly string[];
+  dontItems: readonly string[];
+}) {
+  return (
+    <section className="mb-12">
+      <h2 className="mb-6 text-xl font-semibold text-zinc-300">{title}</h2>
+      <ExamplePhotoGrid
+        goodExamples={goodExamples}
+        badExamples={badExamples}
+        doItems={doItems}
+        dontItems={dontItems}
+      />
+    </section>
   );
 }
 
@@ -269,31 +202,26 @@ export default function ExamplesPage() {
         <ViewSection
           title="Side Profile"
           goodExamples={GOOD_EXAMPLES}
-          goodCaptions={SIDE_GOOD_CAPTIONS}
           badExamples={BAD_EXAMPLES}
-          badCaptions={SIDE_BAD_CAPTIONS}
+          doItems={SIDE_PROFILE_DO}
+          dontItems={SIDE_PROFILE_DONT}
         />
 
         <ViewSection
           title="Front View"
           goodExamples={FRONT_GOOD}
-          goodCaptions={FRONT_GOOD_CAPTIONS}
           badExamples={FRONT_BAD}
-          badCaptions={FRONT_BAD_CAPTIONS}
           doItems={FRONT_VIEW_DO}
+          dontItems={FRONT_VIEW_DONT}
         />
 
         <ViewSection
           title="Hind View"
           goodExamples={HIND_GOOD}
-          goodCaptions={HIND_GOOD_CAPTIONS}
           badExamples={HIND_BAD}
-          badCaptions={HIND_BAD_CAPTIONS}
+          doItems={HIND_VIEW_DO}
+          dontItems={HIND_VIEW_DONT}
         />
-
-        <section className="mt-8">
-          <PhotoGuidelinesCards />
-        </section>
 
         <div className="mt-10 flex flex-col items-center gap-4">
           <Link
