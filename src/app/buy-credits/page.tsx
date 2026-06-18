@@ -39,6 +39,12 @@ export default function BuyRosettesPage() {
         return;
       }
 
+      if (localStorage.getItem("equiform_welcome_seen") === "true") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      localStorage.setItem("equiform_welcome_seen", "true");
       setShowWelcomeModal(true);
     }
 
