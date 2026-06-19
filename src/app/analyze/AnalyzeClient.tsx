@@ -3063,6 +3063,17 @@ export default function AnalyzeClient() {
       </main>
       </div>
 
+      {(isFullReport3DGenerating || isSingleView3DGenerating) ? (
+        <div className="fixed bottom-0 left-0 right-0 z-[150] border-t-2 border-yellow-600 bg-yellow-400 px-4 py-3 sm:hidden">
+          <div className="flex items-center gap-3">
+            <span className="inline-block h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-yellow-700 border-t-zinc-900" />
+            <p className="text-sm font-bold text-zinc-900">
+              3D model generating — do not close this tab. This may take 3–5 minutes.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {showPdf3DModal ? (
         <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 px-4">
           {pdf3DModalMode === "single" ? (
