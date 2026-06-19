@@ -1672,67 +1672,70 @@ export async function POST(request: Request) {
       }
 
       if (savedReport?.id && userEmail && userId) {
-        try {
-          if (generate3D) {
-            await scheduleDelayedReportEmail(serviceClient, savedReport.id);
-          } else {
-            await deliverReportReadyEmail({
-              serviceClient,
-              userId,
-              userEmail,
-              reportId: savedReport.id,
-              horseName: horseName?.trim() || "Your Horse",
-              pdfBody: {
-                overlayUrl,
-                frontOverlayUrl,
-                hindOverlayUrl,
-                better_side: betterSide,
-                leftImage: imageUrls.left,
-                rightImage: imageUrls.right,
-                frontImage: imageUrls.front,
-                hindImage: imageUrls.hind,
-                report: buildFullReportPdfReport({
-                  combinedScore,
-                  leftReport,
-                  rightReport,
-                  frontReport,
-                  hindReport,
-                }),
-                horse_name: horseName ?? undefined,
-                breed: breed || undefined,
-                age: age ?? undefined,
-                sex: sex ?? undefined,
-                coat_color: coatColor ?? undefined,
-                discipline: discipline ? formatDisciplineList(discipline) : undefined,
-              },
-            });
+        void (async () => {
+          try {
+            if (generate3D) {
+              await scheduleDelayedReportEmail(serviceClient, savedReport.id);
+            } else {
+              await deliverReportReadyEmail({
+                serviceClient,
+                userId,
+                userEmail,
+                reportId: savedReport.id,
+                horseName: horseName?.trim() || "Your Horse",
+                pdfBody: {
+                  overlayUrl,
+                  frontOverlayUrl,
+                  hindOverlayUrl,
+                  better_side: betterSide,
+                  leftImage: imageUrls.left,
+                  rightImage: imageUrls.right,
+                  frontImage: imageUrls.front,
+                  hindImage: imageUrls.hind,
+                  report: buildFullReportPdfReport({
+                    combinedScore,
+                    leftReport,
+                    rightReport,
+                    frontReport,
+                    hindReport,
+                  }),
+                  horse_name: horseName ?? undefined,
+                  breed: breed || undefined,
+                  age: age ?? undefined,
+                  sex: sex ?? undefined,
+                  coat_color: coatColor ?? undefined,
+                  discipline: discipline ? formatDisciplineList(discipline) : undefined,
+                },
+              });
+            }
+          } catch (emailError) {
+            console.error("[analyze-full] report-ready email failed:", emailError);
           }
-        } catch (emailError) {
-          console.error("[analyze-full] report-ready email failed:", emailError);
-        }
+        })();
       }
 
       // Send first-report email
-      try {
-        const { data: existingReports } = await serviceClient
-          .from("reports")
-          .select("id")
-          .eq("user_id", userId);
+      void (async () => {
+        try {
+          const { data: existingReports } = await serviceClient
+            .from("reports")
+            .select("id")
+            .eq("user_id", userId);
 
-        const isFirstReport = existingReports && existingReports.length === 1;
+          const isFirstReport = existingReports && existingReports.length === 1;
 
-        if (isFirstReport && user.email) {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              from: "EquiForm <reports@equiform.app>",
-              to: user.email,
-              subject: "Your First EquiForm Conformation Report is Ready 🐴",
-              html: `
+          if (isFirstReport && user.email) {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "EquiForm <reports@equiform.app>",
+                to: user.email,
+                subject: "Your First EquiForm Conformation Report is Ready 🐴",
+                html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 24px;">
             <div style="text-align: center; margin-bottom: 32px;">
               <h1 style="color: #0f172a; font-size: 28px; margin: 0;">EquiForm</h1>
@@ -1757,13 +1760,14 @@ export async function POST(request: Request) {
             </p>
           </div>
         `,
-            }),
-          });
+              }),
+            });
+          }
+        } catch (emailError) {
+          console.error("First report email failed:", emailError);
+          // Don't throw — email failure should not break the report
         }
-      } catch (emailError) {
-        console.error("First report email failed:", emailError);
-        // Don't throw — email failure should not break the report
-      }
+      })();
 
       if (!isAdmin) {
         const { error: transactionError } = await serviceClient
