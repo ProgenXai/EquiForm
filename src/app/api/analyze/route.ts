@@ -28,7 +28,6 @@ import {
 import type { ConformationLandmarks } from "@/lib/conformation/landmarks";
 import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { deliverReportReadyEmail, scheduleDelayedReportEmail } from "@/lib/email/deliver-report-ready-email";
-import { sendFirstReportEmail } from "@/lib/email/templates";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { formatAnalysisError, USER_FACING } from "@/lib/user-facing-errors";
 import { linkReportToHorse } from "@/lib/horses/link-report-to-horse";
@@ -135,17 +134,6 @@ function getRoboflowModelIdForView(viewMode: CalibrationViewMode): string {
   }
 }
 
-function getRoboflowModelIdEnvVarName(viewMode: CalibrationViewMode): string {
-  switch (viewMode) {
-    case "front":
-      return "ROBOFLOW_FRONT_MODEL_ID";
-    case "hind":
-      return "ROBOFLOW_HIND_MODEL_ID";
-    default:
-      return "ROBOFLOW_MODEL_ID";
-  }
-}
-
 function toUserFacingAnalyzeError(error: unknown): string {
   if (error instanceof Error && error.message.includes("Roboflow")) {
     return LANDMARK_DETECTION_USER_ERROR;
@@ -197,7 +185,7 @@ function withReportContext(
   return result;
 }
 
-async function generateMeshy3DModel(
+async function submitMeshy3DTask(
   imageUrl: string,
   alertContext?: {
     userId?: string;
@@ -264,98 +252,11 @@ async function generateMeshy3DModel(
 
     const taskId = submitData.result;
     console.log("[meshy] task submitted:", taskId);
-
-    const maxAttempts = 60;
-    const pollInterval = 5000;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-      const statusResponse = await fetch(
-        `https://api.meshy.ai/openapi/v1/multi-image-to-3d/${taskId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-        },
-      );
-
-      if (!statusResponse.ok) {
-        console.error("[meshy] poll failed:", await statusResponse.text());
-        continue;
-      }
-
-      const taskData = (await statusResponse.json()) as {
-        status?: string;
-        model_urls?: { glb?: string };
-      };
-
-      const status = taskData.status;
-      console.log(`[meshy] attempt ${attempt + 1} status:`, status);
-
-      if (status === "SUCCEEDED") {
-        const glbUrl = taskData.model_urls?.glb ?? null;
-        console.log("[meshy] model ready:", glbUrl);
-        return glbUrl;
-      }
-
-      if (status === "FAILED") {
-        const failureDetail = JSON.stringify(taskData, null, 2);
-        console.log("[meshy] failure detail:", failureDetail);
-        console.error("[meshy] task failed with status:", status);
-        sendMeshyAlert("Meshy task failed", failureDetail);
-        return null;
-      }
-    }
-
-    console.error("[meshy] timed out");
-    sendMeshyAlert("Meshy task timed out", `Task ID: ${taskId}`);
-    return null;
+    return taskId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[meshy] unexpected error:", error);
     sendMeshyAlert("Meshy unexpected error", message);
-    return null;
-  }
-}
-
-async function persistMeshyGlbToSupabase(
-  meshyGlbUrl: string,
-  userId: string,
-  serviceClient: ReturnType<typeof createServiceRoleClient>,
-): Promise<string | null> {
-  try {
-    const glbResponse = await fetch(meshyGlbUrl);
-    if (!glbResponse.ok) {
-      console.error(
-        "[analyze] failed to download GLB from Meshy:",
-        meshyGlbUrl,
-      );
-      return null;
-    }
-
-    const glbBuffer = Buffer.from(await glbResponse.arrayBuffer());
-    const storagePath = `3d-models/${userId}/${Date.now()}.glb`;
-
-    const { error: uploadError } = await serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .upload(storagePath, glbBuffer, {
-        contentType: "model/gltf-binary",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("[analyze] GLB upload failed:", uploadError);
-      return null;
-    }
-
-    const { data: publicUrlData } = serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .getPublicUrl(storagePath);
-
-    return publicUrlData.publicUrl;
-  } catch (error) {
-    console.error("[analyze] persistMeshyGlbToSupabase error:", error);
     return null;
   }
 }
@@ -464,7 +365,6 @@ export async function POST(request: Request) {
 
   const viewMode = parseViewMode(body.viewMode);
   const roboflowModelId = getRoboflowModelIdForView(viewMode);
-  const roboflowModelIdEnvVar = getRoboflowModelIdEnvVarName(viewMode);
 
   if (!process.env.ROBOFLOW_API_KEY?.trim() || !roboflowModelId) {
     return NextResponse.json(
@@ -492,7 +392,7 @@ export async function POST(request: Request) {
     typeof body.age === "string" && body.age.trim() ? body.age.trim() : null;
   const sex =
     typeof body.sex === "string" && body.sex.trim() ? body.sex.trim() : null;
-  let generate3D = body.generate3D === true;
+  const generate3D = body.generate3D === true;
 
   if (!breed) {
     return NextResponse.json({ error: "Breed is required" }, { status: 400 });
@@ -826,17 +726,15 @@ export async function POST(request: Request) {
 
     let reportId: string | null = null;
 
-    let glbUrl: string | null = null;
+    const glbUrl: string | null = null;
+    let meshyTaskId: string | null = null;
 
     if (generate3D) {
-      const meshyGlbUrl = await generateMeshy3DModel(photoUrl, {
+      meshyTaskId = await submitMeshy3DTask(photoUrl, {
         userId: user.id,
         userEmail: user.email,
         horseName,
       });
-      glbUrl = meshyGlbUrl
-        ? await persistMeshyGlbToSupabase(meshyGlbUrl, user.id, serviceClient)
-        : null;
     }
 
     const { data: savedReport, error: insertError } = await serviceClient
@@ -967,22 +865,6 @@ export async function POST(request: Request) {
       } catch (emailError) {
         console.error("[analyze] report-ready email failed:", emailError);
       }
-
-      const { count, error: countError } = await serviceClient
-        .from("reports")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      if (!countError && count === 1) {
-        try {
-          await sendFirstReportEmail({
-            email: user.email,
-            horseName: horseName ?? undefined,
-          });
-        } catch (emailError) {
-          console.error("[analyze] first-report email failed:", emailError);
-        }
-      }
     }
 
     return NextResponse.json({
@@ -992,7 +874,7 @@ export async function POST(request: Request) {
       landmarks: detectedLandmarks,
       reportId,
       ...(generate3D
-        ? { glbUrl, disclaimer: SINGLE_VIEW_3D_DISCLAIMER }
+        ? { glbUrl, meshyTaskId, disclaimer: SINGLE_VIEW_3D_DISCLAIMER }
         : {}),
     });
   } catch (error) {
