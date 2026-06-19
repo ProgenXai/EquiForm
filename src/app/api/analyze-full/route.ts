@@ -1395,24 +1395,68 @@ export async function POST(request: Request) {
     const overlayLandmarks = conformationLandmarksByView[
       betterSide
     ] as ConformationLandmarks;
+    const frontPrepared = preparedByView.front;
+    const hindPrepared = preparedByView.hind;
 
-    const overlayBuffer = await drawConformationOverlay(
-      overlaySource.inputBuffer,
-      overlayLandmarks,
-      overlaySource.imageWidth,
-      overlaySource.imageHeight,
-    );
+    const [overlayBuffer, frontOverlayBuffer, hindOverlayBuffer] =
+      await Promise.all([
+        drawConformationOverlay(
+          overlaySource.inputBuffer,
+          overlayLandmarks,
+          overlaySource.imageWidth,
+          overlaySource.imageHeight,
+        ),
+        drawFrontConformationOverlay(
+          frontPrepared.inputBuffer,
+          conformationLandmarksByView.front as FrontConformationLandmarks,
+          frontPrepared.imageWidth,
+          frontPrepared.imageHeight,
+        ),
+        drawHindConformationOverlay(
+          hindPrepared.inputBuffer,
+          conformationLandmarksByView.hind as HindConformationLandmarks,
+          hindPrepared.imageWidth,
+          hindPrepared.imageHeight,
+        ),
+      ]);
 
     const overlayBase64 = overlayBuffer.toString("base64");
     const overlayImage = `data:image/jpeg;base64,${overlayBase64}`;
 
+    const frontOverlayBase64 = frontOverlayBuffer.toString("base64");
+    let frontOverlayUrl = `data:image/jpeg;base64,${frontOverlayBase64}`;
+
+    const hindOverlayBase64 = hindOverlayBuffer.toString("base64");
+    let hindOverlayUrl = `data:image/jpeg;base64,${hindOverlayBase64}`;
+
     const overlayStoragePath = `overlays/${user.id}/${Date.now()}-full.jpg`;
-    const { error: overlayUploadError } = await serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .upload(overlayStoragePath, overlayBuffer, {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
+    const frontOverlayStoragePath = `overlays/${user.id}/${Date.now()}-front.jpg`;
+    const hindOverlayStoragePath = `overlays/${user.id}/${Date.now()}-hind.jpg`;
+
+    const [
+      { error: overlayUploadError },
+      { error: frontOverlayUploadError },
+      { error: hindOverlayUploadError },
+    ] = await Promise.all([
+      serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .upload(overlayStoragePath, overlayBuffer, {
+          contentType: "image/jpeg",
+          upsert: false,
+        }),
+      serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .upload(frontOverlayStoragePath, frontOverlayBuffer, {
+          contentType: "image/jpeg",
+          upsert: false,
+        }),
+      serviceClient.storage
+        .from(OVERLAY_STORAGE_BUCKET)
+        .upload(hindOverlayStoragePath, hindOverlayBuffer, {
+          contentType: "image/jpeg",
+          upsert: false,
+        }),
+    ]);
 
     let overlayUrl = overlayImage;
     if (!overlayUploadError) {
@@ -1423,24 +1467,6 @@ export async function POST(request: Request) {
     } else {
       console.error("[analyze-full] overlay upload failed:", overlayUploadError);
     }
-
-    const frontPrepared = preparedByView.front;
-    const frontOverlayBuffer = await drawFrontConformationOverlay(
-      frontPrepared.inputBuffer,
-      conformationLandmarksByView.front as FrontConformationLandmarks,
-      frontPrepared.imageWidth,
-      frontPrepared.imageHeight,
-    );
-    const frontOverlayBase64 = frontOverlayBuffer.toString("base64");
-    let frontOverlayUrl = `data:image/jpeg;base64,${frontOverlayBase64}`;
-
-    const frontOverlayStoragePath = `overlays/${user.id}/${Date.now()}-front.jpg`;
-    const { error: frontOverlayUploadError } = await serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .upload(frontOverlayStoragePath, frontOverlayBuffer, {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
 
     if (!frontOverlayUploadError) {
       const { data: frontOverlayPublicUrl } = serviceClient.storage
@@ -1453,24 +1479,6 @@ export async function POST(request: Request) {
         frontOverlayUploadError,
       );
     }
-
-    const hindPrepared = preparedByView.hind;
-    const hindOverlayBuffer = await drawHindConformationOverlay(
-      hindPrepared.inputBuffer,
-      conformationLandmarksByView.hind as HindConformationLandmarks,
-      hindPrepared.imageWidth,
-      hindPrepared.imageHeight,
-    );
-    const hindOverlayBase64 = hindOverlayBuffer.toString("base64");
-    let hindOverlayUrl = `data:image/jpeg;base64,${hindOverlayBase64}`;
-
-    const hindOverlayStoragePath = `overlays/${user.id}/${Date.now()}-hind.jpg`;
-    const { error: hindOverlayUploadError } = await serviceClient.storage
-      .from(OVERLAY_STORAGE_BUCKET)
-      .upload(hindOverlayStoragePath, hindOverlayBuffer, {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
 
     if (!hindOverlayUploadError) {
       const { data: hindOverlayPublicUrl } = serviceClient.storage
