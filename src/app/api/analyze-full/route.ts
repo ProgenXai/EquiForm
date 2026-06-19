@@ -1273,7 +1273,41 @@ export async function POST(request: Request) {
       hind: toConformationLandmarks(detectedLandmarksByView.hind, "hind"),
     };
 
-    const [leftReport, rightReport, frontReport, hindReport] = await Promise.all([
+    const detectCoatColorWithPrompt = async (
+      prepared: PreparedViewImage,
+      prompt: string,
+    ): Promise<{ coatColor: string; markings: string[] }> => {
+      const coatMessage = await anthropic.messages.create({
+        model: "claude-opus-4-5-20251101",
+        max_tokens: 256,
+        messages: [
+          {
+            role: "user",
+            content: [
+              buildAnthropicImageContent(prepared),
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+      });
+      const coatText = coatMessage.content
+        .filter((block) => block.type === "text")
+        .map((block) => block.text)
+        .join("\n")
+        .trim();
+      return parseCoatDetectionResponse(coatText);
+    };
+
+    const [
+      leftReport,
+      rightReport,
+      frontReport,
+      hindReport,
+      leftCoatResult,
+      rightCoatResult,
+      frontCoatResult,
+      hindCoatResult,
+    ] = await Promise.all([
       generateViewReport(
         anthropic,
         "left",
@@ -1314,42 +1348,14 @@ export async function POST(request: Request) {
         sex,
         coatColor,
       ),
-    ]);
-
-    const betterSide: "left" | "right" =
-      leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
-
-    const detectCoatColorWithPrompt = async (
-      prepared: PreparedViewImage,
-      prompt: string,
-    ): Promise<{ coatColor: string; markings: string[] }> => {
-      const coatMessage = await anthropic.messages.create({
-        model: "claude-opus-4-5-20251101",
-        max_tokens: 256,
-        messages: [
-          {
-            role: "user",
-            content: [
-              buildAnthropicImageContent(prepared),
-              { type: "text", text: prompt },
-            ],
-          },
-        ],
-      });
-      const coatText = coatMessage.content
-        .filter((block) => block.type === "text")
-        .map((block) => block.text)
-        .join("\n")
-        .trim();
-      return parseCoatDetectionResponse(coatText);
-    };
-
-    const [leftCoatResult, rightCoatResult, frontCoatResult, hindCoatResult] = await Promise.all([
       detectCoatColorWithPrompt(preparedByView.left, COAT_COLOR_DETECTION_PROMPT_SIDE),
       detectCoatColorWithPrompt(preparedByView.right, COAT_COLOR_DETECTION_PROMPT_SIDE_RIGHT),
       detectCoatColorWithPrompt(preparedByView.front, COAT_COLOR_DETECTION_PROMPT_FRONT),
       detectCoatColorWithPrompt(preparedByView.hind, COAT_COLOR_DETECTION_PROMPT_HIND),
     ]);
+
+    const betterSide: "left" | "right" =
+      leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
 
     const detectedCoatColor = leftCoatResult.coatColor !== "bay"
       ? leftCoatResult.coatColor
