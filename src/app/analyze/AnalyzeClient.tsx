@@ -2818,7 +2818,8 @@ export default function AnalyzeClient() {
                         <button
                           type="button"
                           onClick={handleAnalyzeAnotherHorse}
-                          className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                          disabled={isFullReport3DGenerating}
+                          className="mt-6 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Analyze Another Horse
                         </button>
@@ -3032,7 +3033,8 @@ export default function AnalyzeClient() {
               <button
                 type="button"
                 onClick={handleAnalyzeAnotherHorse}
-                className="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                disabled={isSingleView3DGenerating}
+                className="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Analyze Another Horse
               </button>
