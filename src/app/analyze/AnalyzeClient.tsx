@@ -2557,7 +2557,7 @@ export default function AnalyzeClient() {
               {fullReportResult ? (
                 <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
                   {isFullReport3DGenerating ? (
-                    <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b-2 border-yellow-600 bg-yellow-400 px-6 py-3">
+                    <div className="fixed top-0 left-0 right-0 z-[150] border-b-2 border-yellow-600 bg-yellow-400 px-6 py-3">
                       <div className="flex items-start gap-3">
                         <span
                           className="shrink-0 text-3xl leading-none"
@@ -2874,7 +2874,7 @@ export default function AnalyzeClient() {
         {result && emailSubmitted ? (
           <section className="mt-8 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
             {isSingleView3DGenerating ? (
-              <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 border-b-2 border-yellow-600 bg-yellow-400 px-6 py-3">
+              <div className="fixed top-0 left-0 right-0 z-[150] border-b-2 border-yellow-600 bg-yellow-400 px-6 py-3">
                 <div className="flex items-start gap-3">
                   <span
                     className="shrink-0 text-3xl leading-none"
