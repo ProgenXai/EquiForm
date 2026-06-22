@@ -221,7 +221,7 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <PurchaseTierGrid authRedirectPath="/" />
+        <PurchaseTierGrid authRedirectPath="/" checkoutMode="cart" />
       </main>
     </div>
   );
