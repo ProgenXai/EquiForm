@@ -12,6 +12,7 @@ import { formatPaymentError } from "@/lib/user-facing-errors";
 type PurchaseTierGridProps = {
   authRedirectPath?: string;
   checkoutMode?: "instant" | "cart";
+  singlePackOnly?: boolean;
 };
 
 type CartEntry = {
@@ -80,6 +81,7 @@ function TierCard({
   onAddToCart,
   cartQuantities,
   checkoutMode,
+  singlePackOnly,
 }: {
   tier: ReportTier;
   loadingPriceId: string | null;
@@ -87,6 +89,7 @@ function TierCard({
   onAddToCart: (option: ReportPackageOption) => void;
   cartQuantities: Record<string, number>;
   checkoutMode: "instant" | "cart";
+  singlePackOnly: boolean;
 }) {
   const singleOption = tier.packages[0];
   const bundleOptions = tier.packages.slice(1);
@@ -157,7 +160,7 @@ function TierCard({
 
       {singleOption ? renderActionButton(singleOption) : null}
 
-      {bundleOptions.length > 0 ? (
+      {!singlePackOnly && bundleOptions.length > 0 ? (
         <div className="mt-4 space-y-3 border-t border-zinc-800 pt-4">
           {bundleOptions.map((option) => (
             <div
@@ -260,6 +263,7 @@ function CartSummary({
 export default function PurchaseTierGrid({
   authRedirectPath = "/auth",
   checkoutMode = "instant",
+  singlePackOnly = false,
 }: PurchaseTierGridProps) {
   const router = useRouter();
   const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
@@ -405,6 +409,7 @@ export default function PurchaseTierGrid({
           onAddToCart={handleAddToCart}
           cartQuantities={cart}
           checkoutMode={checkoutMode}
+          singlePackOnly={singlePackOnly}
         />
       ))}
     </div>

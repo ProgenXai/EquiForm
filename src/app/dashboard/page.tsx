@@ -221,7 +221,12 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <PurchaseTierGrid authRedirectPath="/" checkoutMode="cart" />
+        <PurchaseTierGrid authRedirectPath="/" checkoutMode="cart" singlePackOnly={true} />
+        <div className="mt-6 text-center">
+          <a href="/buy-credits" className="text-sm font-medium text-accent transition hover:text-accent-hover">
+            See bundle deals — save up to $30
+          </a>
+        </div>
       </main>
     </div>
   );
