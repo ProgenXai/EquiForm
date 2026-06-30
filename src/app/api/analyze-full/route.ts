@@ -531,6 +531,69 @@ function flipBufferHorizontally(
   return flipped;
 }
 
+async function removeBackgroundWithPhotoRoom(
+  imageUrl: string,
+): Promise<string | null> {
+  const apiKey = process.env.PHOTOROOM_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  try {
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) return null;
+
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+    const formData = new FormData();
+    formData.append(
+      "image_file",
+      new Blob([new Uint8Array(imageBuffer)], { type: "image/jpeg" }),
+      "photo.jpg",
+    );
+
+    const response = await fetch(
+      "https://sdk.photoroom.com/v1/segment",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+        },
+        body: formData,
+      },
+    );
+
+    if (!response.ok) {
+      console.error("[photoroom] background removal failed:", await response.text());
+      return null;
+    }
+
+    const resultBuffer = Buffer.from(await response.arrayBuffer());
+
+    const serviceClient = createServiceRoleClient();
+    const storagePath = `photoroom-temp/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+
+    const { error: uploadError } = await serviceClient.storage
+      .from("horse-photos")
+      .upload(storagePath, resultBuffer, {
+        contentType: "image/png",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("[photoroom] upload failed:", uploadError);
+      return null;
+    }
+
+    const { data: publicUrlData } = serviceClient.storage
+      .from("horse-photos")
+      .getPublicUrl(storagePath);
+
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error("[photoroom] unexpected error:", error);
+    return null;
+  }
+}
+
 async function submitMeshy3DTask(
   frontUrl: string,
   leftUrl: string,
@@ -1373,11 +1436,31 @@ export async function POST(request: Request) {
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
+    let meshyFrontUrl = imageUrls.front;
+    let meshyLeftUrl = imageUrls.left;
+    let meshyHindUrl = imageUrls.hind;
+    let meshyRightUrl = imageUrls.right;
+
+    if (process.env.PHOTOROOM_API_KEY?.trim()) {
+      console.log("[photoroom] removing backgrounds before Meshy submission");
+      const [cleanFront, cleanLeft, cleanHind, cleanRight] = await Promise.all([
+        removeBackgroundWithPhotoRoom(imageUrls.front),
+        removeBackgroundWithPhotoRoom(imageUrls.left),
+        removeBackgroundWithPhotoRoom(imageUrls.hind),
+        removeBackgroundWithPhotoRoom(imageUrls.right),
+      ]);
+
+      if (cleanFront) meshyFrontUrl = cleanFront;
+      if (cleanLeft) meshyLeftUrl = cleanLeft;
+      if (cleanHind) meshyHindUrl = cleanHind;
+      if (cleanRight) meshyRightUrl = cleanRight;
+    }
+
     const meshyTaskId = await submitMeshy3DTask(
-      imageUrls.front,
-      imageUrls.left,
-      imageUrls.hind,
-      imageUrls.right,
+      meshyFrontUrl,
+      meshyLeftUrl,
+      meshyHindUrl,
+      meshyRightUrl,
       {
         userId: user.id,
         userEmail: user.email,
