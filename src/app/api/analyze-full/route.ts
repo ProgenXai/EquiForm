@@ -565,6 +565,7 @@ async function submitMeshy3DTask(
       image_urls: [frontUrl, leftUrl, hindUrl, rightUrl],
       ai_model: "meshy-6",
       target_formats: ["glb"],
+      hd_texture: true,
     };
 
     console.log('[meshy] request payload:', JSON.stringify(meshyPayload, null, 2));
