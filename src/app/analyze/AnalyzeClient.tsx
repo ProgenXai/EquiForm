@@ -162,26 +162,60 @@ type BalanceResponse = {
   full_report_3d_balance?: number;
 };
 
-type AnalysisMode = "quick" | "full";
+type AnalysisMode = "single" | "single3d" | "full" | "full3d";
 
-const ANALYSIS_MODE_OPTIONS: {
+type AnalysisModeOption = {
   value: AnalysisMode;
   label: string;
   detail: string;
   recommended?: boolean;
-}[] = [
-  {
-    value: "full",
-    label: "FULL REPORT",
-    detail: "1 full report credit — complete 4-view analysis",
-    recommended: true,
-  },
-  {
-    value: "quick",
-    label: "SINGLE VIEW",
-    detail: "1 single view credit — one view only",
-  },
-];
+};
+
+function buildAnalysisModeOptions(params: {
+  isAdmin: boolean;
+  singleViewBalance: number;
+  singleView3DBalance: number;
+  fullReportBalance: number;
+  fullReport3DBalance: number;
+}): AnalysisModeOption[] {
+  const { isAdmin, singleViewBalance, singleView3DBalance, fullReportBalance, fullReport3DBalance } = params;
+
+  const all: AnalysisModeOption[] = [
+    {
+      value: "full3d",
+      label: "FULL REPORT + 3D",
+      detail: "1 four-view + 3D credit — complete 4-view analysis with 3D model",
+      recommended: true,
+    },
+    {
+      value: "full",
+      label: "FULL REPORT",
+      detail: "1 full report credit — complete 4-view analysis",
+    },
+    {
+      value: "single3d",
+      label: "SINGLE VIEW + 3D",
+      detail: "1 single view + 3D credit — one view with 3D model",
+    },
+    {
+      value: "single",
+      label: "SINGLE VIEW",
+      detail: "1 single view credit — one view only",
+    },
+  ];
+
+  if (isAdmin) {
+    return all;
+  }
+
+  return all.filter((option) => {
+    if (option.value === "full3d") return fullReport3DBalance > 0;
+    if (option.value === "full") return fullReportBalance > 0;
+    if (option.value === "single3d") return singleView3DBalance > 0;
+    if (option.value === "single") return singleViewBalance > 0;
+    return false;
+  });
+}
 
 type FullReportView = "left" | "right" | "front" | "hind";
 
@@ -689,7 +723,7 @@ export default function AnalyzeClient() {
   );
   const singleViewPhotoRef = useRef(singleViewPhoto);
   singleViewPhotoRef.current = singleViewPhoto;
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("full");
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("full3d");
   const [fullReportPhotos, setFullReportPhotos] = useState<
     Partial<Record<FullReportView, FullReportSlot>>
   >({});
@@ -806,7 +840,7 @@ export default function AnalyzeClient() {
   }
 
   useEffect(() => {
-    if (analysisMode !== "full") {
+    if (analysisMode !== "full" && analysisMode !== "full3d") {
       void clearFullReportPhotos();
       setFullReportResult(null);
       setMeshyTaskId(null);
@@ -1304,7 +1338,7 @@ export default function AnalyzeClient() {
 
       const shouldGenerate3D = isAdmin
         ? adminGenerate3D
-        : (singleView3DBalance ?? 0) > 0;
+        : analysisMode === "single3d";
 
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -1660,7 +1694,9 @@ export default function AnalyzeClient() {
     coatColor.trim() !== "" &&
     age.trim() !== "" &&
     sex.trim() !== "";
-  const singleViewReportComplete = analysisMode === "quick" && result !== null;
+  const singleViewReportComplete =
+    (analysisMode === "single" || analysisMode === "single3d") &&
+    result !== null;
   const analyzeButtonDisabled =
     typeof window === "undefined" ||
     !singleViewPhoto?.supabaseUrl ||
@@ -1700,10 +1736,18 @@ export default function AnalyzeClient() {
   );
   const shouldGenerateSingleView3D = isAdmin
     ? adminGenerate3D
-    : (singleView3DBalance ?? 0) > 0;
+    : analysisMode === "single3d";
   const shouldGenerateFullReport3D = isAdmin
     ? adminGenerate3D
-    : (fullReport3DBalance ?? 0) > 0;
+    : analysisMode === "full3d";
+
+  const analysisModeOptions = buildAnalysisModeOptions({
+    isAdmin,
+    singleViewBalance: singleViewBalance ?? 0,
+    singleView3DBalance: singleView3DBalance ?? 0,
+    fullReportBalance: fullReportBalance ?? 0,
+    fullReport3DBalance: fullReport3DBalance ?? 0,
+  });
 
   async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
@@ -1742,7 +1786,7 @@ export default function AnalyzeClient() {
 
       const shouldGenerate3D = isAdmin
         ? adminGenerate3D
-        : (fullReport3DBalance ?? 0) > 0;
+        : analysisMode === "full3d";
 
       const response = await fetch("/api/analyze-full", {
         method: "POST",
@@ -1836,7 +1880,7 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
-      {analysisMode === "quick" && singleViewPhoto?.previewUrl ? (
+      {(analysisMode === "single" || analysisMode === "single3d") && singleViewPhoto?.previewUrl ? (
         <button
           type="button"
           onClick={handleRemoveSingleViewPhoto}
@@ -1845,7 +1889,7 @@ export default function AnalyzeClient() {
           ← Back
         </button>
       ) : null}
-      {analysisMode === "full" && hasFullReportPhotoPreview ? (
+      {(analysisMode === "full" || analysisMode === "full3d") && hasFullReportPhotoPreview ? (
         <button
           type="button"
           onClick={() => void handleRemoveFullReportPhotos()}
@@ -1913,11 +1957,11 @@ export default function AnalyzeClient() {
       <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           <div
-            className="mb-6 grid grid-cols-2 gap-3"
+            className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3"
             role="group"
             aria-label="Analysis mode"
           >
-            {ANALYSIS_MODE_OPTIONS.map((option) => {
+            {analysisModeOptions.map((option) => {
               const isSelected = analysisMode === option.value;
 
               return (
@@ -1953,7 +1997,7 @@ export default function AnalyzeClient() {
             })}
           </div>
 
-          {analysisMode === "quick" ? (
+          {analysisMode === "single" || analysisMode === "single3d" ? (
             <>
           {!singleViewPhoto?.previewUrl ? (
             <>
