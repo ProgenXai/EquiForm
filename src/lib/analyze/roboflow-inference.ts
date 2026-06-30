@@ -10,6 +10,9 @@ import type { DetectedLandmarkPoint } from "@/lib/analyze/types";
 
 const ROBOFLOW_SERVERLESS = "https://serverless.roboflow.com";
 
+const MIN_LANDMARK_CONFIDENCE = 0.5;
+const MAX_LOW_CONFIDENCE_RATIO = 0.3;
+
 type LandmarkMappingEntry = {
   roboflow: string;
   outputId: LandmarkId;
@@ -283,19 +286,25 @@ function landmarkFromKeypoint(
   kp: RoboflowKeypoint | undefined,
   width: number,
   height: number,
-): DetectedLandmarkPoint {
+): { point: DetectedLandmarkPoint; lowConfidence: boolean } {
   if (
     !kp ||
     typeof kp.x !== "number" ||
     typeof kp.y !== "number" ||
     (kp.confidence !== undefined && kp.confidence <= 0)
   ) {
-    return { x: 0, y: 0 };
+    return { point: { x: 0, y: 0 }, lowConfidence: true };
   }
 
+  const lowConfidence =
+    kp.confidence !== undefined && kp.confidence < MIN_LANDMARK_CONFIDENCE;
+
   return {
-    x: clamp01(kp.x / width),
-    y: clamp01(kp.y / height),
+    point: {
+      x: clamp01(kp.x / width),
+      y: clamp01(kp.y / height),
+    },
+    lowConfidence,
   };
 }
 
@@ -307,14 +316,18 @@ function parseIndexBasedLandmarks(
 ): Record<string, DetectedLandmarkPoint> {
   const keypointByIndex = indexKeypointsByOrder(keypoints);
   const landmarks: Record<string, DetectedLandmarkPoint> = {};
+  let lowConfidenceCount = 0;
 
   for (let i = 0; i < indexMap.length; i++) {
     const landmarkId = indexMap[i]!;
-    landmarks[landmarkId] = landmarkFromKeypoint(
-      keypointByIndex[i],
-      width,
-      height,
-    );
+    const result = landmarkFromKeypoint(keypointByIndex[i], width, height);
+    landmarks[landmarkId] = result.point;
+    if (result.lowConfidence) lowConfidenceCount++;
+  }
+
+  const lowConfidenceRatio = lowConfidenceCount / indexMap.length;
+  if (lowConfidenceRatio > MAX_LOW_CONFIDENCE_RATIO) {
+    throw new Error("Roboflow low confidence detection");
   }
 
   return landmarks;
@@ -361,11 +374,18 @@ export function parseRoboflowKeypointResponse(
   const landmarks: Record<string, DetectedLandmarkPoint> = {};
   const landmarkOrder = getLandmarkOrderForView(viewMode);
   const keypointByName = indexKeypoints(keypoints);
+  let lowConfidenceCount = 0;
 
   for (const entry of landmarkOrder) {
     const kp = findKeypoint(keypointByName, entry);
+    const result = landmarkFromKeypoint(kp, width, height);
+    landmarks[entry.outputId] = result.point;
+    if (result.lowConfidence) lowConfidenceCount++;
+  }
 
-    landmarks[entry.outputId] = landmarkFromKeypoint(kp, width, height);
+  const lowConfidenceRatio = lowConfidenceCount / landmarkOrder.length;
+  if (lowConfidenceRatio > MAX_LOW_CONFIDENCE_RATIO) {
+    throw new Error("Roboflow low confidence detection");
   }
 
   return landmarks;

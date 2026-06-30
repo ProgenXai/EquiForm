@@ -125,6 +125,7 @@ const FULL_REPORT_VIEW_LABELS: Record<FullReportViewKey, string> = {
 const ROBOFLOW_LANDMARK_FAILURE_MESSAGES = new Set([
   "Roboflow returned no predictions",
   "Roboflow horse prediction has no keypoints",
+  "Roboflow low confidence detection",
 ]);
 
 function roboflowLandmarkDetectionError(viewLabel: string): string {
