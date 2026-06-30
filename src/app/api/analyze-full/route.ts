@@ -938,6 +938,81 @@ async function refundCredit(
   return { ok: true };
 }
 
+async function cleanupPhotoroomTempFiles(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  urls: (string | null)[],
+): Promise<void> {
+  const paths: string[] = [];
+
+  for (const url of urls) {
+    if (!url) continue;
+    const marker = "/storage/v1/object/public/horse-photos/";
+    try {
+      const parsed = new URL(url);
+      const markerIndex = parsed.pathname.indexOf(marker);
+      if (markerIndex === -1) continue;
+      const path = decodeURIComponent(
+        parsed.pathname.slice(markerIndex + marker.length),
+      );
+      if (path.startsWith("photoroom-temp/")) {
+        paths.push(path);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  if (paths.length === 0) return;
+
+  const { error } = await serviceClient.storage
+    .from("horse-photos")
+    .remove(paths);
+
+  if (error) {
+    console.error("[photoroom] cleanup failed:", error);
+  } else {
+    console.log("[photoroom] cleaned up temp files:", paths);
+  }
+}
+
+async function cleanupFullReportTempFiles(
+  serviceClient: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  urls: string[],
+): Promise<void> {
+  const paths: string[] = [];
+
+  for (const url of urls) {
+    if (!url) continue;
+    const marker = "/storage/v1/object/public/horse-photos/";
+    try {
+      const parsed = new URL(url);
+      const markerIndex = parsed.pathname.indexOf(marker);
+      if (markerIndex === -1) continue;
+      const path = decodeURIComponent(
+        parsed.pathname.slice(markerIndex + marker.length),
+      );
+      if (path.startsWith(`full-report-temp/${userId}/`)) {
+        paths.push(path);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  if (paths.length === 0) return;
+
+  const { error } = await serviceClient.storage
+    .from("horse-photos")
+    .remove(paths);
+
+  if (error) {
+    console.error("[cleanup] full-report-temp cleanup failed:", error);
+  } else {
+    console.log("[cleanup] full-report-temp files removed:", paths);
+  }
+}
+
 export async function POST(request: Request) {
   console.log("[analyze-full] POST handler entered");
 
@@ -1467,6 +1542,13 @@ export async function POST(request: Request) {
       },
     );
 
+    void cleanupPhotoroomTempFiles(serviceClient, [
+      meshyFrontUrl !== imageUrls.front ? meshyFrontUrl : null,
+      meshyLeftUrl !== imageUrls.left ? meshyLeftUrl : null,
+      meshyHindUrl !== imageUrls.hind ? meshyHindUrl : null,
+      meshyRightUrl !== imageUrls.right ? meshyRightUrl : null,
+    ]);
+
     const combinedScore = calculateCombinedScore(
       leftReport,
       rightReport,
@@ -1722,6 +1804,13 @@ export async function POST(request: Request) {
         );
       }
     } else {
+      void cleanupFullReportTempFiles(serviceClient, user.id, [
+        imageUrls.left,
+        imageUrls.right,
+        imageUrls.front,
+        imageUrls.hind,
+      ]);
+
       if (savedReport && userId && horseName) {
         console.log("[analyze-full] linkReportToHorse starting:", {
           userId,
