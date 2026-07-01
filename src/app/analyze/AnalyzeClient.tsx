@@ -866,6 +866,15 @@ export default function AnalyzeClient() {
     const reportId = fullReportResult?.reportId ?? result?.reportId;
     let cancelled = false;
 
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        cancelled = true;
+        window.clearInterval(intervalId);
+        setMeshy3DError("Your 3D model is taking longer than expected. Please check My Reports in a few minutes — it may still complete.");
+        setMeshyTaskId(null);
+      }
+    }, 15 * 60 * 1000);
+
     async function pollMeshyStatus() {
       const {
         data: { session },
@@ -922,6 +931,7 @@ export default function AnalyzeClient() {
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
     };
   }, [meshyTaskId, fullReportResult?.reportId, result?.reportId]);
 
