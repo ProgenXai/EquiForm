@@ -1726,6 +1726,7 @@ export async function POST(request: Request) {
         report_text: reportText,
         overlay_url: overlayUrl,
         glb_url: null,
+        meshy_task_id: meshyTaskId ?? null,
       })
       .select("id")
       .single();
