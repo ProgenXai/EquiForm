@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/complete-3d-models",
-      "schedule": "0 * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }
