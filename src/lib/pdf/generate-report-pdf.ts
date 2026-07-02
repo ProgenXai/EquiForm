@@ -611,6 +611,21 @@ function hasSpaceForModel3dSection(
   return startY - minContentY >= sectionHeight;
 }
 
+function drawCenteredTextInColumn(
+  page: PDFPage,
+  text: string,
+  y: number,
+  font: PDFFont,
+  size: number,
+  color: ReturnType<typeof rgb>,
+  colX: number,
+  colWidth: number,
+) {
+  const width = font.widthOfTextAtSize(text, size);
+  const x = colX + Math.max(0, (colWidth - width) / 2);
+  page.drawText(text, { x, y, size, font, color });
+}
+
 export async function generateReportPdfBytes(
   body: ReportPdfRequestBody,
 ): Promise<Uint8Array> {
@@ -837,23 +852,49 @@ export async function generateReportPdfBytes(
       forceNewPage();
     }
 
-    y = drawModel3dPageHeader(page, y, body, report, fontBold, fontRegular);
+    const leftColWidth = CONTENT_WIDTH * 0.38;
+    const rightColWidth = CONTENT_WIDTH * 0.58;
+    const colGap = CONTENT_WIDTH * 0.04;
+    const rightColX = MARGIN + leftColWidth + colGap;
+    const sectionStartY = y;
 
-    const snapshotMaxHeight = y - MIN_CONTENT_Y - 20;
+    // Left column: title, horse details, score
+    let leftY = sectionStartY;
+    drawCenteredTextInColumn(page, "3D Model View", leftY, fontBold, 14, rgb(0.1, 0.1, 0.1), MARGIN, leftColWidth);
+    leftY -= 22;
+
+    const horseName = typeof body.horse_name === "string" ? body.horse_name.trim() : "";
+    if (horseName) {
+      drawCenteredTextInColumn(page, horseName, leftY, fontBold, 16, rgb(0.1, 0.1, 0.1), MARGIN, leftColWidth);
+      leftY -= 22;
+    }
+
+    for (const line of getReportHorseDetailTextLines(body)) {
+      drawCenteredTextInColumn(page, line, leftY, fontRegular, 9, rgb(0.35, 0.35, 0.35), MARGIN, leftColWidth);
+      leftY -= 13;
+    }
+
+    leftY -= 8;
+    const scoreText2 = `Overall Score: ${report.overall_score}/100`;
+    drawCenteredTextInColumn(page, scoreText2, leftY, fontBold, 12, ACCENT_RGB, MARGIN, leftColWidth);
+
+    // Right column: 3D snapshot filling available height
+    const snapshotMaxHeight = sectionStartY - MIN_CONTENT_Y - 10;
     const snapshotScale = Math.min(
-      CONTENT_WIDTH / model3dSnapshotImage.width,
+      rightColWidth / model3dSnapshotImage.width,
       snapshotMaxHeight / model3dSnapshotImage.height,
     );
     const snapshotWidth = model3dSnapshotImage.width * snapshotScale;
     const snapshotHeight = model3dSnapshotImage.height * snapshotScale;
 
     page.drawImage(model3dSnapshotImage, {
-      x: MARGIN + (CONTENT_WIDTH - snapshotWidth) / 2,
-      y: y - snapshotHeight,
+      x: rightColX + (rightColWidth - snapshotWidth) / 2,
+      y: sectionStartY - snapshotHeight,
       width: snapshotWidth,
       height: snapshotHeight,
     });
-    y -= snapshotHeight + 20;
+
+    y = sectionStartY - Math.max(snapshotHeight, leftY - sectionStartY) - 20;
   } else if (body.model3d_placeholder) {
     const headerHeight = measureModel3dHeaderHeight(body);
     const placeholderHeight = measureWrappedParagraphHeight(
