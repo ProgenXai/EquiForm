@@ -331,6 +331,8 @@ export default function MyReportsPage() {
 
     async function loadReports() {
       setLoading(true);
+      setReports([]);
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       const supabase = createClient();
       const {
