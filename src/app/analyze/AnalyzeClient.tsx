@@ -1625,14 +1625,14 @@ export default function AnalyzeClient() {
   async function handleDownloadFullReportPdf() {
     if (!fullReportResult) return;
 
-    if (fullReportResult.pdfUrl) {
-      window.open(fullReportResult.pdfUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-
     if (fullReportGlbUrl) {
       setPdf3DModalMode("full");
       setShowPdf3DModal(true);
+      return;
+    }
+
+    if (fullReportResult.pdfUrl) {
+      window.open(fullReportResult.pdfUrl, "_blank", "noopener,noreferrer");
       return;
     }
 
