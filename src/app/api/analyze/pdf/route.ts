@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   const shouldRegenerate =
     Boolean(body.model3d_snapshot?.trim()) || body.model3d_placeholder === true;
 
-  if (existingReport.pdf_url && !shouldRegenerate) {
+  if (existingReport.pdf_url && !shouldRegenerate && !body.model3d_snapshot?.trim()) {
     if (body.sendEmail && !existingReport.report_email_sent_at) {
       try {
         const pdfResponse = await fetch(existingReport.pdf_url);
@@ -156,6 +156,12 @@ export async function POST(request: Request) {
         console.error("[analyze/pdf] report-ready email failed:", emailError);
       }
     }
+
+    await serviceClient
+      .from("reports")
+      .update({ pdf_url: pdfUrl })
+      .eq("id", reportId)
+      .eq("user_id", user.id);
 
     return NextResponse.json({ pdfUrl });
   } catch (error) {
