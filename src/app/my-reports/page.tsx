@@ -182,6 +182,7 @@ const PAGE_SIZE = 10;
 
 export default function MyReportsPage() {
   const router = useRouter();
+  const [loadTrigger, setLoadTrigger] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [page, setPage] = useState(0);
@@ -321,6 +322,10 @@ export default function MyReportsPage() {
   }
 
   useEffect(() => {
+    setLoadTrigger(Date.now());
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     setReports([]);
 
@@ -359,7 +364,7 @@ export default function MyReportsPage() {
     }
 
     void loadReports();
-  }, [router, page]);
+  }, [router, page, loadTrigger]);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
