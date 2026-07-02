@@ -188,6 +188,7 @@ export default function MyReportsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   async function handleDownloadPdf(report: ReportRow) {
@@ -252,9 +253,11 @@ export default function MyReportsPage() {
   }
 
   async function handleDeleteReport(report: ReportRow) {
-    if (!window.confirm(`Are you sure you want to delete the report for ${report.horse_name?.trim() || "this horse"}? This cannot be undone.`)) {
+    if (confirmDeleteId !== report.id) {
+      setConfirmDeleteId(report.id);
       return;
     }
+    setConfirmDeleteId(null);
 
     setDeletingId(report.id);
 
@@ -452,14 +455,34 @@ export default function MyReportsPage() {
                     >
                       View Report
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteReport(report)}
-                      disabled={deletingId === report.id}
-                      className="inline-block rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-center text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {deletingId === report.id ? "Deleting…" : "Delete"}
-                    </button>
+                    {confirmDeleteId === report.id ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteReport(report)}
+                          disabled={deletingId === report.id}
+                          className="inline-block rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-center text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {deletingId === report.id ? "Deleting…" : "Confirm Delete"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="inline-block rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-center text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteReport(report)}
+                        disabled={deletingId === report.id}
+                        className="inline-block rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-center text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}

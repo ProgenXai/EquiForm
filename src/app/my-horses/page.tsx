@@ -36,6 +36,7 @@ export default function MyHorsesPage() {
   const [horses, setHorses] = useState<HorseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     router.refresh();
@@ -70,9 +71,11 @@ export default function MyHorsesPage() {
   }, [router]);
 
   async function handleDeleteHorse(horse: HorseRow) {
-    if (!window.confirm(`Are you sure you want to delete ${horse.name.trim() || "this horse"} and all their reports? This cannot be undone.`)) {
+    if (confirmDeleteId !== horse.id) {
+      setConfirmDeleteId(horse.id);
       return;
     }
+    setConfirmDeleteId(null);
 
     setDeletingId(horse.id);
 
@@ -218,14 +221,34 @@ export default function MyHorsesPage() {
                 >
                   View Progress
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => void handleDeleteHorse(horse)}
-                  disabled={deletingId === horse.id}
-                  className="inline-flex shrink-0 items-center justify-center rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {deletingId === horse.id ? "Deleting…" : "Delete"}
-                </button>
+                {confirmDeleteId === horse.id ? (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteHorse(horse)}
+                      disabled={deletingId === horse.id}
+                      className="inline-flex shrink-0 items-center justify-center rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {deletingId === horse.id ? "Deleting…" : "Confirm Delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="inline-flex shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteHorse(horse)}
+                    disabled={deletingId === horse.id}
+                    className="inline-flex shrink-0 items-center justify-center rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
           </ul>
