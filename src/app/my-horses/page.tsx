@@ -41,7 +41,6 @@ export default function MyHorsesPage() {
   useEffect(() => {
     setLoading(true);
     setHorses([]);
-    router.refresh();
 
     async function loadHorses() {
       setLoading(true);
