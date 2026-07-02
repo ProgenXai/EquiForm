@@ -1805,13 +1805,6 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      void cleanupFullReportTempFiles(serviceClient, user.id, [
-        imageUrls.left,
-        imageUrls.right,
-        imageUrls.front,
-        imageUrls.hind,
-      ]);
-
       if (savedReport && userId && horseName) {
         console.log("[analyze-full] linkReportToHorse starting:", {
           userId,
