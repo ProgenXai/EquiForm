@@ -35,6 +35,7 @@ export default function MyHorsesPage() {
   const router = useRouter();
   const [horses, setHorses] = useState<HorseRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadHorses() {
@@ -65,6 +66,81 @@ export default function MyHorsesPage() {
 
     void loadHorses();
   }, [router]);
+
+  async function handleDeleteHorse(horse: HorseRow) {
+    if (!window.confirm(`Are you sure you want to delete ${horse.name.trim() || "this horse"} and all their reports? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(horse.id);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) return;
+
+      const bucket = "horse-photos";
+
+      const extractPath = (url: string | null) => {
+        if (!url) return null;
+        const marker = `/storage/v1/object/public/${bucket}/`;
+        try {
+          const parsed = new URL(url);
+          const idx = parsed.pathname.indexOf(marker);
+          if (idx === -1) return null;
+          return decodeURIComponent(parsed.pathname.slice(idx + marker.length));
+        } catch {
+          return null;
+        }
+      };
+
+      // Get all reports for this horse
+      const { data: reports } = await supabase
+        .from("reports")
+        .select("id, overlay_url, glb_url, pdf_url")
+        .eq("user_id", session.user.id)
+        .eq("horse_name", horse.name);
+
+      if (reports && reports.length > 0) {
+        const pathsToDelete: string[] = [];
+
+        for (const report of reports) {
+          const overlayPath = extractPath(report.overlay_url);
+          const glbPath = extractPath(report.glb_url);
+          const pdfPath = extractPath(report.pdf_url);
+          if (overlayPath) pathsToDelete.push(overlayPath);
+          if (glbPath) pathsToDelete.push(glbPath);
+          if (pdfPath) pathsToDelete.push(pdfPath);
+        }
+
+        if (pathsToDelete.length > 0) {
+          await supabase.storage.from(bucket).remove(pathsToDelete);
+        }
+
+        await supabase
+          .from("reports")
+          .delete()
+          .eq("user_id", session.user.id)
+          .eq("horse_name", horse.name);
+      }
+
+      // Delete the horse
+      await supabase
+        .from("horses")
+        .delete()
+        .eq("id", horse.id)
+        .eq("user_id", session.user.id);
+
+      setHorses((current) => current.filter((h) => h.id !== horse.id));
+    } catch (err) {
+      console.error("Failed to delete horse:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -140,6 +216,14 @@ export default function MyHorsesPage() {
                 >
                   View Progress
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteHorse(horse)}
+                  disabled={deletingId === horse.id}
+                  className="inline-flex shrink-0 items-center justify-center rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {deletingId === horse.id ? "Deleting…" : "Delete"}
+                </button>
               </li>
             ))}
           </ul>
