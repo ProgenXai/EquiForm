@@ -2838,7 +2838,8 @@ export default function AnalyzeClient() {
                             <p className="mt-3 text-base font-semibold text-yellow-400">
                               3D model is AI-generated from your photos. Results may
                               vary based on photo quality, lighting, camera angle, and
-                              horse stance.
+                              horse stance. Halter and equipment details may appear
+                              distorted.
                             </p>
                           </>
                         ) : null}

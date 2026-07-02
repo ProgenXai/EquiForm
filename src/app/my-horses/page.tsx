@@ -38,6 +38,8 @@ export default function MyHorsesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    router.refresh();
+
     async function loadHorses() {
       setLoading(true);
 

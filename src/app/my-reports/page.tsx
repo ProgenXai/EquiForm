@@ -313,6 +313,8 @@ export default function MyReportsPage() {
   }
 
   useEffect(() => {
+    router.refresh();
+
     async function loadReports() {
       setLoading(true);
 
