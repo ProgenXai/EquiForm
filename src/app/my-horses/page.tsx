@@ -39,6 +39,8 @@ export default function MyHorsesPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setHorses([]);
     router.refresh();
 
     async function loadHorses() {
