@@ -299,13 +299,18 @@ export default function MyReportsPage() {
       }
 
       // Delete report from database
-      await supabase
+      const { error: deleteError } = await supabase
         .from("reports")
         .delete()
         .eq("id", report.id)
         .eq("user_id", session.user.id);
 
-      // Remove from local state
+      if (deleteError) {
+        console.error("Delete failed:", deleteError);
+        setDownloadError("Failed to delete report. Please try again.");
+        return;
+      }
+
       setReports((current) => current.filter((r) => r.id !== report.id));
       setTotalCount((current) => current - 1);
     } catch (err) {
