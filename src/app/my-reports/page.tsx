@@ -187,6 +187,7 @@ export default function MyReportsPage() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   async function handleDownloadPdf(report: ReportRow) {
@@ -247,6 +248,67 @@ export default function MyReportsPage() {
       setDownloadError(formatPdfError(err));
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handleDeleteReport(report: ReportRow) {
+    if (!window.confirm(`Are you sure you want to delete the report for ${report.horse_name?.trim() || "this horse"}? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(report.id);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) return;
+
+      // Delete storage files
+      const pathsToDelete: string[] = [];
+      const bucket = "horse-photos";
+
+      const extractPath = (url: string | null) => {
+        if (!url) return null;
+        const marker = `/storage/v1/object/public/${bucket}/`;
+        try {
+          const parsed = new URL(url);
+          const idx = parsed.pathname.indexOf(marker);
+          if (idx === -1) return null;
+          return decodeURIComponent(parsed.pathname.slice(idx + marker.length));
+        } catch {
+          return null;
+        }
+      };
+
+      const overlayPath = extractPath(report.overlay_url);
+      const glbPath = extractPath(report.glb_url);
+      const pdfPath = extractPath(report.pdf_url);
+
+      if (overlayPath) pathsToDelete.push(overlayPath);
+      if (glbPath) pathsToDelete.push(glbPath);
+      if (pdfPath) pathsToDelete.push(pdfPath);
+
+      if (pathsToDelete.length > 0) {
+        await supabase.storage.from(bucket).remove(pathsToDelete);
+      }
+
+      // Delete report from database
+      await supabase
+        .from("reports")
+        .delete()
+        .eq("id", report.id)
+        .eq("user_id", session.user.id);
+
+      // Remove from local state
+      setReports((current) => current.filter((r) => r.id !== report.id));
+      setTotalCount((current) => current - 1);
+    } catch (err) {
+      console.error("Failed to delete report:", err);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -388,6 +450,14 @@ export default function MyReportsPage() {
                     >
                       View Report
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteReport(report)}
+                      disabled={deletingId === report.id}
+                      className="inline-block rounded-lg border border-red-800 bg-red-900/20 px-4 py-2 text-center text-sm font-semibold text-red-400 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {deletingId === report.id ? "Deleting…" : "Delete"}
+                    </button>
                   </div>
                 </li>
               ))}
