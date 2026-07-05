@@ -74,54 +74,60 @@ function ProfilePageContent() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadProfile() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const supabase = createClient();
 
-      if (!session?.user) {
-        router.replace("/");
-        return;
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!session?.user) {
+          router.replace("/");
+          return;
+        }
 
-      setUserId(session.user.id);
-      setEmail(session.user.email ?? "");
+        const fetchProfile = async () => {
+          setUserId(session.user.id);
+          setEmail(session.user.email ?? "");
 
-      const { data: profile, error: profileError } = await supabase
-        .from("user_profiles")
-        .select(
-          "user_id, first_name, last_name, barn_name, preferred_breeds, preferred_disciplines, avatar_url",
-        )
-        .eq("user_id", session.user.id)
-        .maybeSingle();
+          const { data: profile, error: profileError } = await supabase
+            .from("user_profiles")
+            .select(
+              "user_id, first_name, last_name, barn_name, preferred_breeds, preferred_disciplines, avatar_url",
+            )
+            .eq("user_id", session.user.id)
+            .maybeSingle();
 
-      if (profileError) {
-        setError(formatProfileError(null, "load"));
-        setLoading(false);
-        return;
-      }
+          if (profileError) {
+            setError(formatProfileError(null, "load"));
+            setLoading(false);
+            return;
+          }
 
-      if (profile) {
-        applyProfile(profile as UserProfile);
-      } else {
-        const metadataFirstName =
-          typeof session.user.user_metadata?.first_name === "string"
-            ? session.user.user_metadata.first_name.trim()
-            : "";
-        const metadataLastName =
-          typeof session.user.user_metadata?.last_name === "string"
-            ? session.user.user_metadata.last_name.trim()
-            : "";
+          if (profile) {
+            applyProfile(profile as UserProfile);
+          } else {
+            const metadataFirstName =
+              typeof session.user.user_metadata?.first_name === "string"
+                ? session.user.user_metadata.first_name.trim()
+                : "";
+            const metadataLastName =
+              typeof session.user.user_metadata?.last_name === "string"
+                ? session.user.user_metadata.last_name.trim()
+                : "";
 
-        setFirstName(metadataFirstName);
-        setLastName(metadataLastName);
-      }
+            setFirstName(metadataFirstName);
+            setLastName(metadataLastName);
+          }
 
-      setLoading(false);
-    }
+          setLoading(false);
+        };
 
-    void loadProfile();
-  }, [router, supabase]);
+        await fetchProfile();
+      },
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   function applyProfile(profile: UserProfile) {
     setFirstName(profile.first_name ?? "");

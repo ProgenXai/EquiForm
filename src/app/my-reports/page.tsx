@@ -329,43 +329,47 @@ export default function MyReportsPage() {
     setLoading(true);
     setReports([]);
 
-    async function loadReports() {
-      setLoading(true);
-      setReports([]);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    const supabase = createClient();
 
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!session?.user) {
+          router.replace("/");
+          return;
+        }
 
-      if (!session?.user) {
-        router.replace("/");
-        return;
-      }
+        const loadReports = async () => {
+          setLoading(true);
+          setReports([]);
 
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+          const from = page * PAGE_SIZE;
+          const to = from + PAGE_SIZE - 1;
 
-      const { data, error, count } = await supabase
-        .from("reports")
-        .select(
-          "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
-          { count: "exact" },
-        )
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false })
-        .range(from, to);
+          const { data, error, count } = await supabase
+            .from("reports")
+            .select(
+              "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
+              { count: "exact" },
+            )
+            .eq("user_id", session.user.id)
+            .order("created_at", { ascending: false })
+            .range(from, to);
 
-      if (!error && data) {
-        setReports(data as ReportRow[]);
-        setTotalCount(count ?? 0);
-      }
+          if (!error && data) {
+            setReports(data as ReportRow[]);
+            setTotalCount(count ?? 0);
+          }
 
-      setLoading(false);
-    }
+          setLoading(false);
+        };
 
-    void loadReports();
+        await loadReports();
+      },
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router, page, loadTrigger]);
 
   return (

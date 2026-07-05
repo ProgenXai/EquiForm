@@ -42,33 +42,38 @@ export default function MyHorsesPage() {
     setLoading(true);
     setHorses([]);
 
-    async function loadHorses() {
-      setLoading(true);
+    const supabase = createClient();
 
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!session?.user) {
+          router.replace("/");
+          return;
+        }
 
-      if (!session?.user) {
-        router.replace("/");
-        return;
-      }
+        const loadHorses = async () => {
+          setLoading(true);
 
-      const { data, error } = await supabase
-        .from("horses")
-        .select("id, name, breed, coat_color, age, sex, discipline")
-        .eq("user_id", session.user.id)
-        .order("name", { ascending: true });
+          const { data, error } = await supabase
+            .from("horses")
+            .select("id, name, breed, coat_color, age, sex, discipline")
+            .eq("user_id", session.user.id)
+            .order("name", { ascending: true });
 
-      if (!error && data) {
-        setHorses(data as HorseRow[]);
-      }
+          if (!error && data) {
+            setHorses(data as HorseRow[]);
+          }
 
-      setLoading(false);
-    }
+          setLoading(false);
+        };
 
-    void loadHorses();
+        await loadHorses();
+      },
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   async function handleDeleteHorse(horse: HorseRow) {
