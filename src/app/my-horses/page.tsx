@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import {
+  AUTH_LOAD_ERROR_MESSAGE,
+  bootstrapAuthSession,
+} from "@/lib/supabase/bootstrap-auth-session";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
@@ -35,45 +39,43 @@ export default function MyHorsesPage() {
   const router = useRouter();
   const [horses, setHorses] = useState<HorseRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setHorses([]);
+    setLoadError(null);
 
-    const supabase = createClient();
+    const cleanup = bootstrapAuthSession({
+      logPrefix: "[my-horses]",
+      onUnauthenticated: () => {
+        router.replace("/");
+      },
+      onTimeout: () => {
+        setLoading(false);
+        setLoadError(AUTH_LOAD_ERROR_MESSAGE);
+      },
+      onAuthenticated: async (session) => {
+        setLoading(true);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!session?.user) {
-          router.replace("/");
-          return;
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("horses")
+          .select("id, name, breed, coat_color, age, sex, discipline")
+          .eq("user_id", session.user.id)
+          .order("name", { ascending: true });
+
+        if (!error && data) {
+          setHorses(data as HorseRow[]);
         }
 
-        const loadHorses = async () => {
-          setLoading(true);
-
-          const { data, error } = await supabase
-            .from("horses")
-            .select("id, name, breed, coat_color, age, sex, discipline")
-            .eq("user_id", session.user.id)
-            .order("name", { ascending: true });
-
-          if (!error && data) {
-            setHorses(data as HorseRow[]);
-          }
-
-          setLoading(false);
-        };
-
-        await loadHorses();
+        setLoading(false);
       },
-    );
+    });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return cleanup;
   }, [router]);
 
   async function handleDeleteHorse(horse: HorseRow) {
@@ -191,6 +193,10 @@ export default function MyHorsesPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-zinc-400">
             <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
             Loading your horses…
+          </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-6 py-12 text-center">
+            <p className="text-sm text-zinc-300">{loadError}</p>
           </div>
         ) : horses.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-6 py-12 text-center">

@@ -8,6 +8,10 @@ import { useEffect, useState } from "react";
 import type { ConformationReport } from "@/lib/analyze/types";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
+import {
+  AUTH_LOAD_ERROR_MESSAGE,
+  bootstrapAuthSession,
+} from "@/lib/supabase/bootstrap-auth-session";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
 import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
@@ -204,6 +208,7 @@ export default function MyReportsPage() {
   const router = useRouter();
   const [loadTrigger, setLoadTrigger] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
@@ -349,48 +354,45 @@ export default function MyReportsPage() {
   useEffect(() => {
     setLoading(true);
     setReports([]);
+    setLoadError(null);
 
-    const supabase = createClient();
+    const cleanup = bootstrapAuthSession({
+      logPrefix: "[my-reports]",
+      onUnauthenticated: () => {
+        router.replace("/");
+      },
+      onTimeout: () => {
+        setLoading(false);
+        setLoadError(AUTH_LOAD_ERROR_MESSAGE);
+      },
+      onAuthenticated: async (session) => {
+        setLoading(true);
+        setReports([]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!session?.user) {
-          router.replace("/");
-          return;
+        const supabase = createClient();
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        const { data, error, count } = await supabase
+          .from("reports")
+          .select(
+            "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
+            { count: "exact" },
+          )
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (!error && data) {
+          setReports(data as ReportRow[]);
+          setTotalCount(count ?? 0);
         }
 
-        const loadReports = async () => {
-          setLoading(true);
-          setReports([]);
-
-          const from = page * PAGE_SIZE;
-          const to = from + PAGE_SIZE - 1;
-
-          const { data, error, count } = await supabase
-            .from("reports")
-            .select(
-              "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
-              { count: "exact" },
-            )
-            .eq("user_id", session.user.id)
-            .order("created_at", { ascending: false })
-            .range(from, to);
-
-          if (!error && data) {
-            setReports(data as ReportRow[]);
-            setTotalCount(count ?? 0);
-          }
-
-          setLoading(false);
-        };
-
-        await loadReports();
+        setLoading(false);
       },
-    );
+    });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return cleanup;
   }, [router, page, loadTrigger]);
 
   return (
@@ -431,6 +433,10 @@ export default function MyReportsPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-zinc-400">
             <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-accent" />
             Loading your reports…
+          </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-6 py-12 text-center">
+            <p className="text-sm text-zinc-300">{loadError}</p>
           </div>
         ) : reports.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-6 py-12 text-center">

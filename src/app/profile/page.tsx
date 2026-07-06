@@ -12,6 +12,10 @@ import {
   DISCIPLINE_SUGGESTIONS,
 } from "@/lib/horse-form-suggestions";
 import { createClient } from "@/lib/supabase/client";
+import {
+  AUTH_LOAD_ERROR_MESSAGE,
+  bootstrapAuthSession,
+} from "@/lib/supabase/bootstrap-auth-session";
 import { formatProfileError } from "@/lib/user-facing-errors";
 
 const AVATAR_BUCKET = "avatars";
@@ -60,6 +64,7 @@ function ProfilePageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,60 +79,58 @@ function ProfilePageContent() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
+    setLoading(true);
+    setLoadError(null);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!session?.user) {
-          router.replace("/");
+    const cleanup = bootstrapAuthSession({
+      logPrefix: "[profile]",
+      onUnauthenticated: () => {
+        router.replace("/");
+      },
+      onTimeout: () => {
+        setLoading(false);
+        setLoadError(AUTH_LOAD_ERROR_MESSAGE);
+      },
+      onAuthenticated: async (session) => {
+        setUserId(session.user.id);
+        setEmail(session.user.email ?? "");
+
+        const { data: profile, error: profileError } = await supabase
+          .from("user_profiles")
+          .select(
+            "user_id, first_name, last_name, barn_name, preferred_breeds, preferred_disciplines, avatar_url",
+          )
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          setError(formatProfileError(null, "load"));
+          setLoading(false);
           return;
         }
 
-        const fetchProfile = async () => {
-          setUserId(session.user.id);
-          setEmail(session.user.email ?? "");
+        if (profile) {
+          applyProfile(profile as UserProfile);
+        } else {
+          const metadataFirstName =
+            typeof session.user.user_metadata?.first_name === "string"
+              ? session.user.user_metadata.first_name.trim()
+              : "";
+          const metadataLastName =
+            typeof session.user.user_metadata?.last_name === "string"
+              ? session.user.user_metadata.last_name.trim()
+              : "";
 
-          const { data: profile, error: profileError } = await supabase
-            .from("user_profiles")
-            .select(
-              "user_id, first_name, last_name, barn_name, preferred_breeds, preferred_disciplines, avatar_url",
-            )
-            .eq("user_id", session.user.id)
-            .maybeSingle();
+          setFirstName(metadataFirstName);
+          setLastName(metadataLastName);
+        }
 
-          if (profileError) {
-            setError(formatProfileError(null, "load"));
-            setLoading(false);
-            return;
-          }
-
-          if (profile) {
-            applyProfile(profile as UserProfile);
-          } else {
-            const metadataFirstName =
-              typeof session.user.user_metadata?.first_name === "string"
-                ? session.user.user_metadata.first_name.trim()
-                : "";
-            const metadataLastName =
-              typeof session.user.user_metadata?.last_name === "string"
-                ? session.user.user_metadata.last_name.trim()
-                : "";
-
-            setFirstName(metadataFirstName);
-            setLastName(metadataLastName);
-          }
-
-          setLoading(false);
-        };
-
-        await fetchProfile();
+        setLoading(false);
       },
-    );
+    });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    return cleanup;
+  }, [router, supabase]);
 
   function applyProfile(profile: UserProfile) {
     setFirstName(profile.first_name ?? "");
@@ -269,6 +272,14 @@ function ProfilePageContent() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
         Loading…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black px-6 text-center text-zinc-400">
+        <p className="text-sm text-zinc-300">{loadError}</p>
       </div>
     );
   }
