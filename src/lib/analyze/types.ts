@@ -13,6 +13,21 @@ export type ConformationReport = {
   summary: string;
 };
 
+export type LeftRightVarianceItem = {
+  category:
+    | "balance"
+    | "shoulder_angle"
+    | "hip_angle"
+    | "topline_quality"
+    | "leg_alignment";
+  label: string;
+  leftScore: number;
+  rightScore: number;
+  difference: number;
+  higherSide: "left" | "right";
+  note: string;
+};
+
 export type DetectedLandmarkPoint = {
   x: number;
   y: number;
@@ -53,6 +68,8 @@ export type FullReportApiResponse = {
   coatColor?: string;
   markings?: string[];
   markingsDescription?: string;
+  leftRightVariance?: LeftRightVarianceItem[];
+  leftRightVarianceSummary?: string | null;
   tripoGlbUrl?: string | null;
   reportId?: string | null;
   pdfUrl?: string | null;

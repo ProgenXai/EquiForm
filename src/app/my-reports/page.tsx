@@ -10,6 +10,7 @@ import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
+import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
 
 type ReportRow = {
   id: string;
@@ -178,6 +179,25 @@ function buildReportForPdf(report: ReportRow): ConformationReport | null {
   return null;
 }
 
+function getStoredLeftRightVarianceFields(reportText: string | null) {
+  if (!reportText) return {};
+
+  try {
+    let parsed: unknown = JSON.parse(reportText);
+    if (typeof parsed === "string") {
+      parsed = JSON.parse(parsed);
+    }
+    if (typeof parsed !== "object" || parsed === null) return {};
+
+    const data = parsed as Record<string, unknown>;
+    if (data.type !== "full") return {};
+
+    return parseStoredLeftRightVariance(data);
+  } catch {
+    return {};
+  }
+}
+
 const PAGE_SIZE = 10;
 
 export default function MyReportsPage() {
@@ -225,6 +245,7 @@ export default function MyReportsPage() {
           reportId: report.id,
           overlayUrl,
           report: pdfReport,
+          ...getStoredLeftRightVarianceFields(report.report_text),
           horse_name: report.horse_name ?? undefined,
           breed: report.breed ?? undefined,
           age: report.age ?? undefined,

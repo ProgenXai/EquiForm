@@ -1,7 +1,7 @@
 import { parseReportResponse } from "@/lib/analyze/landmark-parser";
 import type { ConformationReport } from "@/lib/analyze/types";
 import { formatDisciplineList } from "@/lib/format-discipline";
-import { buildFullReportPdfReport } from "@/lib/pdf/build-full-report-pdf-report";
+import { buildFullReportPdfReport, parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
 import type { ReportPdfRequestBody } from "@/lib/pdf/generate-report-pdf";
 
 type StoredReportRow = {
@@ -115,6 +115,8 @@ export function buildReportPdfBodyFromStoredReport(
               typeof assets?.hindImage === "string" ? assets.hindImage.trim() : "";
 
             if (leftImage && rightImage && frontImage && hindImage) {
+              const varianceFields = parseStoredLeftRightVariance(data);
+
               return {
                 overlayUrl,
                 frontOverlayUrl:
@@ -142,7 +144,9 @@ export function buildReportPdfBodyFromStoredReport(
                   rightReport,
                   frontReport,
                   hindReport,
+                  ...varianceFields,
                 }),
+                ...varianceFields,
                 ...horseMeta,
                 ...model3dFields,
               };

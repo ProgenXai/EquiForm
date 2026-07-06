@@ -6,13 +6,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import type { ConformationReport } from "@/lib/analyze/types";
+import type { ConformationReport, LeftRightVarianceItem } from "@/lib/analyze/types";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
+import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
 
 const HorseViewer3D = dynamic(
   () => import("@/components/HorseViewer3D"),
@@ -34,6 +35,8 @@ type StoredFullReport = {
   coatColor?: string;
   markings?: string[];
   markingsDescription?: string;
+  leftRightVariance?: LeftRightVarianceItem[];
+  leftRightVarianceSummary?: string | null;
 };
 
 type ParsedStoredReport =
@@ -198,6 +201,7 @@ function parseStoredReportText(text: string): ParsedStoredReport {
               typeof data.markingsDescription === "string"
                 ? data.markingsDescription
                 : undefined,
+            ...parseStoredLeftRightVariance(data),
           },
         };
       }
@@ -495,6 +499,14 @@ export default function ReportDetailPage() {
           reportId: report.id,
           overlayUrl,
           report: pdfReport,
+          ...(parsedReport?.kind === "full" &&
+          parsedReport.data.leftRightVarianceSummary
+            ? {
+                leftRightVariance: parsedReport.data.leftRightVariance,
+                leftRightVarianceSummary:
+                  parsedReport.data.leftRightVarianceSummary,
+              }
+            : {}),
           horse_name: report.horse_name ?? undefined,
           breed: report.breed ?? undefined,
           age: report.age ?? undefined,

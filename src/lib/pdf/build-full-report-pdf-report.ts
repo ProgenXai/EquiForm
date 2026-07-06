@@ -1,4 +1,7 @@
-import type { ConformationReport } from "@/lib/analyze/types";
+import type {
+  ConformationReport,
+  LeftRightVarianceItem,
+} from "@/lib/analyze/types";
 
 type ReportSectionKey =
   | "balance"
@@ -7,13 +10,63 @@ type ReportSectionKey =
   | "topline_quality"
   | "leg_alignment";
 
-export function buildFullReportPdfReport(data: {
+const VARIANCE_CATEGORIES = new Set<LeftRightVarianceItem["category"]>([
+  "balance",
+  "shoulder_angle",
+  "hip_angle",
+  "topline_quality",
+  "leg_alignment",
+]);
+
+export function parseStoredLeftRightVariance(data: Record<string, unknown>): {
+  leftRightVariance?: LeftRightVarianceItem[];
+  leftRightVarianceSummary?: string | null;
+} {
+  const leftRightVarianceSummary =
+    typeof data.leftRightVarianceSummary === "string"
+      ? data.leftRightVarianceSummary
+      : null;
+
+  if (!leftRightVarianceSummary) {
+    return {};
+  }
+
+  const raw = data.leftRightVariance;
+  if (!Array.isArray(raw)) {
+    return { leftRightVarianceSummary };
+  }
+
+  const leftRightVariance = raw.filter((item): item is LeftRightVarianceItem => {
+    if (typeof item !== "object" || item === null) return false;
+    const value = item as Record<string, unknown>;
+    return (
+      typeof value.category === "string" &&
+      VARIANCE_CATEGORIES.has(value.category as LeftRightVarianceItem["category"]) &&
+      typeof value.label === "string" &&
+      typeof value.leftScore === "number" &&
+      typeof value.rightScore === "number" &&
+      typeof value.difference === "number" &&
+      (value.higherSide === "left" || value.higherSide === "right") &&
+      typeof value.note === "string"
+    );
+  });
+
+  return { leftRightVariance, leftRightVarianceSummary };
+}
+
+export type FullReportPdfReportInput = {
   combinedScore: number;
   leftReport: ConformationReport;
   rightReport: ConformationReport;
   frontReport: ConformationReport;
   hindReport: ConformationReport;
-}): ConformationReport {
+  leftRightVariance?: LeftRightVarianceItem[];
+  leftRightVarianceSummary?: string | null;
+};
+
+export function buildFullReportPdfReport(
+  data: FullReportPdfReportInput,
+): ConformationReport {
   const viewReports = [
     { label: "Left Side", report: data.leftReport },
     { label: "Right Side", report: data.rightReport },

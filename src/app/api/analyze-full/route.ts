@@ -486,6 +486,72 @@ function calculateCombinedScore(
   );
 }
 
+const CONFORMATION_CATEGORY_LABELS = {
+  balance: "Balance",
+  shoulder_angle: "Shoulder Angle",
+  hip_angle: "Hip Angle",
+  topline_quality: "Topline Quality",
+  leg_alignment: "Leg Alignment",
+} as const;
+
+type ConformationCategoryKey = keyof typeof CONFORMATION_CATEGORY_LABELS;
+
+const LR_VARIANCE_NOTE_THRESHOLD = 15;
+
+type LeftRightVarianceItem = {
+  category: ConformationCategoryKey;
+  label: string;
+  leftScore: number;
+  rightScore: number;
+  difference: number;
+  higherSide: "left" | "right";
+  note: string;
+};
+
+function buildLeftRightVarianceNotes(
+  leftReport: ConformationReport,
+  rightReport: ConformationReport,
+): LeftRightVarianceItem[] {
+  const categories = Object.keys(
+    CONFORMATION_CATEGORY_LABELS,
+  ) as ConformationCategoryKey[];
+
+  const items: LeftRightVarianceItem[] = [];
+
+  for (const category of categories) {
+    const leftScore = leftReport[category].score;
+    const rightScore = rightReport[category].score;
+    const difference = Math.abs(leftScore - rightScore);
+
+    if (difference < LR_VARIANCE_NOTE_THRESHOLD) continue;
+
+    const higherSide: "left" | "right" =
+      leftScore > rightScore ? "left" : "right";
+    const label = CONFORMATION_CATEGORY_LABELS[category];
+
+    items.push({
+      category,
+      label,
+      leftScore,
+      rightScore,
+      difference,
+      higherSide,
+      note: `${label} scored ${difference} points higher from the ${higherSide} side (left: ${leftScore}, right: ${rightScore}). A gap like this is usually explained by how the horse was standing or the camera angle in one of the two photos, though it can occasionally reflect a genuine slight asymmetry. Photos with the horse standing square on level ground, taken perpendicular to the horse's body, give the most comparable left/right scores.`,
+    });
+  }
+
+  return items;
+}
+
+function buildLeftRightVarianceSummary(
+  items: LeftRightVarianceItem[],
+): string | null {
+  if (items.length === 0) return null;
+
+  const list = items.map((item) => item.label).join(", ");
+  return `Your left and right side photos produced noticeably different scores in: ${list}. This is often caused by stance or camera angle differences between the two photos rather than the horse's actual conformation. See the notes on each affected trait below for details.`;
+}
+
 function compareImageSimilarity(
   bufferA: Buffer,
   bufferB: Buffer,
@@ -1496,6 +1562,17 @@ export async function POST(request: Request) {
     const betterSide: "left" | "right" =
       leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
 
+    const leftRightVariance = buildLeftRightVarianceNotes(leftReport, rightReport);
+    const leftRightVarianceSummary =
+      buildLeftRightVarianceSummary(leftRightVariance);
+
+    if (leftRightVariance.length > 0) {
+      console.log(
+        "[analyze-full] left/right variance detected:",
+        leftRightVariance.map((v) => `${v.category}: ${v.difference}pt (${v.higherSide})`).join(", "),
+      );
+    }
+
     const detectedCoatColor = leftCoatResult.coatColor !== "bay"
       ? leftCoatResult.coatColor
       : rightCoatResult.coatColor;
@@ -1694,6 +1771,8 @@ export async function POST(request: Request) {
       coatColor: detectedCoatColor,
       markings,
       markingsDescription,
+      leftRightVariance,
+      leftRightVarianceSummary,
       pdfAssets: {
         frontOverlayUrl,
         hindOverlayUrl,
@@ -1865,7 +1944,11 @@ export async function POST(request: Request) {
                     rightReport,
                     frontReport,
                     hindReport,
+                    leftRightVariance,
+                    leftRightVarianceSummary,
                   }),
+                  leftRightVariance,
+                  leftRightVarianceSummary,
                   horse_name: horseName ?? undefined,
                   breed: breed || undefined,
                   age: age ?? undefined,
@@ -1915,6 +1998,8 @@ export async function POST(request: Request) {
       hindReport,
       combinedScore,
       betterSide,
+      leftRightVariance,
+      leftRightVarianceSummary,
       landmarks: {
         left: detectedLandmarksByView.left,
         right: detectedLandmarksByView.right,

@@ -12,6 +12,7 @@ import type {
   ConformationReport,
   DetectedLandmarkPoint,
   FullReportApiResponse,
+  LeftRightVarianceItem,
 } from "@/lib/analyze/types";
 import { extractJsonObject } from "@/lib/analyze/landmark-parser";
 import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
@@ -35,6 +36,7 @@ import {
   formatUploadError,
   USER_FACING,
 } from "@/lib/user-facing-errors";
+import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
 
 const HorseViewer3D = dynamic(
   () => import("@/components/HorseViewer3D"),
@@ -552,6 +554,10 @@ function parseFullReportApiResponse(
     glbUrl?: string | null;
   },
 ): FullReportApiResponse {
+  const varianceFields = parseStoredLeftRightVariance(
+    raw as unknown as Record<string, unknown>,
+  );
+
   return {
     overlayImage:
       typeof raw.overlayImage === "string"
@@ -592,6 +598,7 @@ function parseFullReportApiResponse(
       typeof raw.tripoGlbUrl === "string" ? raw.tripoGlbUrl : null,
     reportId: typeof raw.reportId === "string" ? raw.reportId : null,
     pdfUrl: typeof raw.pdfUrl === "string" ? raw.pdfUrl : null,
+    ...varianceFields,
   };
 }
 
@@ -1591,6 +1598,13 @@ export default function AnalyzeClient() {
           frontImage,
           hindImage,
           report: buildFullReportPdfReport(fullReportResult),
+          ...(fullReportResult.leftRightVarianceSummary
+            ? {
+                leftRightVariance: fullReportResult.leftRightVariance,
+                leftRightVarianceSummary:
+                  fullReportResult.leftRightVarianceSummary,
+              }
+            : {}),
           horse_name: fullReportResult.horseName ?? horseName,
           breed,
           age,
@@ -2806,6 +2820,35 @@ export default function AnalyzeClient() {
                             );
                           })}
                         </div>
+
+                        {fullReportResult.leftRightVarianceSummary ? (
+                          <div className="mt-6 rounded-lg border border-accent/20 bg-accent/5 p-4">
+                            <h3 className="text-sm font-semibold text-zinc-200">
+                              Left/Right Scoring Notes
+                            </h3>
+                            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                              {fullReportResult.leftRightVarianceSummary}
+                            </p>
+                            {fullReportResult.leftRightVariance &&
+                            fullReportResult.leftRightVariance.length > 0 ? (
+                              <ul className="mt-3 space-y-3">
+                                {fullReportResult.leftRightVariance.map(
+                                  (item: LeftRightVarianceItem) => (
+                                    <li
+                                      key={item.category}
+                                      className="text-xs leading-relaxed text-zinc-500"
+                                    >
+                                      <span className="font-medium text-zinc-400">
+                                        {item.label}:{" "}
+                                      </span>
+                                      {item.note}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                            ) : null}
+                          </div>
+                        ) : null}
 
                         <div ref={fullReport3DSectionRef}>
                         {meshyTaskId && !fullReportGlbUrl ? (

@@ -9,7 +9,10 @@ import {
   type PDFPage,
 } from "pdf-lib";
 
-import type { ConformationReport } from "@/lib/analyze/types";
+import type {
+  ConformationReport,
+  LeftRightVarianceItem,
+} from "@/lib/analyze/types";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import type { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -39,6 +42,8 @@ export type ReportPdfRequestBody = {
   discipline?: string;
   model3d_snapshot?: string;
   model3d_placeholder?: boolean;
+  leftRightVariance?: LeftRightVarianceItem[];
+  leftRightVarianceSummary?: string | null;
 };
 
 const FULL_REPORT_OVERLAY_MAX_HEIGHT = 200;
@@ -838,6 +843,25 @@ export async function generateReportPdfBytes(
     const section = report[key];
     writeSectionHeader(label);
     writeParagraph(section.notes, 10, 3, rgb(0.25, 0.25, 0.25));
+  }
+
+  if (body.leftRightVarianceSummary) {
+    y -= 6;
+    ensureLineSpace(28);
+    page.drawText("Left/Right Scoring Notes", {
+      x: MARGIN,
+      y,
+      size: 13,
+      font: fontBold,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+    y -= 16;
+    writeParagraph(body.leftRightVarianceSummary, 10, 4);
+
+    for (const item of body.leftRightVariance ?? []) {
+      writeSectionHeader(item.label);
+      writeParagraph(item.note, 9, 3, rgb(0.3, 0.3, 0.3));
+    }
   }
 
   if (model3dSnapshotImage) {
