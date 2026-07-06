@@ -1135,18 +1135,21 @@ export async function POST(request: Request) {
       imageUrls[view] = trimmedUrl;
     }
 
-    const meshyTaskId = await submitMeshy3DTask(
-      imageUrls.front,
-      imageUrls.left,
-      imageUrls.hind,
-      imageUrls.right,
-      {
-        userId: user.id,
-        userEmail: user.email,
-        horseName:
-          typeof body.horseName === "string" ? body.horseName.trim() : null,
-      },
-    );
+    const meshyTaskId =
+      body.generate3D === true
+        ? await submitMeshy3DTask(
+            imageUrls.front,
+            imageUrls.left,
+            imageUrls.hind,
+            imageUrls.right,
+            {
+              userId: user.id,
+              userEmail: user.email,
+              horseName:
+                typeof body.horseName === "string" ? body.horseName.trim() : null,
+            },
+          )
+        : null;
 
     const placeholderSection = {
       score: 85,
@@ -1587,44 +1590,48 @@ export async function POST(request: Request) {
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
 
-    let meshyFrontUrl = imageUrls.front;
-    let meshyLeftUrl = imageUrls.left;
-    let meshyHindUrl = imageUrls.hind;
-    let meshyRightUrl = imageUrls.right;
+    let meshyTaskId: string | null = null;
 
-    if (process.env.PHOTOROOM_API_KEY?.trim()) {
-      console.log("[photoroom] removing backgrounds before Meshy submission");
-      const [cleanFront, cleanLeft, cleanHind, cleanRight] = await Promise.all([
-        removeBackgroundWithPhotoRoom(imageUrls.front),
-        removeBackgroundWithPhotoRoom(imageUrls.left),
-        removeBackgroundWithPhotoRoom(imageUrls.hind),
-        removeBackgroundWithPhotoRoom(imageUrls.right),
+    if (generate3D) {
+      let meshyFrontUrl = imageUrls.front;
+      let meshyLeftUrl = imageUrls.left;
+      let meshyHindUrl = imageUrls.hind;
+      let meshyRightUrl = imageUrls.right;
+
+      if (process.env.PHOTOROOM_API_KEY?.trim()) {
+        console.log("[photoroom] removing backgrounds before Meshy submission");
+        const [cleanFront, cleanLeft, cleanHind, cleanRight] = await Promise.all([
+          removeBackgroundWithPhotoRoom(imageUrls.front),
+          removeBackgroundWithPhotoRoom(imageUrls.left),
+          removeBackgroundWithPhotoRoom(imageUrls.hind),
+          removeBackgroundWithPhotoRoom(imageUrls.right),
+        ]);
+
+        if (cleanFront) meshyFrontUrl = cleanFront;
+        if (cleanLeft) meshyLeftUrl = cleanLeft;
+        if (cleanHind) meshyHindUrl = cleanHind;
+        if (cleanRight) meshyRightUrl = cleanRight;
+      }
+
+      meshyTaskId = await submitMeshy3DTask(
+        meshyFrontUrl,
+        meshyLeftUrl,
+        meshyHindUrl,
+        meshyRightUrl,
+        {
+          userId: user.id,
+          userEmail: user.email,
+          horseName,
+        },
+      );
+
+      void cleanupPhotoroomTempFiles(serviceClient, [
+        meshyFrontUrl !== imageUrls.front ? meshyFrontUrl : null,
+        meshyLeftUrl !== imageUrls.left ? meshyLeftUrl : null,
+        meshyHindUrl !== imageUrls.hind ? meshyHindUrl : null,
+        meshyRightUrl !== imageUrls.right ? meshyRightUrl : null,
       ]);
-
-      if (cleanFront) meshyFrontUrl = cleanFront;
-      if (cleanLeft) meshyLeftUrl = cleanLeft;
-      if (cleanHind) meshyHindUrl = cleanHind;
-      if (cleanRight) meshyRightUrl = cleanRight;
     }
-
-    const meshyTaskId = await submitMeshy3DTask(
-      meshyFrontUrl,
-      meshyLeftUrl,
-      meshyHindUrl,
-      meshyRightUrl,
-      {
-        userId: user.id,
-        userEmail: user.email,
-        horseName,
-      },
-    );
-
-    void cleanupPhotoroomTempFiles(serviceClient, [
-      meshyFrontUrl !== imageUrls.front ? meshyFrontUrl : null,
-      meshyLeftUrl !== imageUrls.left ? meshyLeftUrl : null,
-      meshyHindUrl !== imageUrls.hind ? meshyHindUrl : null,
-      meshyRightUrl !== imageUrls.right ? meshyRightUrl : null,
-    ]);
 
     const combinedScore = calculateCombinedScore(
       leftReport,

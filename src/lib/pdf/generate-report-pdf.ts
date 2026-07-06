@@ -66,6 +66,8 @@ const FOOTER_Y = 28;
 const ACCENT_RGB = rgb(0, 212 / 255, 200 / 255);
 const PDF_STORAGE_BUCKET = "horse-photos";
 const PDF_SUBTITLE = "AI-Powered Equine Conformation Analysis Report";
+const MODEL3D_SNAPSHOT_IMAGE_GAP = 16;
+const MODEL3D_SNAPSHOT_BOTTOM_GAP = 20;
 
 const SCORE_ROWS: {
   key: keyof Omit<ConformationReport, "overall_score" | "summary">;
@@ -591,11 +593,16 @@ function measureModel3dSnapshotSectionHeight(
   minContentY: number,
 ): number {
   const headerHeight = measureModel3dHeaderHeight(body);
-  const yAfterHeader = startY - headerHeight;
-  const maxImageHeight = yAfterHeader - minContentY - 20;
+  const yAfterHeader = startY - headerHeight - MODEL3D_SNAPSHOT_IMAGE_GAP;
+  const maxImageHeight = yAfterHeader - minContentY - MODEL3D_SNAPSHOT_BOTTOM_GAP;
   const imageHeight = measureSnapshotImageHeight(snapshotImage, maxImageHeight);
 
-  return headerHeight + imageHeight + 20;
+  return (
+    headerHeight +
+    MODEL3D_SNAPSHOT_IMAGE_GAP +
+    imageHeight +
+    MODEL3D_SNAPSHOT_BOTTOM_GAP
+  );
 }
 
 function measureWrappedParagraphHeight(
@@ -614,21 +621,6 @@ function hasSpaceForModel3dSection(
   minContentY: number,
 ): boolean {
   return startY - minContentY >= sectionHeight;
-}
-
-function drawCenteredTextInColumn(
-  page: PDFPage,
-  text: string,
-  y: number,
-  font: PDFFont,
-  size: number,
-  color: ReturnType<typeof rgb>,
-  colX: number,
-  colWidth: number,
-) {
-  const width = font.widthOfTextAtSize(text, size);
-  const x = colX + Math.max(0, (colWidth - width) / 2);
-  page.drawText(text, { x, y, size, font, color });
 }
 
 export async function generateReportPdfBytes(
@@ -876,49 +868,25 @@ export async function generateReportPdfBytes(
       forceNewPage();
     }
 
-    const leftColWidth = CONTENT_WIDTH * 0.38;
-    const rightColWidth = CONTENT_WIDTH * 0.58;
-    const colGap = CONTENT_WIDTH * 0.04;
-    const rightColX = MARGIN + leftColWidth + colGap;
-    const sectionStartY = y;
+    y = drawModel3dPageHeader(page, y, body, report, fontBold, fontRegular);
+    y -= MODEL3D_SNAPSHOT_IMAGE_GAP;
 
-    // Left column: title, horse details, score
-    let leftY = sectionStartY;
-    drawCenteredTextInColumn(page, "3D Model View", leftY, fontBold, 14, rgb(0.1, 0.1, 0.1), MARGIN, leftColWidth);
-    leftY -= 22;
-
-    const horseName = typeof body.horse_name === "string" ? body.horse_name.trim() : "";
-    if (horseName) {
-      drawCenteredTextInColumn(page, horseName, leftY, fontBold, 16, rgb(0.1, 0.1, 0.1), MARGIN, leftColWidth);
-      leftY -= 22;
-    }
-
-    for (const line of getReportHorseDetailTextLines(body)) {
-      drawCenteredTextInColumn(page, line, leftY, fontRegular, 9, rgb(0.35, 0.35, 0.35), MARGIN, leftColWidth);
-      leftY -= 13;
-    }
-
-    leftY -= 8;
-    const scoreText2 = `Overall Score: ${report.overall_score}/100`;
-    drawCenteredTextInColumn(page, scoreText2, leftY, fontBold, 12, ACCENT_RGB, MARGIN, leftColWidth);
-
-    // Right column: 3D snapshot filling available height
-    const snapshotMaxHeight = sectionStartY - MIN_CONTENT_Y - 10;
+    const snapshotMaxHeight = y - MIN_CONTENT_Y - MODEL3D_SNAPSHOT_BOTTOM_GAP;
     const snapshotScale = Math.min(
-      rightColWidth / model3dSnapshotImage.width,
+      CONTENT_WIDTH / model3dSnapshotImage.width,
       snapshotMaxHeight / model3dSnapshotImage.height,
     );
     const snapshotWidth = model3dSnapshotImage.width * snapshotScale;
     const snapshotHeight = model3dSnapshotImage.height * snapshotScale;
 
     page.drawImage(model3dSnapshotImage, {
-      x: rightColX + (rightColWidth - snapshotWidth) / 2,
-      y: sectionStartY - snapshotHeight,
+      x: MARGIN + (CONTENT_WIDTH - snapshotWidth) / 2,
+      y: y - snapshotHeight,
       width: snapshotWidth,
       height: snapshotHeight,
     });
 
-    y = sectionStartY - Math.max(snapshotHeight, leftY - sectionStartY) - 20;
+    y = y - snapshotHeight - MODEL3D_SNAPSHOT_BOTTOM_GAP;
   } else if (body.model3d_placeholder) {
     const headerHeight = measureModel3dHeaderHeight(body);
     const placeholderHeight = measureWrappedParagraphHeight(
