@@ -21,33 +21,46 @@ export function bootstrapAuthSession({
   onTimeout,
 }: BootstrapAuthSessionOptions): () => void {
   let cancelled = false;
-  let authCheckComplete = false;
+  let authResolved = false;
+  let subscription: { unsubscribe: () => void } | null = null;
 
   const supabase = createClient();
 
-  const completeAuthCheck = () => {
-    authCheckComplete = true;
-  };
-
-  const timeoutId = window.setTimeout(() => {
-    if (cancelled || authCheckComplete) return;
-    console.log(
-      `${logPrefix} auth load timeout fired after ${AUTH_LOAD_TIMEOUT_MS}ms`,
-    );
-    completeAuthCheck();
-    onTimeout();
-  }, AUTH_LOAD_TIMEOUT_MS);
-
-  const handleSession = async (source: string, session: Session | null) => {
-    if (cancelled) return;
-
-    if (!session?.user) {
-      console.log(`${logPrefix} ${source}: no session`);
-      onUnauthenticated();
+  const markAuthResolved = (source: string) => {
+    if (authResolved) {
+      console.log(`${logPrefix} auth already resolved, skipping mark from ${source}`);
       return;
     }
 
-    await onAuthenticated(session);
+    console.log(`${logPrefix} marking auth resolved from ${source}`);
+    authResolved = true;
+    window.clearTimeout(timeoutId);
+    console.log(`${logPrefix} auth resolved flag set, timeout cleared`);
+  };
+
+  const timeoutId = window.setTimeout(() => {
+    if (cancelled || authResolved) return;
+    console.log(
+      `${logPrefix} auth load timeout fired after ${AUTH_LOAD_TIMEOUT_MS}ms`,
+    );
+    markAuthResolved("timeout");
+    onTimeout();
+  }, AUTH_LOAD_TIMEOUT_MS);
+
+  const loadAuthenticatedData = async (source: string, session: Session) => {
+    if (cancelled) return;
+
+    console.log(`${logPrefix} loading data from ${source}...`);
+    try {
+      await onAuthenticated(session);
+      if (cancelled) return;
+      console.log(`${logPrefix} data loaded from ${source}`);
+    } catch (error) {
+      console.error(`${logPrefix} data load failed from ${source}`, error);
+      if (!cancelled) {
+        onTimeout();
+      }
+    }
   };
 
   void (async () => {
@@ -66,40 +79,56 @@ export function bootstrapAuthSession({
         error: error?.message ?? null,
       });
 
-      completeAuthCheck();
-      window.clearTimeout(timeoutId);
-      await handleSession("initial getSession()", session);
+      markAuthResolved("initial getSession()");
+
+      if (!session?.user) {
+        console.log(`${logPrefix} initial getSession(): no session`);
+        onUnauthenticated();
+      } else {
+        await loadAuthenticatedData("initial getSession()", session);
+      }
     } catch (error) {
       if (cancelled) return;
 
-      console.log(`${logPrefix} initial getSession() failed:`, error);
-      completeAuthCheck();
-      window.clearTimeout(timeoutId);
+      console.error(`${logPrefix} initial getSession() failed:`, error);
+      markAuthResolved("initial getSession() failed");
       onTimeout();
     }
-  })();
 
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (cancelled) return;
 
-    console.log(`${logPrefix} onAuthStateChange:`, event, {
-      hasSession: Boolean(session?.user),
-      userId: session?.user?.id ?? null,
+    const {
+      data: { subscription: authSubscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) return;
+
+      console.log(`${logPrefix} onAuthStateChange:`, event, {
+        hasSession: Boolean(session?.user),
+        userId: session?.user?.id ?? null,
+      });
+
+      if (event === "INITIAL_SESSION") {
+        markAuthResolved("onAuthStateChange(INITIAL_SESSION)");
+        return;
+      }
+
+      markAuthResolved(`onAuthStateChange(${event})`);
+
+      if (!session?.user) {
+        console.log(`${logPrefix} onAuthStateChange(${event}): no session`);
+        onUnauthenticated();
+        return;
+      }
+
+      await loadAuthenticatedData(`onAuthStateChange(${event})`, session);
     });
 
-    if (!authCheckComplete) {
-      completeAuthCheck();
-      window.clearTimeout(timeoutId);
-    }
-
-    await handleSession(`onAuthStateChange(${event})`, session);
-  });
+    subscription = authSubscription;
+  })();
 
   return () => {
     cancelled = true;
     window.clearTimeout(timeoutId);
-    subscription.unsubscribe();
+    subscription?.unsubscribe();
   };
 }

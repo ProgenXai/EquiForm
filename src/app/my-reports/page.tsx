@@ -206,7 +206,6 @@ const PAGE_SIZE = 10;
 
 export default function MyReportsPage() {
   const router = useRouter();
-  const [loadTrigger, setLoadTrigger] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRow[]>([]);
@@ -348,16 +347,18 @@ export default function MyReportsPage() {
   }
 
   useEffect(() => {
-    setLoadTrigger(Date.now());
-  }, []);
+    const effectRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    console.log("[my-reports] auth/data effect run", {
+      effectRunId,
+      page,
+    });
 
-  useEffect(() => {
     setLoading(true);
     setReports([]);
     setLoadError(null);
 
     const cleanup = bootstrapAuthSession({
-      logPrefix: "[my-reports]",
+      logPrefix: `[my-reports:${effectRunId}]`,
       onUnauthenticated: () => {
         router.replace("/");
       },
@@ -366,6 +367,12 @@ export default function MyReportsPage() {
         setLoadError(AUTH_LOAD_ERROR_MESSAGE);
       },
       onAuthenticated: async (session) => {
+        console.log("[my-reports] loading reports data...", {
+          effectRunId,
+          userId: session.user.id,
+          page,
+        });
+
         setLoading(true);
         setReports([]);
 
@@ -383,7 +390,17 @@ export default function MyReportsPage() {
           .order("created_at", { ascending: false })
           .range(from, to);
 
-        if (!error && data) {
+        if (error) {
+          throw error;
+        }
+
+        console.log("[my-reports] reports data loaded", {
+          effectRunId,
+          count: data?.length ?? 0,
+          totalCount: count ?? 0,
+        });
+
+        if (data) {
           setReports(data as ReportRow[]);
           setTotalCount(count ?? 0);
         }
@@ -393,7 +410,7 @@ export default function MyReportsPage() {
     });
 
     return cleanup;
-  }, [router, page, loadTrigger]);
+  }, [router, page]);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
