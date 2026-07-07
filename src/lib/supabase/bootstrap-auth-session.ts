@@ -8,6 +8,27 @@ const GET_SESSION_FAST_PATH_MS = 2000;
 export const AUTH_LOAD_ERROR_MESSAGE =
   "Having trouble loading your account. Please refresh.";
 
+export const DATA_LOAD_TIMEOUT_MS = 12000;
+
+export class DataLoadTimeoutError extends Error {
+  constructor() {
+    super("Data load timed out");
+    this.name = "DataLoadTimeoutError";
+  }
+}
+
+export function raceWithDataLoadTimeout<T>(
+  promise: PromiseLike<T>,
+  timeoutMs = DATA_LOAD_TIMEOUT_MS,
+): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new DataLoadTimeoutError()), timeoutMs);
+    }),
+  ]);
+}
+
 type BootstrapAuthSessionOptions = {
   logPrefix: string;
   onAuthenticated: (session: Session) => Promise<void>;

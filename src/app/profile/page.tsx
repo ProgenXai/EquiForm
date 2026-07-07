@@ -15,6 +15,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_LOAD_ERROR_MESSAGE,
   bootstrapAuthSession,
+  DataLoadTimeoutError,
+  DATA_LOAD_TIMEOUT_MS,
+  raceWithDataLoadTimeout,
 } from "@/lib/supabase/bootstrap-auth-session";
 import { formatProfileError } from "@/lib/user-facing-errors";
 
@@ -25,6 +28,10 @@ const ALLOWED_AVATAR_TYPES = new Set([
   "image/webp",
 ]);
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const PROFILE_LOAD_ERROR_MESSAGE =
+  "We had trouble loading your profile. Please refresh.";
+const PROFILE_LOAD_TIMEOUT_MESSAGE =
+  "Your profile is taking longer than expected to load. Please refresh.";
 
 type UserProfile = {
   user_id: string;
@@ -79,11 +86,14 @@ function ProfilePageContent() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    const effectRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    console.log("[profile] auth/data effect run", { effectRunId });
+
     setLoading(true);
     setLoadError(null);
 
     const cleanup = bootstrapAuthSession({
-      logPrefix: "[profile]",
+      logPrefix: `[profile:${effectRunId}]`,
       onUnauthenticated: () => {
         router.replace("/");
       },
@@ -92,40 +102,64 @@ function ProfilePageContent() {
         setLoadError(AUTH_LOAD_ERROR_MESSAGE);
       },
       onAuthenticated: async (session) => {
-        setUserId(session.user.id);
-        setEmail(session.user.email ?? "");
+        console.log("[profile] loading profile data...", {
+          effectRunId,
+          userId: session.user.id,
+        });
 
-        const { data: profile, error: profileError } = await supabase
-          .from("user_profiles")
-          .select(
-            "user_id, first_name, last_name, barn_name, preferred_breeds, preferred_disciplines, avatar_url",
-          )
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        try {
+          setUserId(session.user.id);
+          setEmail(session.user.email ?? "");
 
-        if (profileError) {
-          setError(formatProfileError(null, "load"));
+          const { data: profile, error: profileError } =
+            await raceWithDataLoadTimeout(
+              supabase
+                .from("user_profiles")
+                .select(
+                  "user_id, first_name, last_name, barn_name, preferred_breeds, preferred_disciplines, avatar_url",
+                )
+                .eq("user_id", session.user.id)
+                .maybeSingle(),
+            );
+
+          if (profileError) {
+            throw profileError;
+          }
+
+          console.log("[profile] profile data loaded", { effectRunId });
+
+          if (profile) {
+            applyProfile(profile as UserProfile);
+          } else {
+            const metadataFirstName =
+              typeof session.user.user_metadata?.first_name === "string"
+                ? session.user.user_metadata.first_name.trim()
+                : "";
+            const metadataLastName =
+              typeof session.user.user_metadata?.last_name === "string"
+                ? session.user.user_metadata.last_name.trim()
+                : "";
+
+            setFirstName(metadataFirstName);
+            setLastName(metadataLastName);
+          }
+        } catch (error) {
+          if (error instanceof DataLoadTimeoutError) {
+            console.error(
+              `[profile] profile query timed out after ${DATA_LOAD_TIMEOUT_MS}ms`,
+              { effectRunId },
+            );
+            setLoadError(PROFILE_LOAD_TIMEOUT_MESSAGE);
+          } else {
+            console.error("[profile] profile query failed", {
+              effectRunId,
+              error,
+            });
+            setLoadError(PROFILE_LOAD_ERROR_MESSAGE);
+          }
+        } finally {
           setLoading(false);
-          return;
         }
-
-        if (profile) {
-          applyProfile(profile as UserProfile);
-        } else {
-          const metadataFirstName =
-            typeof session.user.user_metadata?.first_name === "string"
-              ? session.user.user_metadata.first_name.trim()
-              : "";
-          const metadataLastName =
-            typeof session.user.user_metadata?.last_name === "string"
-              ? session.user.user_metadata.last_name.trim()
-              : "";
-
-          setFirstName(metadataFirstName);
-          setLastName(metadataLastName);
-        }
-
-        setLoading(false);
       },
     });
 

@@ -9,6 +9,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_LOAD_ERROR_MESSAGE,
   bootstrapAuthSession,
+  DataLoadTimeoutError,
+  DATA_LOAD_TIMEOUT_MS,
+  raceWithDataLoadTimeout,
 } from "@/lib/supabase/bootstrap-auth-session";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
@@ -35,6 +38,11 @@ function formatHorseDetailLines(horse: HorseRow): string[] {
   ].filter((line): line is string => line !== null);
 }
 
+const HORSES_LOAD_ERROR_MESSAGE =
+  "We had trouble loading your horses. Please refresh.";
+const HORSES_LOAD_TIMEOUT_MESSAGE =
+  "Horses are taking longer than expected to load. Please refresh.";
+
 export default function MyHorsesPage() {
   const router = useRouter();
   const [horses, setHorses] = useState<HorseRow[]>([]);
@@ -44,12 +52,15 @@ export default function MyHorsesPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
+    const effectRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    console.log("[my-horses] auth/data effect run", { effectRunId });
+
     setLoading(true);
     setHorses([]);
     setLoadError(null);
 
     const cleanup = bootstrapAuthSession({
-      logPrefix: "[my-horses]",
+      logPrefix: `[my-horses:${effectRunId}]`,
       onUnauthenticated: () => {
         router.replace("/");
       },
@@ -58,20 +69,52 @@ export default function MyHorsesPage() {
         setLoadError(AUTH_LOAD_ERROR_MESSAGE);
       },
       onAuthenticated: async (session) => {
+        console.log("[my-horses] loading horses data...", {
+          effectRunId,
+          userId: session.user.id,
+        });
+
         setLoading(true);
 
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("horses")
-          .select("id, name, breed, coat_color, age, sex, discipline")
-          .eq("user_id", session.user.id)
-          .order("name", { ascending: true });
+        try {
+          const supabase = createClient();
+          const { data, error } = await raceWithDataLoadTimeout(
+            supabase
+              .from("horses")
+              .select("id, name, breed, coat_color, age, sex, discipline")
+              .eq("user_id", session.user.id)
+              .order("name", { ascending: true }),
+          );
 
-        if (!error && data) {
-          setHorses(data as HorseRow[]);
+          if (error) {
+            throw error;
+          }
+
+          console.log("[my-horses] horses data loaded", {
+            effectRunId,
+            count: data?.length ?? 0,
+          });
+
+          if (data) {
+            setHorses(data as HorseRow[]);
+          }
+        } catch (error) {
+          if (error instanceof DataLoadTimeoutError) {
+            console.error(
+              `[my-horses] horses query timed out after ${DATA_LOAD_TIMEOUT_MS}ms`,
+              { effectRunId },
+            );
+            setLoadError(HORSES_LOAD_TIMEOUT_MESSAGE);
+          } else {
+            console.error("[my-horses] horses query failed", {
+              effectRunId,
+              error,
+            });
+            setLoadError(HORSES_LOAD_ERROR_MESSAGE);
+          }
+        } finally {
+          setLoading(false);
         }
-
-        setLoading(false);
       },
     });
 

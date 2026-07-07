@@ -11,6 +11,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_LOAD_ERROR_MESSAGE,
   bootstrapAuthSession,
+  DataLoadTimeoutError,
+  DATA_LOAD_TIMEOUT_MS,
+  raceWithDataLoadTimeout,
 } from "@/lib/supabase/bootstrap-auth-session";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
@@ -203,6 +206,10 @@ function getStoredLeftRightVarianceFields(reportText: string | null) {
 }
 
 const PAGE_SIZE = 10;
+const REPORTS_LOAD_ERROR_MESSAGE =
+  "We had trouble loading your reports. Please refresh.";
+const REPORTS_LOAD_TIMEOUT_MESSAGE =
+  "Reports are taking longer than expected to load. Please refresh.";
 
 export default function MyReportsPage() {
   const router = useRouter();
@@ -376,36 +383,54 @@ export default function MyReportsPage() {
         setLoading(true);
         setReports([]);
 
-        const supabase = createClient();
-        const from = page * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+        try {
+          const supabase = createClient();
+          const from = page * PAGE_SIZE;
+          const to = from + PAGE_SIZE - 1;
 
-        const { data, error, count } = await supabase
-          .from("reports")
-          .select(
-            "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
-            { count: "exact" },
-          )
-          .eq("user_id", session.user.id)
-          .order("created_at", { ascending: false })
-          .range(from, to);
+          const { data, error, count } = await raceWithDataLoadTimeout(
+            supabase
+              .from("reports")
+              .select(
+                "id, created_at, overall_score, horse_name, breed, age, sex, discipline, pdf_url, report_text, overlay_url, glb_url, balance_score, shoulder_score, hip_score, topline_score, leg_score",
+                { count: "exact" },
+              )
+              .eq("user_id", session.user.id)
+              .order("created_at", { ascending: false })
+              .range(from, to),
+          );
 
-        if (error) {
-          throw error;
+          if (error) {
+            throw error;
+          }
+
+          console.log("[my-reports] reports data loaded", {
+            effectRunId,
+            count: data?.length ?? 0,
+            totalCount: count ?? 0,
+          });
+
+          if (data) {
+            setReports(data as ReportRow[]);
+            setTotalCount(count ?? 0);
+          }
+        } catch (error) {
+          if (error instanceof DataLoadTimeoutError) {
+            console.error(
+              `[my-reports] reports query timed out after ${DATA_LOAD_TIMEOUT_MS}ms`,
+              { effectRunId },
+            );
+            setLoadError(REPORTS_LOAD_TIMEOUT_MESSAGE);
+          } else {
+            console.error("[my-reports] reports query failed", {
+              effectRunId,
+              error,
+            });
+            setLoadError(REPORTS_LOAD_ERROR_MESSAGE);
+          }
+        } finally {
+          setLoading(false);
         }
-
-        console.log("[my-reports] reports data loaded", {
-          effectRunId,
-          count: data?.length ?? 0,
-          totalCount: count ?? 0,
-        });
-
-        if (data) {
-          setReports(data as ReportRow[]);
-          setTotalCount(count ?? 0);
-        }
-
-        setLoading(false);
       },
     });
 
