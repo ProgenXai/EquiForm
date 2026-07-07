@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
 export const AUTH_LOAD_TIMEOUT_MS = 8000;
+const GET_SESSION_FAST_PATH_MS = 2000;
 
 export const AUTH_LOAD_ERROR_MESSAGE =
   "Having trouble loading your account. Please refresh.";
@@ -22,7 +23,7 @@ export function bootstrapAuthSession({
 }: BootstrapAuthSessionOptions): () => void {
   let cancelled = false;
   let authResolved = false;
-  let subscription: { unsubscribe: () => void } | null = null;
+  let initialDataLoaded = false;
 
   const supabase = createClient();
 
@@ -63,72 +64,121 @@ export function bootstrapAuthSession({
     }
   };
 
+  const handleSession = async (
+    source: string,
+    session: Session | null,
+    options: { initialOnly?: boolean } = {},
+  ) => {
+    if (cancelled) return;
+
+    if (!session?.user) {
+      console.log(`${logPrefix} ${source}: no session`);
+      markAuthResolved(source);
+      onUnauthenticated();
+      return;
+    }
+
+    if (options.initialOnly) {
+      if (initialDataLoaded) {
+        console.log(
+          `${logPrefix} skipping duplicate initial load from ${source}`,
+        );
+        return;
+      }
+      initialDataLoaded = true;
+    }
+
+    markAuthResolved(source);
+    await loadAuthenticatedData(source, session);
+  };
+
+  console.log(`${logPrefix} subscribing to onAuthStateChange first`);
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (cancelled) return;
+
+    console.log(`${logPrefix} onAuthStateChange:`, event, {
+      hasSession: Boolean(session?.user),
+      userId: session?.user?.id ?? null,
+    });
+
+    if (event === "INITIAL_SESSION") {
+      await handleSession("onAuthStateChange(INITIAL_SESSION)", session, {
+        initialOnly: true,
+      });
+      return;
+    }
+
+    if (!session?.user) {
+      console.log(`${logPrefix} onAuthStateChange(${event}): no session`);
+      markAuthResolved(`onAuthStateChange(${event})`);
+      onUnauthenticated();
+      return;
+    }
+
+    await handleSession(`onAuthStateChange(${event})`, session);
+  });
+
   void (async () => {
-    console.log(`${logPrefix} initial getSession() starting`);
+    console.log(
+      `${logPrefix} initial getSession() starting (fast path, ${GET_SESSION_FAST_PATH_MS}ms max wait)`,
+    );
+
     try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+      const getSessionResult = await Promise.race([
+        supabase.auth.getSession().then((result) => ({
+          kind: "result" as const,
+          result,
+        })),
+        new Promise<{ kind: "timeout" }>((resolve) => {
+          window.setTimeout(
+            () => resolve({ kind: "timeout" }),
+            GET_SESSION_FAST_PATH_MS,
+          );
+        }),
+      ]);
 
       if (cancelled) return;
 
-      console.log(`${logPrefix} initial getSession() result:`, {
+      if (getSessionResult.kind === "timeout") {
+        console.log(
+          `${logPrefix} initial getSession() still pending after ${GET_SESSION_FAST_PATH_MS}ms — deferring to onAuthStateChange(INITIAL_SESSION)`,
+        );
+        return;
+      }
+
+      const {
+        data: { session },
+        error,
+      } = getSessionResult.result;
+
+      console.log(`${logPrefix} initial getSession() fast path result:`, {
         hasSession: Boolean(session?.user),
         userId: session?.user?.id ?? null,
         error: error?.message ?? null,
       });
 
-      markAuthResolved("initial getSession()");
-
-      if (!session?.user) {
-        console.log(`${logPrefix} initial getSession(): no session`);
-        onUnauthenticated();
-      } else {
-        await loadAuthenticatedData("initial getSession()", session);
+      if (authResolved || initialDataLoaded) {
+        console.log(
+          `${logPrefix} initial getSession() fast path skipped — auth already handled`,
+        );
+        return;
       }
+
+      await handleSession("initial getSession() fast path", session, {
+        initialOnly: true,
+      });
     } catch (error) {
       if (cancelled) return;
-
-      console.error(`${logPrefix} initial getSession() failed:`, error);
-      markAuthResolved("initial getSession() failed");
-      onTimeout();
+      console.error(`${logPrefix} initial getSession() fast path failed:`, error);
     }
-
-    if (cancelled) return;
-
-    const {
-      data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (cancelled) return;
-
-      console.log(`${logPrefix} onAuthStateChange:`, event, {
-        hasSession: Boolean(session?.user),
-        userId: session?.user?.id ?? null,
-      });
-
-      if (event === "INITIAL_SESSION") {
-        markAuthResolved("onAuthStateChange(INITIAL_SESSION)");
-        return;
-      }
-
-      markAuthResolved(`onAuthStateChange(${event})`);
-
-      if (!session?.user) {
-        console.log(`${logPrefix} onAuthStateChange(${event}): no session`);
-        onUnauthenticated();
-        return;
-      }
-
-      await loadAuthenticatedData(`onAuthStateChange(${event})`, session);
-    });
-
-    subscription = authSubscription;
   })();
 
   return () => {
     cancelled = true;
     window.clearTimeout(timeoutId);
-    subscription?.unsubscribe();
+    subscription.unsubscribe();
   };
 }
