@@ -44,9 +44,23 @@ export function bootstrapAuthSession({
 }: BootstrapAuthSessionOptions): () => void {
   let cancelled = false;
   let authResolved = false;
-  let initialDataLoaded = false;
+  let loadedUserId: string | null = null;
 
   const supabase = createClient();
+
+  const resetDataLoadTracking = () => {
+    loadedUserId = null;
+  };
+
+  const shouldSkipDuplicateDataLoad = (userId: string) => {
+    if (loadedUserId === userId) {
+      console.log(
+        `${logPrefix} skipping duplicate onAuthenticated call, data already loading/loaded for this session`,
+      );
+      return true;
+    }
+    return false;
+  };
 
   const markAuthResolved = (source: string) => {
     if (authResolved) {
@@ -85,30 +99,22 @@ export function bootstrapAuthSession({
     }
   };
 
-  const handleSession = async (
-    source: string,
-    session: Session | null,
-    options: { initialOnly?: boolean } = {},
-  ) => {
+  const handleSession = async (source: string, session: Session | null) => {
     if (cancelled) return;
 
     if (!session?.user) {
       console.log(`${logPrefix} ${source}: no session`);
+      resetDataLoadTracking();
       markAuthResolved(source);
       onUnauthenticated();
       return;
     }
 
-    if (options.initialOnly) {
-      if (initialDataLoaded) {
-        console.log(
-          `${logPrefix} skipping duplicate initial load from ${source}`,
-        );
-        return;
-      }
-      initialDataLoaded = true;
+    if (shouldSkipDuplicateDataLoad(session.user.id)) {
+      return;
     }
 
+    loadedUserId = session.user.id;
     markAuthResolved(source);
     await loadAuthenticatedData(source, session);
   };
@@ -126,14 +132,13 @@ export function bootstrapAuthSession({
     });
 
     if (event === "INITIAL_SESSION") {
-      await handleSession("onAuthStateChange(INITIAL_SESSION)", session, {
-        initialOnly: true,
-      });
+      await handleSession("onAuthStateChange(INITIAL_SESSION)", session);
       return;
     }
 
-    if (!session?.user) {
+    if (event === "SIGNED_OUT" || !session?.user) {
       console.log(`${logPrefix} onAuthStateChange(${event}): no session`);
+      resetDataLoadTracking();
       markAuthResolved(`onAuthStateChange(${event})`);
       onUnauthenticated();
       return;
@@ -181,16 +186,14 @@ export function bootstrapAuthSession({
         error: error?.message ?? null,
       });
 
-      if (authResolved || initialDataLoaded) {
+      if (authResolved || loadedUserId !== null) {
         console.log(
           `${logPrefix} initial getSession() fast path skipped — auth already handled`,
         );
         return;
       }
 
-      await handleSession("initial getSession() fast path", session, {
-        initialOnly: true,
-      });
+      await handleSession("initial getSession() fast path", session);
     } catch (error) {
       if (cancelled) return;
       console.error(`${logPrefix} initial getSession() fast path failed:`, error);
