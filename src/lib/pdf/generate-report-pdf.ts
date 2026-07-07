@@ -68,6 +68,8 @@ const PDF_STORAGE_BUCKET = "horse-photos";
 const PDF_SUBTITLE = "AI-Powered Equine Conformation Analysis Report";
 const MODEL3D_SNAPSHOT_IMAGE_GAP = 16;
 const MODEL3D_SNAPSHOT_BOTTOM_GAP = 20;
+/** Below this rendered height, start the 3D snapshot on a fresh page instead. */
+const MODEL3D_MIN_USABLE_IMAGE_HEIGHT = 220;
 
 const SCORE_ROWS: {
   key: keyof Omit<ConformationReport, "overall_score" | "summary">;
@@ -571,38 +573,62 @@ function measureModel3dHeaderHeight(body: ReportPdfRequestBody): number {
   return height;
 }
 
-function measureSnapshotImageHeight(
+function computeSnapshotImageLayout(
   image: PDFImage,
   maxHeight: number,
-): number {
+): { width: number; height: number } {
   if (maxHeight <= 0) {
-    return 0;
+    return { width: 0, height: 0 };
   }
 
   const scale = Math.min(
     CONTENT_WIDTH / image.width,
     maxHeight / image.height,
   );
-  return image.height * scale;
+  return {
+    width: image.width * scale,
+    height: image.height * scale,
+  };
 }
 
-function measureModel3dSnapshotSectionHeight(
+function measureRemainingSnapshotImageHeight(
+  pageTopY: number,
   body: ReportPdfRequestBody,
-  snapshotImage: PDFImage,
-  startY: number,
   minContentY: number,
 ): number {
   const headerHeight = measureModel3dHeaderHeight(body);
-  const yAfterHeader = startY - headerHeight - MODEL3D_SNAPSHOT_IMAGE_GAP;
-  const maxImageHeight = yAfterHeader - minContentY - MODEL3D_SNAPSHOT_BOTTOM_GAP;
-  const imageHeight = measureSnapshotImageHeight(snapshotImage, maxImageHeight);
+  const yAfterHeader = pageTopY - headerHeight - MODEL3D_SNAPSHOT_IMAGE_GAP;
+  return yAfterHeader - minContentY - MODEL3D_SNAPSHOT_BOTTOM_GAP;
+}
 
-  return (
+function shouldStartModel3dSnapshotOnNewPage(
+  pageTopY: number,
+  body: ReportPdfRequestBody,
+  snapshotImage: PDFImage,
+  minContentY: number,
+): boolean {
+  const headerHeight = measureModel3dHeaderHeight(body);
+  const minSectionHeight =
     headerHeight +
     MODEL3D_SNAPSHOT_IMAGE_GAP +
-    imageHeight +
-    MODEL3D_SNAPSHOT_BOTTOM_GAP
+    MODEL3D_MIN_USABLE_IMAGE_HEIGHT +
+    MODEL3D_SNAPSHOT_BOTTOM_GAP;
+
+  if (pageTopY - minContentY < minSectionHeight) {
+    return true;
+  }
+
+  const maxImageHeight = measureRemainingSnapshotImageHeight(
+    pageTopY,
+    body,
+    minContentY,
   );
+  const { height: projectedHeight } = computeSnapshotImageLayout(
+    snapshotImage,
+    maxImageHeight,
+  );
+
+  return projectedHeight < MODEL3D_MIN_USABLE_IMAGE_HEIGHT;
 }
 
 function measureWrappedParagraphHeight(
@@ -857,14 +883,14 @@ export async function generateReportPdfBytes(
   }
 
   if (model3dSnapshotImage) {
-    const snapshotSectionHeight = measureModel3dSnapshotSectionHeight(
-      body,
-      model3dSnapshotImage,
-      y,
-      MIN_CONTENT_Y,
-    );
-
-    if (!hasSpaceForModel3dSection(y, snapshotSectionHeight, MIN_CONTENT_Y)) {
+    if (
+      shouldStartModel3dSnapshotOnNewPage(
+        y,
+        body,
+        model3dSnapshotImage,
+        MIN_CONTENT_Y,
+      )
+    ) {
       forceNewPage();
     }
 
@@ -872,12 +898,8 @@ export async function generateReportPdfBytes(
     y -= MODEL3D_SNAPSHOT_IMAGE_GAP;
 
     const snapshotMaxHeight = y - MIN_CONTENT_Y - MODEL3D_SNAPSHOT_BOTTOM_GAP;
-    const snapshotScale = Math.min(
-      CONTENT_WIDTH / model3dSnapshotImage.width,
-      snapshotMaxHeight / model3dSnapshotImage.height,
-    );
-    const snapshotWidth = model3dSnapshotImage.width * snapshotScale;
-    const snapshotHeight = model3dSnapshotImage.height * snapshotScale;
+    const { width: snapshotWidth, height: snapshotHeight } =
+      computeSnapshotImageLayout(model3dSnapshotImage, snapshotMaxHeight);
 
     page.drawImage(model3dSnapshotImage, {
       x: MARGIN + (CONTENT_WIDTH - snapshotWidth) / 2,
