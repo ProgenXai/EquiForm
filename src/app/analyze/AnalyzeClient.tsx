@@ -23,6 +23,7 @@ import type { Session } from "@supabase/supabase-js";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import TypeaheadInput from "@/components/TypeaheadInput";
+import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
 import {
   BREED_SUGGESTIONS,
@@ -173,50 +174,136 @@ type AnalysisModeOption = {
   recommended?: boolean;
 };
 
-function buildAnalysisModeOptions(params: {
-  isAdmin: boolean;
-  singleViewBalance: number;
-  singleView3DBalance: number;
-  fullReportBalance: number;
-  fullReport3DBalance: number;
-}): AnalysisModeOption[] {
-  const { isAdmin, singleViewBalance, singleView3DBalance, fullReportBalance, fullReport3DBalance } = params;
-
-  const all: AnalysisModeOption[] = [
+function buildAllAnalysisModeOptions(): AnalysisModeOption[] {
+  return [
     {
       value: "full3d",
       label: "FULL REPORT + 3D",
-      detail: "1 four-view + 3D credit — complete 4-view analysis with 3D model",
+      detail: "",
       recommended: true,
     },
     {
       value: "full",
       label: "FULL REPORT",
-      detail: "1 full report credit — complete 4-view analysis",
+      detail: "",
     },
     {
       value: "single3d",
       label: "SINGLE VIEW + 3D",
-      detail: "1 single view + 3D credit — one view with 3D model",
+      detail: "",
     },
     {
       value: "single",
       label: "SINGLE VIEW",
-      detail: "1 single view credit — one view only",
+      detail: "",
     },
   ];
+}
 
+function getAnalysisModeCreditCount(
+  mode: AnalysisMode,
+  balances: {
+    single_view_balance: number;
+    single_view_3d_balance: number;
+    full_report_balance: number;
+    full_report_3d_balance: number;
+  },
+): number {
+  switch (mode) {
+    case "full3d":
+      return balances.full_report_3d_balance;
+    case "full":
+      return balances.full_report_balance;
+    case "single3d":
+      return balances.single_view_3d_balance;
+    case "single":
+      return balances.single_view_balance;
+  }
+}
+
+function getAnalysisModeRemainingLabel(
+  mode: AnalysisMode,
+  balances: {
+    single_view_balance: number;
+    single_view_3d_balance: number;
+    full_report_balance: number;
+    full_report_3d_balance: number;
+  } | null,
+  isAdmin: boolean,
+  isLoggedIn: boolean,
+): string {
   if (isAdmin) {
-    return all;
+    return "Unlimited credits";
   }
 
-  return all.filter((option) => {
-    if (option.value === "full3d") return fullReport3DBalance > 0;
-    if (option.value === "full") return fullReportBalance > 0;
-    if (option.value === "single3d") return singleView3DBalance > 0;
-    if (option.value === "single") return singleViewBalance > 0;
+  if (!isLoggedIn) {
+    return "Sign in to use credits";
+  }
+
+  if (!balances) {
+    return "Loading credits…";
+  }
+
+  switch (mode) {
+    case "full3d":
+      return formatBalanceBadge(
+        balances.full_report_3d_balance,
+        "Four-View + 3D Report",
+        "Four-View + 3D Reports",
+      );
+    case "full":
+      return formatBalanceBadge(
+        balances.full_report_balance,
+        "Four-View Report",
+        "Four-View Reports",
+      );
+    case "single3d":
+      return formatBalanceBadge(
+        balances.single_view_3d_balance,
+        "Single View + 3D Report",
+        "Single View + 3D Reports",
+      );
+    case "single":
+      return formatBalanceBadge(
+        balances.single_view_balance,
+        "Single View Report",
+        "Single View Reports",
+      );
+  }
+}
+
+function modeHasCredits(
+  mode: AnalysisMode,
+  params: {
+    isAdmin: boolean;
+    singleViewBalance: number | null;
+    singleView3DBalance: number | null;
+    fullReportBalance: number | null;
+    fullReport3DBalance: number | null;
+  },
+  isLoggedIn = true,
+): boolean {
+  if (params.isAdmin || !isLoggedIn) {
+    return true;
+  }
+
+  if (
+    params.singleViewBalance === null ||
+    params.singleView3DBalance === null ||
+    params.fullReportBalance === null ||
+    params.fullReport3DBalance === null
+  ) {
     return false;
-  });
+  }
+
+  return (
+    getAnalysisModeCreditCount(mode, {
+      single_view_balance: params.singleViewBalance,
+      single_view_3d_balance: params.singleView3DBalance,
+      full_report_balance: params.fullReportBalance,
+      full_report_3d_balance: params.fullReport3DBalance,
+    }) > 0
+  );
 }
 
 type FullReportView = "left" | "right" | "front" | "hind";
@@ -730,7 +817,7 @@ export default function AnalyzeClient() {
   );
   const singleViewPhotoRef = useRef(singleViewPhoto);
   singleViewPhotoRef.current = singleViewPhoto;
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("full3d");
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode | null>(null);
   const [fullReportPhotos, setFullReportPhotos] = useState<
     Partial<Record<FullReportView, FullReportSlot>>
   >({});
@@ -771,6 +858,23 @@ export default function AnalyzeClient() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const sessionRef = useRef<Session | null>(null);
+  sessionRef.current = session;
+
+  async function resolveActiveSession(): Promise<Session | null> {
+    const cached = sessionRef.current;
+    if (cached?.access_token) {
+      return cached;
+    }
+    const raced = await raceGetSession(supabase);
+    if (raced.status === "timeout") {
+      return cached;
+    }
+    if (raced.session) {
+      sessionRef.current = raced.session;
+    }
+    return raced.session;
+  }
   const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
   const [fullReportGlbUrl, setFullReportGlbUrl] = useState<string | null>(null);
   const [singleViewGlbUrl, setSingleViewGlbUrl] = useState<string | null>(null);
@@ -883,9 +987,7 @@ export default function AnalyzeClient() {
     }, 15 * 60 * 1000);
 
     async function pollMeshyStatus() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const accessToken = sessionRef.current?.access_token ?? "";
 
       const query = new URLSearchParams({ taskId });
       if (reportId) {
@@ -895,7 +997,7 @@ export default function AnalyzeClient() {
       try {
         const response = await fetch(`/api/meshy-status?${query.toString()}`, {
           headers: {
-            Authorization: `Bearer ${session?.access_token ?? ""}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         });
 
@@ -962,47 +1064,75 @@ export default function AnalyzeClient() {
   }, [showPdf3DModal, pdf3DModalMode]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      sessionRef.current = nextSession;
+      setSession(nextSession);
 
-      if (session?.user) {
-        setIsLoggedIn(true);
-
-        const balanceResponse = await fetch("/api/get-balance", {
-          headers: {
-            Authorization: `Bearer ${session.access_token ?? ""}`,
-          },
-        });
-
-        const balanceData = (await balanceResponse.json()) as BalanceResponse;
-        applyBalanceData(balanceData);
-        await refreshSingleView3DBalance(session.user.id);
-        await refreshFullReport3DBalance(session.user.id);
-
-        const adminResponse = await fetch("/api/check-admin", {
-          headers: {
-            Authorization: `Bearer ${session.access_token ?? ""}`,
-          },
-        });
-
-        const adminData = (await adminResponse.json()) as { isAdmin?: boolean };
-        setIsAdmin(adminData.isAdmin === true);
-        console.log("isAdmin:", adminData.isAdmin === true);
-      } else {
+      if (!nextSession?.user) {
+        setIsLoggedIn(false);
         setSingleViewBalance(0);
         setSingleView3DBalance(0);
         setFullReportBalance(0);
         setFullReport3DBalance(0);
         setIsAdmin(false);
         console.log("isAdmin:", false);
+        setAuthLoading(false);
+        return;
       }
 
-      setAuthLoading(false);
+      setIsLoggedIn(true);
+
+      window.setTimeout(() => {
+        void (async () => {
+          if (cancelled || !nextSession?.user) {
+            return;
+          }
+
+          try {
+            const balanceResponse = await fetch("/api/get-balance", {
+              headers: {
+                Authorization: `Bearer ${nextSession.access_token ?? ""}`,
+              },
+            });
+
+            const balanceData = (await balanceResponse.json()) as BalanceResponse;
+            if (cancelled) return;
+            applyBalanceData(balanceData);
+            await refreshSingleView3DBalance(nextSession.user.id);
+            if (cancelled) return;
+            await refreshFullReport3DBalance(nextSession.user.id);
+
+            const adminResponse = await fetch("/api/check-admin", {
+              headers: {
+                Authorization: `Bearer ${nextSession.access_token ?? ""}`,
+              },
+            });
+
+            const adminData = (await adminResponse.json()) as {
+              isAdmin?: boolean;
+            };
+            if (cancelled) return;
+            setIsAdmin(adminData.isAdmin === true);
+            console.log("isAdmin:", adminData.isAdmin === true);
+          } catch (error) {
+            console.error("[analyze] auth session follow-up failed:", error);
+          } finally {
+            if (!cancelled) {
+              setAuthLoading(false);
+            }
+          }
+        })();
+      }, 0);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   function resetResult() {
@@ -1036,9 +1166,7 @@ export default function AnalyzeClient() {
     const message = `I just analyzed ${name} on EquiForm! ${name} scored ${score}/100 on conformation analysis. Try it at equiform.app 🐴 #EquiForm #HorseConformation`;
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://equiform.app")}&quote=${encodeURIComponent(message)}`;
 
-    const {
-      data: { session: currentSession },
-    } = await supabase.auth.getSession();
+    const currentSession = await resolveActiveSession();
 
     if (currentSession?.user) {
       const { data, error } = await supabase
@@ -1088,9 +1216,22 @@ export default function AnalyzeClient() {
     setSingleViewPhoto(null);
   }
 
+  function handleChangePackage() {
+    void clearSingleViewPhoto();
+    void clearFullReportPhotos();
+    setAnalysisMode(null);
+    setError(null);
+    setFullReportDisplayError(false);
+    setSingleViewUploadError(null);
+    setFullReportResult(null);
+    setFullReportGlbUrl(null);
+    resetResult();
+  }
+
   function handleAnalyzeAnotherHorse() {
     void clearSingleViewPhoto();
     void clearFullReportPhotos();
+    setAnalysisMode(null);
     setFullReportResult(null);
     setMeshyTaskId(null);
     setFullReportGlbUrl(null);
@@ -1349,9 +1490,12 @@ export default function AnalyzeClient() {
     setMeshy3DError(null);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const activeSession = await resolveActiveSession();
+
+      if (!activeSession?.access_token) {
+        setError("Sign in to analyze your horse.");
+        return;
+      }
 
       const shouldGenerate3D = isAdmin
         ? adminGenerate3D
@@ -1360,7 +1504,7 @@ export default function AnalyzeClient() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session?.access_token ?? ""}`,
+          Authorization: `Bearer ${activeSession.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -1430,16 +1574,16 @@ export default function AnalyzeClient() {
         setMeshyTaskId(result.meshyTaskId.trim());
       }
 
-      if (session?.access_token && session.user) {
+      if (activeSession.access_token && activeSession.user) {
         const balanceResponse = await fetch("/api/get-balance", {
           headers: {
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${activeSession.access_token}`,
           },
         });
 
         const balanceData = (await balanceResponse.json()) as BalanceResponse;
         applyBalanceData(balanceData);
-        await refreshSingleView3DBalance(session.user.id);
+        await refreshSingleView3DBalance(activeSession.user.id);
       }
     } catch (err) {
       setError(formatAnalysisError(err));
@@ -1463,9 +1607,7 @@ export default function AnalyzeClient() {
     setError(null);
 
     try {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+      const currentSession = await resolveActiveSession();
 
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
@@ -1576,9 +1718,7 @@ export default function AnalyzeClient() {
     setError(null);
 
     try {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+      const currentSession = await resolveActiveSession();
 
       const response = await fetch("/api/analyze/pdf", {
         method: "POST",
@@ -1719,6 +1859,7 @@ export default function AnalyzeClient() {
     age.trim() !== "" &&
     sex.trim() !== "";
   const singleViewReportComplete =
+    analysisMode !== null &&
     (analysisMode === "single" || analysisMode === "single3d") &&
     result !== null;
   const analyzeButtonDisabled =
@@ -1765,13 +1906,19 @@ export default function AnalyzeClient() {
     ? adminGenerate3D
     : analysisMode === "full3d";
 
-  const analysisModeOptions = buildAnalysisModeOptions({
-    isAdmin,
-    singleViewBalance: singleViewBalance ?? 0,
-    singleView3DBalance: singleView3DBalance ?? 0,
-    fullReportBalance: fullReportBalance ?? 0,
-    fullReport3DBalance: fullReport3DBalance ?? 0,
-  });
+  const packageSelectionBalances = balancesLoaded
+    ? {
+        single_view_balance: singleViewBalance,
+        single_view_3d_balance: singleView3DBalance,
+        full_report_balance: fullReportBalance,
+        full_report_3d_balance: fullReport3DBalance,
+      }
+    : null;
+  const allAnalysisModeOptions = buildAllAnalysisModeOptions();
+  const showPackageSelection = analysisMode === null;
+  const isSingleViewMode =
+    analysisMode === "single" || analysisMode === "single3d";
+  const isFullReportMode = analysisMode === "full" || analysisMode === "full3d";
 
   async function handleFullReportSubmit() {
     if (fullReportSubmitDisabled) return;
@@ -1804,9 +1951,12 @@ export default function AnalyzeClient() {
     setMeshy3DError(null);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const activeSession = await resolveActiveSession();
+
+      if (!activeSession?.access_token) {
+        setError("Sign in to submit a full report.");
+        return;
+      }
 
       const shouldGenerate3D = isAdmin
         ? adminGenerate3D
@@ -1815,7 +1965,7 @@ export default function AnalyzeClient() {
       const response = await fetch("/api/analyze-full", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session?.access_token ?? ""}`,
+          Authorization: `Bearer ${activeSession.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -1884,16 +2034,16 @@ export default function AnalyzeClient() {
         setMeshyTaskId(null);
       }
 
-      if (session?.access_token && session.user) {
+      if (activeSession.access_token && activeSession.user) {
         const balanceResponse = await fetch("/api/get-balance", {
           headers: {
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${activeSession.access_token}`,
           },
         });
 
         const balanceData = (await balanceResponse.json()) as BalanceResponse;
         applyBalanceData(balanceData);
-        await refreshFullReport3DBalance(session.user.id);
+        await refreshFullReport3DBalance(activeSession.user.id);
       }
     } catch (err) {
       setError(formatAnalysisError(err));
@@ -1940,7 +2090,7 @@ export default function AnalyzeClient() {
         </p>
       </header>
 
-      {!authLoading && isLoggedIn ? (
+      {!authLoading && isLoggedIn && !showPackageSelection ? (
         <div className="mt-6 flex flex-col items-center gap-3 px-6">
           {isAdmin ? (
             <p className="text-center text-xs text-accent">
@@ -1980,48 +2130,88 @@ export default function AnalyzeClient() {
 
       <main className="w-full">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-          <div
-            className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3"
-            role="group"
-            aria-label="Analysis mode"
-          >
-            {analysisModeOptions.map((option) => {
-              const isSelected = analysisMode === option.value;
+          {showPackageSelection ? (
+            <>
+              <h2 className="mb-6 text-center text-lg font-semibold text-white">
+                Choose your report type
+              </h2>
+              <div
+                className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+                role="group"
+                aria-label="Analysis mode"
+              >
+                {allAnalysisModeOptions.map((option) => {
+                  const hasCredits = modeHasCredits(
+                    option.value,
+                    {
+                      isAdmin,
+                      singleViewBalance,
+                      singleView3DBalance,
+                      fullReportBalance,
+                      fullReport3DBalance,
+                    },
+                    isLoggedIn,
+                  );
+                  const remainingLabel = getAnalysisModeRemainingLabel(
+                    option.value,
+                    packageSelectionBalances,
+                    isAdmin,
+                    isLoggedIn,
+                  );
+                  const packageDisabled =
+                    isLoggedIn && balancesLoaded && !isAdmin && !hasCredits;
 
-              return (
-                <div key={option.value} className="relative">
-                  {option.recommended ? (
-                    <span className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-black">
-                      RECOMMENDED
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => setAnalysisMode(option.value)}
-                    aria-pressed={isSelected}
-                    className={`flex w-full flex-col items-center rounded-xl border px-4 py-6 text-center transition ${
-                      isSelected
-                        ? "border-accent bg-accent text-black shadow-sm"
-                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
-                    }`}
+                  return (
+                    <div key={option.value} className="relative">
+                      {option.recommended ? (
+                        <span className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-black">
+                          RECOMMENDED
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setAnalysisMode(option.value)}
+                        disabled={packageDisabled}
+                        className={`flex w-full flex-col items-center rounded-xl border px-4 py-6 text-center transition ${
+                          packageDisabled
+                            ? "cursor-not-allowed border-zinc-800 bg-zinc-950/60 text-zinc-500 opacity-60"
+                            : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-accent/60 hover:bg-zinc-900"
+                        }`}
+                      >
+                        <span className="text-sm font-bold tracking-wide sm:text-base">
+                          {option.label}
+                        </span>
+                        <span className="mt-3 text-xs font-medium text-zinc-400 sm:text-sm">
+                          {remainingLabel}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {!isAdmin && isLoggedIn && balancesLoaded && creditBalanceBadges.length === 0 ? (
+                <p className="mt-6 text-center text-sm text-zinc-400">
+                  You have no report credits remaining{" "}
+                  <Link
+                    href="/buy-credits"
+                    className="font-medium text-accent underline transition hover:text-accent-hover"
                   >
-                    <span className="text-sm font-bold tracking-wide sm:text-base">
-                      {option.label}
-                    </span>
-                    <span
-                      className={`mt-3 text-xs font-medium sm:text-sm ${
-                        isSelected ? "text-black/80" : "text-zinc-400"
-                      }`}
-                    >
-                      {option.detail}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                    Buy report credits
+                  </Link>
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleChangePackage}
+                className="mb-6 rounded-xl border border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+              >
+                ← Choose a different package
+              </button>
 
-          {analysisMode === "single" || analysisMode === "single3d" ? (
+          {isSingleViewMode ? (
             <>
           {!singleViewPhoto?.previewUrl ? (
             <>
@@ -2309,7 +2499,7 @@ export default function AnalyzeClient() {
             </div>
           ) : null}
             </>
-          ) : (
+          ) : isFullReportMode ? (
             <>
               <p className="mb-4 text-center text-sm text-zinc-400">
                 Upload one photo for each labeled view below. All four photos must be of the same horse.
@@ -2926,6 +3116,8 @@ export default function AnalyzeClient() {
                   })()}
                 </section>
               ) : null}
+            </>
+          ) : null}
             </>
           )}
         </section>

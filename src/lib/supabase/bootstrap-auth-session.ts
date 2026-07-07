@@ -1,9 +1,40 @@
-import type { Session } from "@supabase/supabase-js";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
 
 export const AUTH_LOAD_TIMEOUT_MS = 8000;
-const GET_SESSION_FAST_PATH_MS = 2000;
+export const GET_SESSION_FAST_PATH_MS = 2000;
+
+export type RaceGetSessionResult =
+  | { status: "ok"; session: Session | null }
+  | { status: "timeout" };
+
+/** Resolves with session (possibly null) or times out without hanging. */
+export async function raceGetSession(
+  supabase: SupabaseClient,
+  timeoutMs = GET_SESSION_FAST_PATH_MS,
+): Promise<RaceGetSessionResult> {
+  const result = await Promise.race([
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error("[raceGetSession] getSession error:", error.message);
+      }
+      return { kind: "result" as const, session: session ?? null };
+    }),
+    new Promise<{ kind: "timeout" }>((resolve) => {
+      window.setTimeout(() => resolve({ kind: "timeout" }), timeoutMs);
+    }),
+  ]);
+
+  if (result.kind === "timeout") {
+    console.warn(
+      `[raceGetSession] getSession still pending after ${timeoutMs}ms`,
+    );
+    return { status: "timeout" };
+  }
+
+  return { status: "ok", session: result.session };
+}
 
 export const AUTH_LOAD_ERROR_MESSAGE =
   "Having trouble loading your account. Please refresh.";
@@ -153,37 +184,22 @@ export function bootstrapAuthSession({
     );
 
     try {
-      const getSessionResult = await Promise.race([
-        supabase.auth.getSession().then((result) => ({
-          kind: "result" as const,
-          result,
-        })),
-        new Promise<{ kind: "timeout" }>((resolve) => {
-          window.setTimeout(
-            () => resolve({ kind: "timeout" }),
-            GET_SESSION_FAST_PATH_MS,
-          );
-        }),
-      ]);
+      const raced = await raceGetSession(supabase);
 
       if (cancelled) return;
 
-      if (getSessionResult.kind === "timeout") {
+      if (raced.status === "timeout") {
         console.log(
           `${logPrefix} initial getSession() still pending after ${GET_SESSION_FAST_PATH_MS}ms — deferring to onAuthStateChange(INITIAL_SESSION)`,
         );
         return;
       }
 
-      const {
-        data: { session },
-        error,
-      } = getSessionResult.result;
+      const session = raced.session;
 
       console.log(`${logPrefix} initial getSession() fast path result:`, {
         hasSession: Boolean(session?.user),
         userId: session?.user?.id ?? null,
-        error: error?.message ?? null,
       });
 
       if (authResolved || loadedUserId !== null) {
