@@ -66,14 +66,14 @@ export default function WelcomePage() {
           </p>
 
           <section className={`mt-10 ${ACCENT_CARD_CLASS}`}>
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-center text-xl font-semibold text-white">
               What does your score mean?
             </h2>
             <p className="mt-3 text-base leading-relaxed text-zinc-200 sm:text-lg">
               EquiForm uses AI to evaluate your horse&apos;s conformation from
               your photos.
             </p>
-            <p className="mt-4 text-base font-medium text-zinc-100 sm:text-lg">
+            <p className="mt-4 text-center text-base font-medium text-zinc-100 sm:text-lg">
               Here&apos;s a breakdown:
             </p>
             <ul className="mt-3 space-y-3">
