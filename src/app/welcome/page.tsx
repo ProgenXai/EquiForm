@@ -1,151 +1,77 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
-type WelcomeStep = {
-  number: number;
-  icon: string;
-  title: string;
-  image: string;
-  imageAlt: string;
-  description: string;
-  note?: string;
-  caption?: string;
-};
-
-const STEPS: WelcomeStep[] = [
-  {
-    number: 1,
-    icon: "📸",
-    title: "Take a great photo or photos",
-    image: "/onboarding/step1-examples.png",
-    imageAlt: "EquiForm photo examples",
-    description:
-      "Check our Examples page for photo guidelines to get the best results. Great photos = great reports.",
-  },
-  {
-    number: 2,
-    icon: "🐴",
-    title: "Upload & analyze",
-    image: "/onboarding/step2-analyze.png",
-    imageAlt: "EquiForm analyze page",
-    description:
-      "Upload your photo(s), fill in your horse's details, and let our AI do the work.",
-  },
-  {
-    number: 3,
-    icon: "📊",
-    title: "Get your full report",
-    image: "/onboarding/step3-report-live.png",
-    imageAlt: "EquiForm sample report",
-    description:
-      "Receive detailed conformation scores and analysis for every view.",
-    note:
-      "⚠️ Added a 3D model? It takes a few extra minutes to generate — don't close the page!",
-    caption:
-      "This is just the first page — your full report includes detailed written analysis for every view.",
-  },
-];
+const SCORE_EXPLAINER_POINTS = [
+  "Your overall score (out of 100) reflects how well your horse\u2019s build aligns with the rule of thirds \u2014 the same framework professional horse judges use.",
+  "You also receive individual scores for balance, shoulder angle, hip angle, topline quality, and leg alignment.",
+  "Scores of 85\u201395 generally indicate excellent conformation for performance horses.",
+] as const;
 
 export default function WelcomePage() {
-  const step3 = STEPS[2];
-
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <AppHamburgerMenu />
 
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center sm:py-10">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-3xl font-bold text-white sm:text-4xl">
+          <h1 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
             Welcome to EquiForm!
           </h1>
           <p className="mt-3 text-sm text-zinc-400 sm:text-base">
             The most advanced AI equine conformation analysis available
           </p>
-          <p className="mt-2 text-lg font-semibold text-accent">
-            How does your horse measure up?
-          </p>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-        <div className="space-y-10">
-          {STEPS.map((step) => (
-            <section
-              key={step.number}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8"
-            >
-              <h2 className="text-xl font-semibold text-white">
-                Step {step.number} — {step.icon} {step.title}
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                {step.description}
-              </p>
-              {"note" in step && step.note ? (
-                <p className="mt-3 rounded-lg border border-yellow-600/50 bg-yellow-400/10 px-4 py-3 text-sm font-medium text-yellow-200">
-                  {step.note}
-                </p>
-              ) : null}
-              <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                <Image
-                  src={step.image}
-                  alt={step.imageAlt}
-                  width={1200}
-                  height={800}
-                  className="h-auto w-full object-contain"
-                />
-              </div>
-              {"caption" in step && step.caption && step.number !== 3 ? (
-                <p className="mt-3 text-xs text-zinc-500">{step.caption}</p>
-              ) : null}
-            </section>
-          ))}
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
+          <h2 className="text-xl font-semibold text-white">
+            What does your score mean?
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+            EquiForm uses AI to evaluate your horse&apos;s conformation from your
+            photos. Here&apos;s how to read your results:
+          </p>
+          <ul className="mt-4 space-y-3">
+            {SCORE_EXPLAINER_POINTS.map((point) => (
+              <li
+                key={point}
+                className="flex gap-2 text-sm leading-relaxed text-zinc-300"
+              >
+                <span className="shrink-0 text-accent" aria-hidden="true">
+                  &bull;
+                </span>
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
-            <h2 className="text-xl font-semibold text-white">
-              What does your score mean?
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-              EquiForm analyzes your horse&apos;s conformation using AI and the
-              industry-standard rule of thirds — the same method used by
-              professional horse judges. Your horse receives an overall score out
-              of 100, plus individual scores for Balance, Shoulder Angle, Hip
-              Angle, Topline Quality, and Leg Alignment. Scores of 85–95 represent
-              excellent conformation for performance horses.
+        {/* Replace this container with a video embed when the demo is ready */}
+        <section
+          className="mt-8"
+          aria-label="EquiForm demo video"
+          data-video-embed-ready="true"
+        >
+          <div className="flex aspect-video w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 bg-zinc-950/60 px-6 text-center">
+            <p className="text-sm font-medium text-zinc-400">
+              Demo video coming soon
             </p>
-          </section>
-
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8">
-            <h2 className="text-xl font-semibold text-accent">Sample Report Preview</h2>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-              Here&apos;s an example of what your full report looks like. This is just
-              the first page — your complete report includes detailed written analysis
-              for every view.
+            <p className="mt-2 max-w-sm text-xs text-zinc-500">
+              A walkthrough of EquiForm will appear here.
             </p>
-            <div className="mt-5 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-              <Image
-                src="/onboarding/step3-report.png"
-                alt="EquiForm sample report PDF preview"
-                width={1200}
-                height={800}
-                className="h-auto w-full object-contain"
-              />
-            </div>
-            {"caption" in step3 && step3.caption ? (
-              <p className="mt-3 text-xs text-zinc-500">{step3.caption}</p>
-            ) : null}
-          </section>
-        </div>
+          </div>
+        </section>
 
         <div className="mt-10 flex justify-center">
           <Link
-            href="/examples"
-            className="rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
+            href="/buy-credits"
+            className="w-full max-w-sm rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:w-auto"
           >
-            See Examples →
+            Buy Report Credits
           </Link>
         </div>
       </main>
