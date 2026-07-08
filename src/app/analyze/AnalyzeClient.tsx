@@ -2144,12 +2144,12 @@ export default function AnalyzeClient() {
           {showPackageSelection ? (
             <>
               {isLoggedIn && welcomeName ? (
-                <div className="relative mx-auto mb-6 max-w-2xl">
+                <div className="relative isolate mx-auto mb-6 max-w-3xl overflow-visible px-4 py-6">
                   <div
-                    className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-16 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.28)] blur-3xl sm:h-20"
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-28 w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.52)] blur-[80px] sm:h-36 sm:blur-[96px]"
                     aria-hidden="true"
                   />
-                  <p className="relative text-center text-xl font-semibold text-white">
+                  <p className="relative z-10 text-center text-xl font-semibold text-white">
                     Welcome back, {welcomeName}! What would you like to do today?
                   </p>
                 </div>
