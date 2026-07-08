@@ -12,7 +12,7 @@ const SCORE_EXPLAINER_POINTS = [
 ] as const;
 
 const ACCENT_CARD_CLASS =
-  "rounded-xl border border-accent/30 bg-zinc-900/70 p-6 shadow-[0_0_28px_rgba(0,212,200,0.1)] ring-1 ring-accent/20 sm:p-8";
+  "rounded-xl border-2 border-accent/70 bg-zinc-900/70 p-6 shadow-[0_0_32px_rgba(0,212,200,0.35),0_0_64px_rgba(0,212,200,0.18)] ring-2 ring-accent/45 sm:p-8";
 
 export default function WelcomePage() {
   return (
@@ -25,7 +25,7 @@ export default function WelcomePage() {
       <div className="relative">
         <AppHamburgerMenu />
 
-        <header className="border-b border-zinc-800/80 bg-black/40 px-6 py-10 text-center backdrop-blur-sm sm:py-12">
+        <header className="bg-black/40 px-6 pb-10 pt-4 text-center backdrop-blur-sm sm:pb-12 sm:pt-5">
           <div className="mx-auto max-w-3xl">
             <div className="flex justify-center">
               <Image
@@ -34,7 +34,7 @@ export default function WelcomePage() {
                 width={300}
                 height={300}
                 priority
-                className="h-40 w-40 object-contain sm:h-52 sm:w-52"
+                className="h-44 w-44 object-contain sm:h-56 sm:w-56"
               />
             </div>
             <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
