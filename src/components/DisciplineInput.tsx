@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 
 import TypeaheadInput from "@/components/TypeaheadInput";
 import {
-  combineDisciplineValue,
-  parseDisciplineValue,
+  addPredefinedDiscipline,
+  getDisciplineParts,
+  removeDiscipline,
+  setCustomDisciplines,
 } from "@/lib/format-discipline";
 import {
   DISCIPLINE_OTHER,
@@ -30,45 +32,111 @@ export default function DisciplineInput({
   label,
   value,
   onChange,
-  placeholder = "e.g. Barrel Racing, Dressage, Pole Bending",
+  placeholder = "Search disciplines to add…",
   required,
   hint = "Select one or more disciplines.",
 }: DisciplineInputProps) {
-  const parsed = useMemo(() => parseDisciplineValue(value), [value]);
-  const [otherInputVisible, setOtherInputVisible] = useState(
-    () => parsed.custom.length > 0,
+  const [draftQuery, setDraftQuery] = useState("");
+  const [otherInputVisible, setOtherInputVisible] = useState(false);
+
+  const { predefined, custom } = useMemo(
+    () => getDisciplineParts(value),
+    [value],
   );
 
-  const showOtherInput = otherInputVisible || parsed.custom.length > 0;
+  const selectedChips = useMemo(
+    () => [...predefined, ...custom],
+    [predefined, custom],
+  );
 
-  function updatePredefined(nextPredefined: string) {
-    onChange(combineDisciplineValue(nextPredefined, parsed.custom));
+  const availableSuggestions = useMemo(
+    () =>
+      DISCIPLINE_SUGGESTIONS_WITH_OTHER.filter(
+        (suggestion) =>
+          suggestion === DISCIPLINE_OTHER ||
+          !predefined.some(
+            (selected) =>
+              selected.toLowerCase() === suggestion.toLowerCase(),
+          ),
+      ),
+    [predefined],
+  );
+
+  const showOtherInput = otherInputVisible || custom.length > 0;
+  const customDisplayValue = custom.join(", ");
+
+  function handleAddDiscipline(discipline: string) {
+    if (discipline === DISCIPLINE_OTHER) {
+      setOtherInputVisible(true);
+      setDraftQuery("");
+      return;
+    }
+
+    onChange(addPredefinedDiscipline(value, discipline));
+    setDraftQuery("");
   }
 
-  function updateCustom(nextCustom: string) {
-    onChange(combineDisciplineValue(parsed.predefined, nextCustom));
+  function handleRemoveDiscipline(discipline: string) {
+    const nextValue = removeDiscipline(value, discipline);
+    onChange(nextValue);
+
+    const nextCustom = getDisciplineParts(nextValue).custom;
+    if (nextCustom.length === 0) {
+      setOtherInputVisible(false);
+    }
   }
 
   return (
     <div className="space-y-3">
-      <TypeaheadInput
-        id={id}
-        label={label}
-        value={parsed.predefined}
-        onChange={updatePredefined}
-        placeholder={placeholder}
-        required={required && !parsed.custom.trim()}
-        suggestions={DISCIPLINE_SUGGESTIONS_WITH_OTHER}
-        appendOnSelect
-        hint={hint}
-        onSuggestionSelect={(suggestion) => {
-          if (suggestion === DISCIPLINE_OTHER) {
-            setOtherInputVisible(true);
+      <div>
+        <label
+          htmlFor={id}
+          className="mb-2 block text-xs font-medium text-zinc-400"
+        >
+          {label}
+          {required ? (
+            <>
+              {" "}
+              <span className="text-red-500">*</span>
+            </>
+          ) : null}
+        </label>
+
+        {selectedChips.length > 0 ? (
+          <ul className="mb-3 flex flex-wrap gap-2">
+            {selectedChips.map((discipline) => (
+              <li key={discipline}>
+                <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+                  {discipline}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveDiscipline(discipline)}
+                    className="rounded-full px-1 text-accent/80 transition hover:text-white"
+                    aria-label={`Remove ${discipline}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <TypeaheadInput
+          id={id}
+          label=""
+          value={draftQuery}
+          onChange={setDraftQuery}
+          placeholder={placeholder}
+          required={required && selectedChips.length === 0}
+          suggestions={availableSuggestions}
+          hint={hint}
+          onSuggestionSelect={(suggestion) => {
+            handleAddDiscipline(suggestion);
             return false;
-          }
-          return true;
-        }}
-      />
+          }}
+        />
+      </div>
 
       {showOtherInput ? (
         <div>
@@ -81,12 +149,12 @@ export default function DisciplineInput({
           <input
             id={`${id}-other`}
             type="text"
-            value={parsed.custom}
+            value={customDisplayValue}
             onChange={(event) => {
               setOtherInputVisible(true);
-              updateCustom(event.target.value);
+              onChange(setCustomDisciplines(value, event.target.value));
             }}
-            placeholder="Type your discipline"
+            placeholder="Type one or more disciplines, separated by commas"
             className={OTHER_INPUT_CLASS}
           />
         </div>

@@ -32,7 +32,10 @@ function appendTypeaheadValue(
           .split(",")
           .map((part) => part.trim())
           .filter(Boolean)
-      : [];
+      : current
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean);
 
   if (
     completedParts.some(
@@ -47,7 +50,12 @@ function appendTypeaheadValue(
     return prefix ? `${prefix}, ${suggestion}` : suggestion;
   }
 
-  return suggestion;
+  const trimmed = current.trim();
+  if (!trimmed) {
+    return suggestion;
+  }
+
+  return `${trimmed}, ${suggestion}`;
 }
 
 export default function TypeaheadInput({
@@ -112,18 +120,20 @@ export default function TypeaheadInput({
 
   return (
     <div ref={containerRef} className="relative">
-      <label
-        htmlFor={id}
-        className="mb-2 block text-xs font-medium text-zinc-400"
-      >
-        {label}
-        {required ? (
-          <>
-            {" "}
-            <span className="text-red-500">*</span>
-          </>
-        ) : null}
-      </label>
+      {label ? (
+        <label
+          htmlFor={id}
+          className="mb-2 block text-xs font-medium text-zinc-400"
+        >
+          {label}
+          {required ? (
+            <>
+              {" "}
+              <span className="text-red-500">*</span>
+            </>
+          ) : null}
+        </label>
+      ) : null}
       <input
         id={id}
         type="text"

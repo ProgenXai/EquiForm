@@ -71,3 +71,56 @@ export function combineDisciplineValue(
 
   return formatDisciplineList(parts.join(", "));
 }
+
+export function getDisciplineParts(value: string): {
+  predefined: string[];
+  custom: string[];
+} {
+  const parsed = parseDisciplineValue(value);
+  return {
+    predefined: parsed.predefined
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean),
+    custom: parsed.custom
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean),
+  };
+}
+
+export function addPredefinedDiscipline(
+  value: string,
+  discipline: string,
+): string {
+  const { predefined, custom } = getDisciplineParts(value);
+  if (
+    predefined.some(
+      (existing) => existing.toLowerCase() === discipline.toLowerCase(),
+    )
+  ) {
+    return value;
+  }
+
+  return combineDisciplineValue(
+    [...predefined, discipline].join(", "),
+    custom.join(", "),
+  );
+}
+
+export function removeDiscipline(value: string, discipline: string): string {
+  const target = discipline.toLowerCase();
+  const { predefined, custom } = getDisciplineParts(value);
+
+  return combineDisciplineValue(
+    predefined
+      .filter((part) => part.toLowerCase() !== target)
+      .join(", "),
+    custom.filter((part) => part.toLowerCase() !== target).join(", "),
+  );
+}
+
+export function setCustomDisciplines(value: string, custom: string): string {
+  const { predefined } = getDisciplineParts(value);
+  return combineDisciplineValue(predefined.join(", "), custom);
+}
