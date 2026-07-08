@@ -2144,9 +2144,15 @@ export default function AnalyzeClient() {
           {showPackageSelection ? (
             <>
               {isLoggedIn && welcomeName ? (
-                <p className="mb-6 text-center text-xl font-semibold text-accent">
-                  Welcome back, {welcomeName}! What would you like to do today?
-                </p>
+                <div className="relative mx-auto mb-6 max-w-2xl">
+                  <div
+                    className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-16 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.28)] blur-3xl sm:h-20"
+                    aria-hidden="true"
+                  />
+                  <p className="relative text-center text-xl font-semibold text-white">
+                    Welcome back, {welcomeName}! What would you like to do today?
+                  </p>
+                </div>
               ) : null}
               <h2 className="mb-6 text-center text-2xl font-semibold text-white">
                 Choose your report type
