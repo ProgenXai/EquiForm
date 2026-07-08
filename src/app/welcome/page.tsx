@@ -37,12 +37,12 @@ export default function WelcomePage() {
                 className="h-48 w-48 object-contain sm:h-64 sm:w-64"
               />
             </div>
-            <div className="relative mx-auto mt-6 max-w-3xl">
+            <div className="relative isolate mx-auto mt-6 max-w-4xl overflow-visible px-4 py-4 sm:py-6">
               <div
-                className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-28 w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.28)] blur-3xl sm:h-36"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-[min(100%,36rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.28)] blur-[96px] sm:h-52 sm:blur-[120px] md:h-56"
                 aria-hidden="true"
               />
-              <h1 className="relative text-5xl font-bold leading-tight tracking-tight text-white sm:text-6xl md:text-7xl">
+              <h1 className="relative z-10 text-5xl font-bold leading-tight tracking-tight text-white sm:text-6xl md:text-7xl">
                 Welcome to EquiForm!
               </h1>
             </div>
