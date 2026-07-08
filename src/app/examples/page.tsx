@@ -1,8 +1,8 @@
 import Image from "next/image";
-import Link from "next/link";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import ExamplesBackButton from "@/components/ExamplesBackButton";
+import PhotoGuideCta from "@/components/PhotoGuideCta";
 import PhotoGuideCarousel, {
   type PhotoGuideSlide,
 } from "@/components/PhotoGuideCarousel";
@@ -59,32 +59,40 @@ const PHOTO_GUIDE_SLIDES: readonly PhotoGuideSlide[] = [
   {
     id: "left",
     title: "Left Side",
-    image: "good-1.jpg",
-    imageAlt: "Good left side profile example",
+    goodImage: "good-1.jpg",
+    goodImageAlt: "Good left side profile example",
+    badImage: "bad-1.jpg",
+    badImageAlt: "Bad left side profile example",
     doItems: SIDE_PROFILE_DO,
     dontItems: SIDE_PROFILE_DONT,
   },
   {
     id: "right",
     title: "Right Side",
-    image: "good-2.jpg",
-    imageAlt: "Good right side profile example",
+    goodImage: "good-2.jpg",
+    goodImageAlt: "Good right side profile example",
+    badImage: "bad-2.jpg",
+    badImageAlt: "Bad right side profile example",
     doItems: SIDE_PROFILE_DO,
     dontItems: SIDE_PROFILE_DONT,
   },
   {
     id: "front",
     title: "Front View",
-    image: "good-5.jpg",
-    imageAlt: "Good front view example",
+    goodImage: "good-5.jpg",
+    goodImageAlt: "Good front view example",
+    badImage: "bad-5.jpg",
+    badImageAlt: "Bad front view example",
     doItems: FRONT_VIEW_DO,
     dontItems: FRONT_VIEW_DONT,
   },
   {
     id: "hind",
     title: "Hind View",
-    image: "good-7.jpg",
-    imageAlt: "Good hind view example",
+    goodImage: "good-7.jpg",
+    goodImageAlt: "Good hind view example",
+    badImage: "bad-7.jpg",
+    badImageAlt: "Bad hind view example",
     doItems: HIND_VIEW_DO,
     dontItems: HIND_VIEW_DONT,
   },
@@ -122,12 +130,7 @@ export default function PhotoGuidePage() {
         <PhotoGuideCarousel slides={PHOTO_GUIDE_SLIDES} />
 
         <div className="mt-10 flex flex-col items-center gap-4">
-          <Link
-            href="/buy-credits"
-            className="w-full max-w-sm rounded-xl bg-accent px-8 py-5 text-center text-lg font-bold text-white transition hover:bg-accent-hover sm:w-auto"
-          >
-            I&apos;m Ready, Buy Credits
-          </Link>
+          <PhotoGuideCta />
           <ExamplesBackButton />
         </div>
       </main>

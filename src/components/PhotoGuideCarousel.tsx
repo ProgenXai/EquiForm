@@ -7,13 +7,50 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export type PhotoGuideSlide = {
   id: string;
   title: string;
-  image: string;
-  imageAlt: string;
+  goodImage: string;
+  goodImageAlt: string;
+  badImage: string;
+  badImageAlt: string;
   doItems: readonly string[];
   dontItems: readonly string[];
 };
 
 const SWIPE_THRESHOLD_PX = 50;
+
+const EXAMPLE_IMAGE_CLASS =
+  "mx-auto max-h-56 w-full object-contain sm:max-h-72";
+
+function ExamplePhoto({
+  label,
+  labelClassName,
+  filename,
+  alt,
+  priority,
+}: {
+  label: string;
+  labelClassName: string;
+  filename: string;
+  alt: string;
+  priority?: boolean;
+}) {
+  return (
+    <div>
+      <p className={`mb-2 text-center text-sm font-semibold ${labelClassName}`}>
+        {label}
+      </p>
+      <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+        <Image
+          src={`/examples/${filename}`}
+          alt={alt}
+          width={800}
+          height={600}
+          priority={priority}
+          className={EXAMPLE_IMAGE_CLASS}
+        />
+      </div>
+    </div>
+  );
+}
 
 function DoDontList({
   doItems,
@@ -153,15 +190,19 @@ export default function PhotoGuideCarousel({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-          <Image
-            key={slide.id}
-            src={`/examples/${slide.image}`}
-            alt={slide.imageAlt}
-            width={800}
-            height={600}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ExamplePhoto
+            label="Good example"
+            labelClassName="text-green-400"
+            filename={slide.goodImage}
+            alt={slide.goodImageAlt}
             priority={activeIndex === 0}
-            className="mx-auto max-h-72 w-full object-contain sm:max-h-96"
+          />
+          <ExamplePhoto
+            label="Bad example"
+            labelClassName="text-red-400"
+            filename={slide.badImage}
+            alt={slide.badImageAlt}
           />
         </div>
 
