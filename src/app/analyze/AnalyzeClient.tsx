@@ -2144,11 +2144,11 @@ export default function AnalyzeClient() {
           {showPackageSelection ? (
             <>
               {isLoggedIn && welcomeName ? (
-                <p className="mb-6 text-center text-lg text-zinc-200">
+                <p className="mb-6 text-center text-xl font-semibold text-accent">
                   Welcome back, {welcomeName}! What would you like to do today?
                 </p>
               ) : null}
-              <h2 className="mb-6 text-center text-lg font-semibold text-white">
+              <h2 className="mb-6 text-center text-2xl font-semibold text-white">
                 Choose your report type
               </h2>
               <div
