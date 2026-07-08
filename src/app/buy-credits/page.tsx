@@ -25,7 +25,7 @@ export default function BuyRosettesPage() {
       window.history.replaceState({}, "", "/buy-credits");
 
       if (!session?.user) {
-        router.replace("/dashboard");
+        router.replace("/analyze");
         return;
       }
 
@@ -35,12 +35,12 @@ export default function BuyRosettesPage() {
         .eq("user_id", session.user.id);
 
       if (error || (count ?? 0) > 0) {
-        router.replace("/dashboard");
+        router.replace("/analyze");
         return;
       }
 
       if (localStorage.getItem("equiform_welcome_seen") === "true") {
-        router.replace("/dashboard");
+        router.replace("/analyze");
         return;
       }
 

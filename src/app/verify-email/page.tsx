@@ -158,10 +158,10 @@ export default function VerifyEmailPage() {
               </button>
 
               <Link
-                href="/dashboard"
+                href="/analyze"
                 className="mt-4 inline-block w-full text-center text-sm font-medium text-accent transition hover:text-accent-hover"
               >
-                Back to Dashboard
+                Continue to Analyze
               </Link>
             </>
           )}

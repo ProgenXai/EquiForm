@@ -91,7 +91,7 @@ export default function AuthPage() {
     }
 
     if (mode === "login") {
-      router.push("/dashboard");
+      router.push("/analyze");
     }
   }
 

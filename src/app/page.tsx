@@ -101,7 +101,7 @@ export default function Home() {
     }
 
     if (mode === "login") {
-      router.push("/dashboard");
+      router.push("/analyze");
     }
   }
 
