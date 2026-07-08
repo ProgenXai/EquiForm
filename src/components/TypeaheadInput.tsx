@@ -17,6 +17,7 @@ type TypeaheadInputProps = {
   suggestions: readonly string[];
   appendOnSelect?: boolean;
   hint?: string;
+  onSuggestionSelect?: (suggestion: string) => boolean | void;
 };
 
 function appendTypeaheadValue(
@@ -59,6 +60,7 @@ export default function TypeaheadInput({
   suggestions,
   appendOnSelect = false,
   hint,
+  onSuggestionSelect,
 }: TypeaheadInputProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,6 +159,11 @@ export default function TypeaheadInput({
                 className="w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
+                  if (onSuggestionSelect?.(suggestion) === false) {
+                    setOpen(false);
+                    return;
+                  }
+
                   if (appendOnSelect) {
                     const nextValue = appendTypeaheadValue(value, suggestion);
                     if (nextValue !== null) {

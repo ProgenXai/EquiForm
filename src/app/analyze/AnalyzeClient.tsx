@@ -22,12 +22,12 @@ import type { Session } from "@supabase/supabase-js";
 
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+import DisciplineInput from "@/components/DisciplineInput";
 import TypeaheadInput from "@/components/TypeaheadInput";
 import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
 import {
   BREED_SUGGESTIONS,
-  DISCIPLINE_SUGGESTIONS,
 } from "@/lib/horse-form-suggestions";
 import {
   formatAnalysisError,
@@ -2364,15 +2364,11 @@ export default function AnalyzeClient() {
                   ))}
                 </select>
               </div>
-              <TypeaheadInput
+              <DisciplineInput
                 id="discipline"
                 label="Discipline (optional)"
                 value={discipline}
                 onChange={setDiscipline}
-                placeholder="e.g. Barrel Racing, Dressage, Broodmare"
-                suggestions={DISCIPLINE_SUGGESTIONS}
-                appendOnSelect
-                hint="Select one or more disciplines."
               />
             </div>
 
@@ -2663,15 +2659,11 @@ export default function AnalyzeClient() {
                     ))}
                   </select>
                 </div>
-                <TypeaheadInput
+                <DisciplineInput
                   id="full-report-discipline"
                   label="Discipline (optional)"
                   value={discipline}
                   onChange={setDiscipline}
-                  placeholder="e.g. Barrel Racing, Dressage, Broodmare"
-                  suggestions={DISCIPLINE_SUGGESTIONS}
-                  appendOnSelect
-                  hint="Select one or more disciplines."
                 />
               </div>
 

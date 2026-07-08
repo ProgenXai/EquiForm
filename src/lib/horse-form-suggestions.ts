@@ -16,22 +16,40 @@ export const BREED_SUGGESTIONS = [
   "Rocky Mountain Horse",
 ] as const;
 
+export const DISCIPLINE_OTHER = "Other" as const;
+
 export const DISCIPLINE_SUGGESTIONS = [
   "Barrel Racing",
+  "Pole Bending",
+  "Mounted Shooting",
+  "Gymkhana",
   "Reining",
   "Cutting",
-  "Roping",
+  "Team Roping",
+  "Tie-Down Roping",
+  "Breakaway Roping",
+  "Working Cow Horse",
+  "Ranch Sorting",
   "Team Penning",
-  "Sorting",
-  "Dressage",
-  "Hunter/Jumper",
-  "Eventing",
   "Western Pleasure",
-  "Trail",
-  "Endurance",
-  "Polo",
+  "Ranch Riding",
+  "Western Trail",
+  "Rodeo",
+  "Dressage",
+  "Show Jumping",
+  "Hunter/Hunter Under Saddle",
+  "Eventing",
+  "Halter/Conformation Showing",
+  "Endurance Riding",
+  "Driving",
   "Racing",
+  "Pleasure Riding",
+  "Polo",
   "Broodmare",
   "Retired",
-  "Pleasure Riding",
+] as const;
+
+export const DISCIPLINE_SUGGESTIONS_WITH_OTHER = [
+  ...DISCIPLINE_SUGGESTIONS,
+  DISCIPLINE_OTHER,
 ] as const;

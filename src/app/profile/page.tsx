@@ -5,12 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+import DisciplineInput from "@/components/DisciplineInput";
 import TypeaheadInput from "@/components/TypeaheadInput";
 import { formatDisciplineList } from "@/lib/format-discipline";
-import {
-  BREED_SUGGESTIONS,
-  DISCIPLINE_SUGGESTIONS,
-} from "@/lib/horse-form-suggestions";
+import { BREED_SUGGESTIONS } from "@/lib/horse-form-suggestions";
 import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_LOAD_ERROR_MESSAGE,
@@ -456,15 +454,11 @@ function ProfilePageContent() {
               hint="Select one or more breeds."
             />
 
-            <TypeaheadInput
+            <DisciplineInput
               id="profile-preferred-disciplines"
               label="Preferred disciplines (optional)"
               value={preferredDisciplines}
               onChange={setPreferredDisciplines}
-              placeholder="e.g. Barrel Racing, Dressage, Broodmare"
-              suggestions={DISCIPLINE_SUGGESTIONS}
-              appendOnSelect
-              hint="Select one or more disciplines."
             />
 
             <div>
