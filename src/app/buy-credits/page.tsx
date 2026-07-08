@@ -97,7 +97,7 @@ export default function BuyRosettesPage() {
               Welcome to EquiForm!
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-              For best results, visit our Examples page to see what makes a
+              For best results, visit our Photo Guide to see what makes a
               great conformation photo before you analyze your first horse.
             </p>
             <div className="mt-6 flex flex-col gap-3">
@@ -106,7 +106,7 @@ export default function BuyRosettesPage() {
                 onClick={() => router.push("/examples")}
                 className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
-                See Examples
+                See Photo Guide
               </button>
               <button
                 type="button"

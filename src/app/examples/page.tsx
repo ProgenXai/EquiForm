@@ -3,14 +3,9 @@ import Link from "next/link";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import ExamplesBackButton from "@/components/ExamplesBackButton";
-
-const GOOD_EXAMPLES = ["good-1.jpg", "good-2.jpg", "good-3.jpg", "good-4.jpg"] as const;
-const BAD_EXAMPLES = ["bad-1.jpg", "bad-2.jpg", "bad-3.jpg", "bad-4.jpg"] as const;
-
-const FRONT_GOOD = ["good-5.jpg", "good-6.jpg"] as const;
-const FRONT_BAD = ["bad-5.jpg", "bad-6.jpg"] as const;
-const HIND_GOOD = ["good-7.jpg", "good-8.jpg"] as const;
-const HIND_BAD = ["bad-7.jpg", "bad-8.jpg"] as const;
+import PhotoGuideCarousel, {
+  type PhotoGuideSlide,
+} from "@/components/PhotoGuideCarousel";
 
 const SIDE_PROFILE_DO = [
   "Full side profile, head to hoof fully visible",
@@ -60,117 +55,42 @@ const HIND_VIEW_DONT = [
   "Feet partially obscured or off level ground",
 ] as const;
 
-const EXAMPLE_IMAGE_CLASS =
-  "max-h-64 w-full object-contain sm:max-h-72";
+const PHOTO_GUIDE_SLIDES: readonly PhotoGuideSlide[] = [
+  {
+    id: "left",
+    title: "Left Side",
+    image: "good-1.jpg",
+    imageAlt: "Good left side profile example",
+    doItems: SIDE_PROFILE_DO,
+    dontItems: SIDE_PROFILE_DONT,
+  },
+  {
+    id: "right",
+    title: "Right Side",
+    image: "good-2.jpg",
+    imageAlt: "Good right side profile example",
+    doItems: SIDE_PROFILE_DO,
+    dontItems: SIDE_PROFILE_DONT,
+  },
+  {
+    id: "front",
+    title: "Front View",
+    image: "good-5.jpg",
+    imageAlt: "Good front view example",
+    doItems: FRONT_VIEW_DO,
+    dontItems: FRONT_VIEW_DONT,
+  },
+  {
+    id: "hind",
+    title: "Hind View",
+    image: "good-7.jpg",
+    imageAlt: "Good hind view example",
+    doItems: HIND_VIEW_DO,
+    dontItems: HIND_VIEW_DONT,
+  },
+];
 
-const EXAMPLE_IMAGE_CONTAINER_CLASS =
-  "overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950";
-
-function ExamplePhotoGrid({
-  goodExamples,
-  badExamples,
-  doItems,
-  dontItems,
-}: {
-  goodExamples: readonly string[];
-  badExamples: readonly string[];
-  doItems: readonly string[];
-  dontItems: readonly string[];
-}) {
-  return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h3 className="text-lg font-semibold text-green-400">Good Examples</h3>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {goodExamples.map((filename, index) => (
-            <div key={filename} className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
-              <Image
-                src={`/examples/${filename}`}
-                alt={`Good example ${index + 1}`}
-                width={400}
-                height={300}
-                className={EXAMPLE_IMAGE_CLASS}
-              />
-            </div>
-          ))}
-        </div>
-        <h4 className="mt-6 text-sm font-semibold text-green-400">Do</h4>
-        <ul className="mt-3 space-y-3">
-          {doItems.map((item) => (
-            <li
-              key={item}
-              className="flex gap-2 text-sm leading-relaxed text-zinc-300"
-            >
-              <span className="shrink-0" aria-hidden="true">
-                ✅
-              </span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h3 className="text-lg font-semibold text-red-400">Bad Examples</h3>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {badExamples.map((filename, index) => (
-            <div key={filename} className={EXAMPLE_IMAGE_CONTAINER_CLASS}>
-              <Image
-                src={`/examples/${filename}`}
-                alt={`Bad example ${index + 1}`}
-                width={400}
-                height={300}
-                className={EXAMPLE_IMAGE_CLASS}
-              />
-            </div>
-          ))}
-        </div>
-        <h4 className="mt-6 text-sm font-semibold text-red-400">Don&apos;t</h4>
-        <ul className="mt-3 space-y-3">
-          {dontItems.map((item) => (
-            <li
-              key={item}
-              className="flex gap-2 text-sm leading-relaxed text-zinc-300"
-            >
-              <span className="shrink-0" aria-hidden="true">
-                ❌
-              </span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
-  );
-}
-
-function ViewSection({
-  title,
-  goodExamples,
-  badExamples,
-  doItems,
-  dontItems,
-}: {
-  title: string;
-  goodExamples: readonly string[];
-  badExamples: readonly string[];
-  doItems: readonly string[];
-  dontItems: readonly string[];
-}) {
-  return (
-    <section className="mb-12">
-      <h2 className="mb-6 text-xl font-semibold text-zinc-300">{title}</h2>
-      <ExamplePhotoGrid
-        goodExamples={goodExamples}
-        badExamples={badExamples}
-        doItems={doItems}
-        dontItems={dontItems}
-      />
-    </section>
-  );
-}
-
-export default function ExamplesPage() {
+export default function PhotoGuidePage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <AppHamburgerMenu />
@@ -190,38 +110,16 @@ export default function ExamplesPage() {
         </p>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-10">
+      <main className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-10 text-center">
-          <h1 className="text-2xl font-semibold text-white">Photo Guidelines</h1>
+          <h1 className="text-2xl font-semibold text-white">Photo Guide</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Great reports start with great photos. Here&apos;s what works and what
-            doesn&apos;t.
+            Great reports start with great photos. Swipe or use the arrows to see
+            what works and what doesn&apos;t for each view.
           </p>
         </div>
 
-        <ViewSection
-          title="Side Profile"
-          goodExamples={GOOD_EXAMPLES}
-          badExamples={BAD_EXAMPLES}
-          doItems={SIDE_PROFILE_DO}
-          dontItems={SIDE_PROFILE_DONT}
-        />
-
-        <ViewSection
-          title="Front View"
-          goodExamples={FRONT_GOOD}
-          badExamples={FRONT_BAD}
-          doItems={FRONT_VIEW_DO}
-          dontItems={FRONT_VIEW_DONT}
-        />
-
-        <ViewSection
-          title="Hind View"
-          goodExamples={HIND_GOOD}
-          badExamples={HIND_BAD}
-          doItems={HIND_VIEW_DO}
-          dontItems={HIND_VIEW_DONT}
-        />
+        <PhotoGuideCarousel slides={PHOTO_GUIDE_SLIDES} />
 
         <div className="mt-10 flex flex-col items-center gap-4">
           <Link

@@ -2237,7 +2237,7 @@ export default function AnalyzeClient() {
                   href="/examples"
                   className="text-sm font-medium text-accent transition hover:text-accent-hover"
                 >
-                  View Photo Examples
+                  Photo Guide
                 </Link>
               </p>
               <label
@@ -2268,7 +2268,7 @@ export default function AnalyzeClient() {
                   href="/examples"
                   className="font-medium text-accent transition hover:text-accent-hover"
                 >
-                  Examples page
+                  Photo Guide
                 </Link>{" "}
                 for guidance.
               </p>
@@ -2592,7 +2592,7 @@ export default function AnalyzeClient() {
                   href="/examples"
                   className="font-medium text-accent transition hover:text-accent-hover"
                 >
-                  Examples page
+                  Photo Guide
                 </Link>{" "}
                 for guidance.
               </p>
