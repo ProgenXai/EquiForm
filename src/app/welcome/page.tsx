@@ -71,7 +71,7 @@ export default function WelcomePage() {
             <h2 className="text-center text-xl font-semibold text-white">
               What does your score mean?
             </h2>
-            <p className="mt-3 text-base leading-relaxed text-zinc-200 sm:text-lg">
+            <p className="mt-3 text-center text-base leading-relaxed text-zinc-200 sm:text-lg">
               EquiForm uses AI to evaluate your horse&apos;s conformation from
               your photos.
             </p>
