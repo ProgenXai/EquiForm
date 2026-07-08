@@ -16,7 +16,7 @@ const ACCENT_CARD_CLASS =
 
 export default function WelcomePage() {
   return (
-    <div className="relative min-h-screen bg-black text-zinc-100">
+    <div className="relative min-h-screen bg-black font-sans text-zinc-100 antialiased">
       <div
         className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,212,200,0.09)_0%,transparent_52%),radial-gradient(ellipse_at_bottom,rgba(0,212,200,0.05)_0%,transparent_48%)]"
         aria-hidden="true"
@@ -46,7 +46,7 @@ export default function WelcomePage() {
                 Welcome to EquiForm!
               </h1>
             </div>
-            <p className="mt-4 text-sm text-zinc-400 sm:text-base">
+            <p className="mt-4 text-base text-zinc-300 sm:text-lg">
               The most advanced AI equine conformation analysis available
             </p>
           </div>
@@ -57,7 +57,7 @@ export default function WelcomePage() {
             How does your horse measure up?
           </p>
 
-          <p className="mx-auto mt-6 max-w-2xl text-center text-sm leading-relaxed text-zinc-300 sm:text-base">
+          <p className="mx-auto mt-6 max-w-2xl text-center text-base leading-relaxed text-zinc-200 sm:text-lg">
             Conformation affects soundness, performance, and resale value — but
             professional evaluations are often expensive, hard to access, or
             subjective. EquiForm gives horse owners an objective, AI-powered
@@ -69,18 +69,18 @@ export default function WelcomePage() {
             <h2 className="text-xl font-semibold text-white">
               What does your score mean?
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+            <p className="mt-3 text-base leading-relaxed text-zinc-200 sm:text-lg">
               EquiForm uses AI to evaluate your horse&apos;s conformation from
               your photos.
             </p>
-            <p className="mt-4 text-sm font-medium text-zinc-200">
+            <p className="mt-4 text-base font-medium text-zinc-100 sm:text-lg">
               Here&apos;s a breakdown:
             </p>
             <ul className="mt-3 space-y-3">
               {SCORE_EXPLAINER_POINTS.map((point) => (
                 <li
                   key={point}
-                  className="flex gap-2 text-sm leading-relaxed text-zinc-300"
+                  className="flex gap-2 text-base leading-relaxed text-zinc-200 sm:text-lg"
                 >
                   <span className="shrink-0 text-accent" aria-hidden="true">
                     &bull;
@@ -100,10 +100,10 @@ export default function WelcomePage() {
             <div
               className={`flex aspect-video w-full flex-col items-center justify-center ${ACCENT_CARD_CLASS} border-dashed`}
             >
-              <p className="text-sm font-medium text-zinc-300">
+              <p className="text-base font-medium text-zinc-200 sm:text-lg">
                 Demo video coming soon
               </p>
-              <p className="mt-2 max-w-sm text-xs text-zinc-500">
+              <p className="mt-2 max-w-sm text-sm text-zinc-400">
                 A walkthrough of EquiForm will appear here.
               </p>
             </div>
