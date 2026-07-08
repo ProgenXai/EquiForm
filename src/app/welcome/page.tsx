@@ -12,7 +12,7 @@ const SCORE_EXPLAINER_POINTS = [
 ] as const;
 
 const ACCENT_CARD_CLASS =
-  "rounded-xl border-2 border-accent/70 bg-zinc-900/70 p-6 shadow-[0_0_32px_rgba(0,212,200,0.35),0_0_64px_rgba(0,212,200,0.18)] ring-2 ring-accent/45 sm:p-8";
+  "rounded-xl border-2 border-accent bg-zinc-900/70 p-6 sm:p-8";
 
 export default function WelcomePage() {
   return (
@@ -25,8 +25,8 @@ export default function WelcomePage() {
       <div className="relative">
         <AppHamburgerMenu />
 
-        <header className="bg-black/40 px-6 pb-10 pt-4 text-center backdrop-blur-sm sm:pb-12 sm:pt-5">
-          <div className="mx-auto max-w-3xl">
+        <header className="bg-black/40 px-6 pb-3 pt-4 text-center backdrop-blur-sm sm:pb-4 sm:pt-5">
+          <div className="mx-auto max-w-4xl">
             <div className="flex justify-center">
               <Image
                 src="/equiform-logo.png"
@@ -34,19 +34,25 @@ export default function WelcomePage() {
                 width={300}
                 height={300}
                 priority
-                className="h-44 w-44 object-contain sm:h-56 sm:w-56"
+                className="h-48 w-48 object-contain sm:h-64 sm:w-64"
               />
             </div>
-            <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
-              Welcome to EquiForm!
-            </h1>
+            <div className="relative mx-auto mt-6 max-w-3xl">
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-28 w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.28)] blur-3xl sm:h-36"
+                aria-hidden="true"
+              />
+              <h1 className="relative text-5xl font-bold leading-tight tracking-tight text-white sm:text-6xl md:text-7xl">
+                Welcome to EquiForm!
+              </h1>
+            </div>
             <p className="mt-4 text-sm text-zinc-400 sm:text-base">
               The most advanced AI equine conformation analysis available
             </p>
           </div>
         </header>
 
-        <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-14">
+        <main className="mx-auto max-w-5xl px-4 pb-12 pt-3 sm:px-6 sm:pb-14 sm:pt-4">
           <p className="text-center text-2xl font-semibold text-accent sm:text-3xl">
             How does your horse measure up?
           </p>
