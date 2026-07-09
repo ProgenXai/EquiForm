@@ -133,7 +133,7 @@ export default function DisciplineInput({
           hint={hint}
           onSuggestionSelect={(suggestion) => {
             handleAddDiscipline(suggestion);
-            return false;
+            return suggestion === DISCIPLINE_OTHER ? false : true;
           }}
         />
       </div>

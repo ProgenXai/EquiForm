@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -134,6 +135,17 @@ export default function HomePage() {
       <AppHamburgerMenu />
 
       <main className="mx-auto max-w-lg px-4 py-10 sm:py-14">
+        <div className="mb-8 flex justify-center">
+          <Image
+            src="/equiform-logo.png"
+            alt="EquiForm"
+            width={300}
+            height={300}
+            priority
+            className="h-48 w-48 object-contain sm:h-64 sm:w-64"
+          />
+        </div>
+
         {loading ? (
           <p className="text-center text-zinc-400">Loading…</p>
         ) : loadError ? (

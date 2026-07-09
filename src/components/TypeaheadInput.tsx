@@ -20,6 +20,11 @@ type TypeaheadInputProps = {
   onSuggestionSelect?: (suggestion: string) => boolean | void;
 };
 
+function focusInput(input: HTMLInputElement | null) {
+  if (!input) return;
+  requestAnimationFrame(() => input.focus());
+}
+
 function appendTypeaheadValue(
   current: string,
   suggestion: string,
@@ -72,6 +77,7 @@ export default function TypeaheadInput({
 }: TypeaheadInputProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filteredSuggestions = useMemo(() => {
     let query = value.trim().toLowerCase();
@@ -135,6 +141,7 @@ export default function TypeaheadInput({
         </label>
       ) : null}
       <input
+        ref={inputRef}
         id={id}
         type="text"
         value={value}
@@ -169,7 +176,15 @@ export default function TypeaheadInput({
                 className="w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
-                  if (onSuggestionSelect?.(suggestion) === false) {
+                  const customResult = onSuggestionSelect?.(suggestion);
+
+                  if (customResult === true) {
+                    setOpen(true);
+                    focusInput(inputRef.current);
+                    return;
+                  }
+
+                  if (customResult === false) {
                     setOpen(false);
                     return;
                   }
@@ -180,6 +195,7 @@ export default function TypeaheadInput({
                       onChange(`${nextValue}, `);
                     }
                     setOpen(true);
+                    focusInput(inputRef.current);
                     return;
                   }
 
