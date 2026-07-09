@@ -26,7 +26,6 @@ import DisciplineInput from "@/components/DisciplineInput";
 import TypeaheadInput from "@/components/TypeaheadInput";
 import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
-import { fetchWelcomeName } from "@/lib/get-welcome-name";
 import {
   BREED_SUGGESTIONS,
 } from "@/lib/horse-form-suggestions";
@@ -858,7 +857,6 @@ export default function AnalyzeClient() {
   const [adminGenerate3D, setAdminGenerate3D] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [welcomeName, setWelcomeName] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const sessionRef = useRef<Session | null>(null);
   sessionRef.current = session;
@@ -1076,7 +1074,6 @@ export default function AnalyzeClient() {
 
       if (!nextSession?.user) {
         setIsLoggedIn(false);
-        setWelcomeName(null);
         setSingleViewBalance(0);
         setSingleView3DBalance(0);
         setFullReportBalance(0);
@@ -1096,14 +1093,6 @@ export default function AnalyzeClient() {
           }
 
           try {
-            const name = await fetchWelcomeName(
-              supabase,
-              nextSession.user.id,
-              nextSession.user,
-            );
-            if (cancelled) return;
-            setWelcomeName(name);
-
             const balanceResponse = await fetch("/api/get-balance", {
               headers: {
                 Authorization: `Bearer ${nextSession.access_token ?? ""}`,
@@ -2143,17 +2132,6 @@ export default function AnalyzeClient() {
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           {showPackageSelection ? (
             <>
-              {isLoggedIn && welcomeName ? (
-                <div className="relative isolate mx-auto mb-6 max-w-3xl overflow-visible px-4 py-6">
-                  <div
-                    className="pointer-events-none absolute left-1/2 top-1/2 h-28 w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(0,212,200,0.52)] blur-[80px] sm:h-36 sm:blur-[96px]"
-                    aria-hidden="true"
-                  />
-                  <p className="relative z-10 text-center text-xl font-semibold text-white">
-                    Welcome back, {welcomeName}! What would you like to do today?
-                  </p>
-                </div>
-              ) : null}
               <h2 className="mb-6 text-center text-2xl font-semibold text-white">
                 Choose your report type
               </h2>

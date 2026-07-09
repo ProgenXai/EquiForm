@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
+import { hasAnyCredits } from "@/lib/credit-balances";
 import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,20 +12,6 @@ type BalanceResponse = {
   single_view_balance?: number;
   full_report_balance?: number;
 };
-
-function hasAnyCredits(balances: {
-  single_view_balance: number;
-  single_view_3d_balance: number;
-  full_report_balance: number;
-  full_report_3d_balance: number;
-}): boolean {
-  return (
-    balances.single_view_balance > 0 ||
-    balances.single_view_3d_balance > 0 ||
-    balances.full_report_balance > 0 ||
-    balances.full_report_3d_balance > 0
-  );
-}
 
 export default function PhotoGuideCta() {
   const [href, setHref] = useState("/buy-credits");
