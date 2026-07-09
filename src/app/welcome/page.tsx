@@ -111,7 +111,13 @@ export default function WelcomePage() {
             </div>
           </section>
 
-          <div className="mt-12 flex justify-center">
+          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+            <Link
+              href="/examples"
+              className="w-full max-w-sm rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:w-auto"
+            >
+              See Our Photo Guidelines
+            </Link>
             <Link
               href="/buy-credits"
               className="w-full max-w-sm rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:w-auto"
