@@ -111,34 +111,36 @@ export default function PhotoGuideCarousel({
 
   const goToSlide = useCallback(
     (index: number) => {
-      if (index < 0 || index >= slideCount) return;
-      setActiveIndex(index);
+      setActiveIndex((prev) => {
+        if (index < 0 || index >= slideCount) return prev;
+        return index;
+      });
     },
     [slideCount],
   );
 
   const goToPrevious = useCallback(() => {
-    goToSlide(activeIndex - 1);
-  }, [activeIndex, goToSlide]);
+    setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
+  }, []);
 
   const goToNext = useCallback(() => {
-    goToSlide(activeIndex + 1);
-  }, [activeIndex, goToSlide]);
+    setActiveIndex((prev) => (prev < slideCount - 1 ? prev + 1 : prev));
+  }, [slideCount]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        goToPrevious();
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
-        goToNext();
+        setActiveIndex((prev) => (prev < slideCount - 1 ? prev + 1 : prev));
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToNext, goToPrevious]);
+  }, [slideCount]);
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartX.current = event.touches[0]?.clientX ?? null;
@@ -158,9 +160,9 @@ export default function PhotoGuideCarousel({
 
     const delta = touchStartX.current - touchEndX.current;
     if (delta > SWIPE_THRESHOLD_PX) {
-      goToNext();
+      setActiveIndex((prev) => (prev < slideCount - 1 ? prev + 1 : prev));
     } else if (delta < -SWIPE_THRESHOLD_PX) {
-      goToPrevious();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
     }
 
     touchStartX.current = null;
@@ -184,26 +186,28 @@ export default function PhotoGuideCarousel({
         </p>
       </div>
 
-      <div
-        className="relative touch-pan-y"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <ExamplePhoto
-            label="Good example"
-            labelClassName="text-green-400"
-            filename={slide.goodImage}
-            alt={slide.goodImageAlt}
-            priority={activeIndex === 0}
-          />
-          <ExamplePhoto
-            label="Bad example"
-            labelClassName="text-red-400"
-            filename={slide.badImage}
-            alt={slide.badImageAlt}
-          />
+      <div className="relative">
+        <div
+          className="touch-pan-y"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div key={slide.id} className="grid gap-4 sm:grid-cols-2">
+            <ExamplePhoto
+              label="Good example"
+              labelClassName="text-green-400"
+              filename={slide.goodImage}
+              alt={slide.goodImageAlt}
+              priority={activeIndex === 0}
+            />
+            <ExamplePhoto
+              label="Bad example"
+              labelClassName="text-red-400"
+              filename={slide.badImage}
+              alt={slide.badImageAlt}
+            />
+          </div>
         </div>
 
         <button
@@ -211,7 +215,7 @@ export default function PhotoGuideCarousel({
           onClick={goToPrevious}
           disabled={activeIndex === 0}
           aria-label="Previous view"
-          className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-30"
+          className="absolute left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeft size={22} aria-hidden="true" />
         </button>
@@ -221,7 +225,7 @@ export default function PhotoGuideCarousel({
           onClick={goToNext}
           disabled={activeIndex === slideCount - 1}
           aria-label="Next view"
-          className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-30"
+          className="absolute right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronRight size={22} aria-hidden="true" />
         </button>

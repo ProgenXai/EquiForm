@@ -59,9 +59,9 @@ const PHOTO_GUIDE_SLIDES: readonly PhotoGuideSlide[] = [
   {
     id: "left",
     title: "Left Side",
-    goodImage: "good-1.jpg",
+    goodImage: "good-2.jpg",
     goodImageAlt: "Good left side profile example",
-    badImage: "bad-1.jpg",
+    badImage: "bad-2.jpg",
     badImageAlt: "Bad left side profile example",
     doItems: SIDE_PROFILE_DO,
     dontItems: SIDE_PROFILE_DONT,
@@ -69,9 +69,9 @@ const PHOTO_GUIDE_SLIDES: readonly PhotoGuideSlide[] = [
   {
     id: "right",
     title: "Right Side",
-    goodImage: "good-2.jpg",
+    goodImage: "good-1.jpg",
     goodImageAlt: "Good right side profile example",
-    badImage: "bad-2.jpg",
+    badImage: "bad-1.jpg",
     badImageAlt: "Bad right side profile example",
     doItems: SIDE_PROFILE_DO,
     dontItems: SIDE_PROFILE_DONT,
