@@ -60,11 +60,11 @@ export default function WelcomePage() {
           </p>
 
           <p className="mx-auto mt-6 max-w-2xl text-center text-base leading-relaxed text-zinc-200 sm:text-lg">
-            Conformation affects soundness, performance, and resale value — but
-            professional evaluations are often expensive, hard to access, or
-            subjective. EquiForm gives horse owners an objective, AI-powered
-            assessment using the same rule-of-thirds framework judges rely on,
-            instantly and affordably.
+            Conformation affects soundness, performance, breeding, and resale
+            value — but professional evaluations are often expensive, hard to
+            access, or subjective. EquiForm gives horse owners an objective,
+            AI-powered assessment using the same rule-of-thirds framework judges
+            rely on, instantly and affordably.
           </p>
 
           <section className={`mt-10 ${ACCENT_CARD_CLASS}`}>
@@ -111,16 +111,16 @@ export default function WelcomePage() {
             </div>
           </section>
 
-          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+          <div className="mx-auto mt-12 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <Link
               href="/examples"
-              className="w-full max-w-sm rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:w-auto"
+              className="rounded-lg bg-accent px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
             >
               See Our Photo Guidelines
             </Link>
             <Link
               href="/buy-credits"
-              className="w-full max-w-sm rounded-lg bg-accent px-8 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover sm:w-auto"
+              className="rounded-lg bg-accent px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
             >
               Buy Report Credits
             </Link>

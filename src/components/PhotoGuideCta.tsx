@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
 
 function hasAnyCredits(balances: {
@@ -22,27 +23,21 @@ function hasAnyCredits(balances: {
 export default function PhotoGuideCta() {
   const [href, setHref] = useState("/buy-credits");
   const [label, setLabel] = useState("I'm Ready, Buy Credits");
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    async function loadCta() {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    let cancelled = false;
+    const supabase = createClient();
 
-      if (!session?.user) {
-        setReady(true);
-        return;
-      }
-
+    async function updateFromUserId(userId: string) {
       const { data: tokenRow } = await supabase
         .from("user_tokens")
         .select(
           "single_view_balance, single_view_3d_balance, full_report_balance, full_report_3d_balance",
         )
-        .eq("user_id", session.user.id)
+        .eq("user_id", userId)
         .maybeSingle();
+
+      if (cancelled) return;
 
       if (
         hasAnyCredits({
@@ -55,16 +50,28 @@ export default function PhotoGuideCta() {
         setHref("/analyze");
         setLabel("Start Analyzing");
       }
-
-      setReady(true);
     }
 
-    void loadCta();
-  }, []);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) return;
+      void updateFromUserId(session.user.id);
+    });
 
-  if (!ready) {
-    return <div className="h-14 w-full max-w-sm" aria-hidden="true" />;
-  }
+    void (async () => {
+      const raced = await raceGetSession(supabase);
+      if (cancelled || raced.status !== "ok" || !raced.session?.user) {
+        return;
+      }
+      await updateFromUserId(raced.session.user.id);
+    })();
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <Link
