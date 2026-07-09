@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
+
+type BalanceResponse = {
+  single_view_balance?: number;
+  full_report_balance?: number;
+};
 
 function hasAnyCredits(balances: {
   single_view_balance: number;
@@ -28,27 +34,50 @@ export default function PhotoGuideCta() {
     let cancelled = false;
     const supabase = createClient();
 
-    async function updateFromUserId(userId: string) {
-      const { data: tokenRow } = await supabase
-        .from("user_tokens")
-        .select(
-          "single_view_balance, single_view_3d_balance, full_report_balance, full_report_3d_balance",
-        )
-        .eq("user_id", userId)
-        .maybeSingle();
+    async function updateFromSession(session: Session) {
+      if (!session.user) return;
 
-      if (cancelled) return;
+      try {
+        const balanceResponse = await fetch("/api/get-balance", {
+          headers: {
+            Authorization: `Bearer ${session.access_token ?? ""}`,
+          },
+        });
 
-      if (
-        hasAnyCredits({
-          single_view_balance: tokenRow?.single_view_balance ?? 0,
-          single_view_3d_balance: tokenRow?.single_view_3d_balance ?? 0,
-          full_report_balance: tokenRow?.full_report_balance ?? 0,
-          full_report_3d_balance: tokenRow?.full_report_3d_balance ?? 0,
-        })
-      ) {
-        setHref("/analyze");
-        setLabel("Start Analyzing");
+        const balanceData = (await balanceResponse.json()) as BalanceResponse;
+
+        const [singleView3DResult, fullReport3DResult] = await Promise.all([
+          supabase
+            .from("user_tokens")
+            .select("single_view_3d_balance")
+            .eq("user_id", session.user.id)
+            .maybeSingle(),
+          supabase
+            .from("user_tokens")
+            .select("full_report_3d_balance")
+            .eq("user_id", session.user.id)
+            .maybeSingle(),
+        ]);
+
+        if (cancelled) return;
+
+        const balances = {
+          single_view_balance: balanceData.single_view_balance ?? 0,
+          single_view_3d_balance:
+            singleView3DResult.data?.single_view_3d_balance ?? 0,
+          full_report_balance: balanceData.full_report_balance ?? 0,
+          full_report_3d_balance:
+            fullReport3DResult.data?.full_report_3d_balance ?? 0,
+        };
+
+        console.log("[PhotoGuideCta] resolved balances:", balances);
+
+        if (hasAnyCredits(balances)) {
+          setHref("/analyze");
+          setLabel("Start Analyzing");
+        }
+      } catch (error) {
+        console.error("[PhotoGuideCta] balance check failed:", error);
       }
     }
 
@@ -56,15 +85,27 @@ export default function PhotoGuideCta() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) return;
-      void updateFromUserId(session.user.id);
+
+      // Defer Supabase/data work outside the auth-js notification lock (same as Analyze).
+      window.setTimeout(() => {
+        if (cancelled) return;
+        void updateFromSession(session);
+      }, 0);
     });
 
     void (async () => {
       const raced = await raceGetSession(supabase);
-      if (cancelled || raced.status !== "ok" || !raced.session?.user) {
+      if (cancelled) return;
+
+      if (raced.status === "ok" && raced.session?.user) {
+        await updateFromSession(raced.session);
         return;
       }
-      await updateFromUserId(raced.session.user.id);
+
+      console.log(
+        "[PhotoGuideCta] raceGetSession deferred to onAuthStateChange:",
+        raced.status,
+      );
     })();
 
     return () => {
