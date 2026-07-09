@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+import BuyCreditsLink from "@/components/BuyCreditsLink";
 import {
   type CreditBalances,
   getNonZeroCreditRows,
@@ -191,17 +192,14 @@ export default function HomePage() {
             </section>
 
             <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <BuyCreditsLink className="rounded-xl border border-zinc-700 bg-zinc-950 px-6 py-4 text-center text-base font-semibold text-zinc-200 transition hover:bg-zinc-800">
+                Buy More Credits
+              </BuyCreditsLink>
               <Link
                 href="/analyze"
                 className="rounded-xl bg-accent px-6 py-4 text-center text-base font-semibold text-white transition hover:bg-accent-hover"
               >
                 Analyze a Horse
-              </Link>
-              <Link
-                href="/buy-credits"
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-6 py-4 text-center text-base font-semibold text-zinc-200 transition hover:bg-zinc-800"
-              >
-                Buy More Credits
               </Link>
             </div>
 
