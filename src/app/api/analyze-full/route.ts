@@ -324,21 +324,20 @@ async function validateViewImage(
   return parseValidationResponse(validationText);
 }
 
-function withReportContext(
-  prompt: string,
+function buildReportContext(
   breed: string,
   discipline?: string | null,
   age?: string | null,
   sex?: string | null,
   coatColor?: string | null,
 ): string {
-  let result = prompt;
+  let result = "";
 
   if (sex) {
-    result = `HORSE SEX — REQUIRED: This horse is a ${sex}. You MUST use this sex (${sex}) throughout the entire report — in the summary, every section's notes, and anywhere you refer to the horse. Do NOT infer, assume, or override this sex from the photo. Never call this horse a different sex.\n\n${result}`;
+    result += `HORSE SEX — REQUIRED: This horse is a ${sex}. You MUST use this sex (${sex}) throughout the entire report — in the summary, every section's notes, and anywhere you refer to the horse. Do NOT infer, assume, or override this sex from the photo. Never call this horse a different sex.\n\n`;
   }
 
-  result += `\n\nBREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
+  result += `BREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
 
   if (coatColor) {
     result += `\n\nCOAT COLOR CONTEXT: This horse's coat color is ${coatColor}. Reference this coat color in your analysis where relevant, and do not contradict it based on photo appearance alone.`;
@@ -368,6 +367,13 @@ async function generateViewReport(
   const reportMessage = await anthropic.messages.create({
     model: "claude-opus-4-5-20251101",
     max_tokens: 2048,
+    system: [
+      {
+        type: "text",
+        text: REPORT_PROMPTS[view],
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",
@@ -375,14 +381,7 @@ async function generateViewReport(
           buildAnthropicImageContent(prepared),
           {
             type: "text",
-            text: withReportContext(
-              REPORT_PROMPTS[view],
-              breed,
-              discipline,
-              age,
-              sex,
-              coatColor,
-            ),
+            text: buildReportContext(breed, discipline, age, sex, coatColor),
           },
         ],
       },
