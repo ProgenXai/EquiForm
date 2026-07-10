@@ -1,7 +1,7 @@
 import { getResendClient } from "@/lib/email/resend";
 
 const ADMIN_ALERT_EMAIL = "EquiFormApp@gmail.com";
-const ADMIN_ALERT_FROM = "EquiForm <EquiFormApp@gmail.com>";
+const ADMIN_ALERT_FROM = "EquiForm Alerts <alerts@equiform.app>";
 
 function escapeHtml(value: string): string {
   return value
