@@ -93,21 +93,19 @@ export default function WelcomePage() {
             </ul>
           </section>
 
-          {/* Replace this container with a video embed when the demo is ready */}
           <section
-            className="mt-10"
+            className={`mt-10 ${ACCENT_CARD_CLASS}`}
             aria-label="EquiForm demo video"
-            data-video-embed-ready="true"
           >
-            <div
-              className={`flex aspect-video w-full flex-col items-center justify-center ${ACCENT_CARD_CLASS} border-dashed`}
-            >
-              <p className="text-base font-medium text-zinc-200 sm:text-lg">
-                Demo video coming soon
-              </p>
-              <p className="mt-2 max-w-sm text-sm text-zinc-400">
-                A walkthrough of EquiForm will appear here.
-              </p>
+            <div className="aspect-video w-full overflow-hidden rounded-lg">
+              <iframe
+                src="https://www.youtube.com/embed/Ev8KprLLADM"
+                title="EquiForm demo video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                className="h-full w-full border-0"
+              />
             </div>
           </section>
 
