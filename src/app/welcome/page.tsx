@@ -62,9 +62,10 @@ export default function WelcomePage() {
           <p className="mx-auto mt-6 max-w-2xl text-center text-base leading-relaxed text-zinc-200 sm:text-lg">
             Conformation affects soundness, performance, breeding, and resale
             value — but professional evaluations are often expensive, hard to
-            access, or subjective. EquiForm gives horse owners an objective,
-            AI-powered assessment using the same rule-of-thirds framework judges
-            rely on, instantly and affordably.
+            access, or subjective. Considering buying a horse? EquiForm gives
+            you an objective, AI-powered second opinion on conformation before
+            you commit, using the same rule-of-thirds framework judges rely
+            on — instantly and affordably.
           </p>
 
           <section className={`mt-10 ${ACCENT_CARD_CLASS}`}>
