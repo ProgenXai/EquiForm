@@ -140,6 +140,26 @@ export default function RootLayout({
             >
               Full Disclaimer
             </a>
+            <a
+              href="/terms"
+              style={{
+                color: "#9ca3af",
+                textDecoration: "underline",
+                marginLeft: "8px",
+              }}
+            >
+              Terms
+            </a>
+            <a
+              href="/privacy"
+              style={{
+                color: "#9ca3af",
+                textDecoration: "underline",
+                marginLeft: "8px",
+              }}
+            >
+              Privacy
+            </a>
           </p>
         </footer>
       </body>

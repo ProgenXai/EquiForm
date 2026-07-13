@@ -18,6 +18,7 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [notifyUpdates, setNotifyUpdates] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,12 @@ export default function Home() {
     if (mode === "signup" && (!trimmedFirstName || !trimmedLastName)) {
       setLoading(false);
       setError("First name and last name are required.");
+      return;
+    }
+
+    if (mode === "signup" && !agreedToTerms) {
+      setLoading(false);
+      setError("You must agree to the Terms of Service and Privacy Policy.");
       return;
     }
 
@@ -226,6 +233,42 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {mode === "signup" ? (
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(event) => {
+                  setAgreedToTerms(event.target.checked);
+                  if (error) setError(null);
+                }}
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-950 text-accent focus:ring-accent"
+              />
+              <span className="text-sm text-zinc-400">
+                I agree to EquiForm&apos;s{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-accent transition hover:text-accent-hover"
+                >
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-accent transition hover:text-accent-hover"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </span>
+            </label>
+          ) : null}
 
           {mode === "signup" ? (
             <label className="flex cursor-pointer items-start gap-2">
