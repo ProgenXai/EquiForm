@@ -334,13 +334,13 @@ function buildReportContext(
   let result = "";
 
   if (sex) {
-    result += `HORSE SEX — REQUIRED: This horse is a ${sex}. You MUST use this sex (${sex}) throughout the entire report — in the summary, every section's notes, and anywhere you refer to the horse. Do NOT infer, assume, or override this sex from the photo. Never call this horse a different sex.\n\n`;
+    result += `HORSE SEX: This horse is a ${sex}. Use this sex correctly if you refer to the horse by sex (e.g. "this gelding," "this mare") — do not infer, assume, or override it from the photo, and never call the horse a different sex.\n\n`;
   }
 
   result += `BREED CONTEXT: This horse is a ${breed}. Tailor your conformation analysis, scoring, and notes to the standards and ideal traits typical of this breed.`;
 
   if (coatColor) {
-    result += `\n\nCOAT COLOR CONTEXT: This horse's coat color is ${coatColor}. Reference this coat color in your analysis where relevant, and do not contradict it based on photo appearance alone.`;
+    result += `\n\nCOAT COLOR CONTEXT: This horse's coat color is ${coatColor}. Do not contradict it based on photo appearance alone.`;
   }
 
   if (age) {
@@ -350,6 +350,8 @@ function buildReportContext(
   if (discipline) {
     result += `\n\nDISCIPLINE CONTEXT: This horse is evaluated for ${discipline}. Tailor your conformation analysis, scoring, and notes to the conformation priorities most important for this discipline.`;
   }
+
+  result += `\n\nWRITING STYLE — IMPORTANT: You may mention the horse's age, breed, coat color, and sex ONCE, in the summary, to set context. Do NOT repeat this descriptor (e.g. "This 3-year-old dark bay Quarter Horse gelding...") at the start of every section's notes — it becomes repetitive across a 4-view report. In each section's notes, jump straight into the actual conformation observation instead.`;
 
   return result;
 }
