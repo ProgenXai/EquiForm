@@ -198,12 +198,6 @@ export default function PrivacyPolicyPage() {
           </a>
           .
         </p>
-
-        <p className="mt-10 text-sm italic text-zinc-500">
-          This is a general Privacy Policy template and has not been reviewed
-          by an attorney. Consider having a lawyer review it as EquiForm
-          grows.
-        </p>
       </main>
     </div>
   );
