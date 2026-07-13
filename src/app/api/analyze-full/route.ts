@@ -366,7 +366,7 @@ function buildReportContext(
     result += `\n\nDISCIPLINE CONTEXT: This horse is evaluated for ${discipline}. Tailor your conformation analysis, scoring, and notes to the conformation priorities most important for this discipline.`;
   }
 
-  result += `\n\nWRITING STYLE — IMPORTANT: You may mention the horse's age, breed, coat color, and sex ONCE, in the summary, to set context. Do NOT repeat this descriptor (e.g. "This 3-year-old dark bay Quarter Horse gelding...") at the start of every section's notes — it becomes repetitive across a 4-view report. In each section's notes, jump straight into the actual conformation observation instead.`;
+  result += `\n\nWRITING STYLE — IMPORTANT: The horse's age, breed, coat color, and sex are already displayed prominently in the report header, and this report combines four separate view analyses (left, right, front, hind) into one document — each written independently. Do NOT restate this descriptor (e.g. "This 3-year-old dark bay Quarter Horse gelding...") anywhere in your response, including at the start of the summary — it becomes heavily repetitive once all four views are combined. Open the summary and every section's notes directly with the actual conformation observation instead (e.g. "Presents as a solid barrel racing prospect with..." rather than "This 3-year-old dark bay Quarter Horse gelding presents...").`;
 
   return result;
 }
