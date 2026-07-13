@@ -11,7 +11,13 @@ export default function TermsOfServicePage() {
     <div className="min-h-screen bg-black text-zinc-100">
       <button
         type="button"
-        onClick={() => router.back()}
+        onClick={() => {
+          if (window.history.length > 1) {
+            router.back();
+          } else {
+            router.push("/");
+          }
+        }}
         className="px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
       >
         ← Back
