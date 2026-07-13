@@ -78,44 +78,46 @@ export default function PrivacyPolicyPage() {
           How your photos are processed
         </h2>
         <p className="mb-6 leading-relaxed text-zinc-300">
-          Photos you upload are sent to third-party AI providers to generate
-          your report: Anthropic (Claude) for conformation scoring, Roboflow
-          for landmark detection, PhotoRoom for background removal (when
-          applicable), and Meshy AI for 3D model generation (for 3D-enabled
-          packages). These providers process your images solely to return
-          results to EquiForm and are not authorized to use your photos for
-          any other purpose.
+          Photos you upload are sent to third-party AI processing providers to
+          generate your report, including services used for conformation
+          scoring, landmark detection, background removal (when applicable),
+          and 3D model generation (for 3D-enabled packages). These providers
+          process your images solely to return results to EquiForm and are
+          not authorized to use your photos for any other purpose.
         </p>
 
         <h2 className="mb-3 mt-8 text-lg font-semibold text-white">
           Third-party service providers
         </h2>
         <p className="mb-2 leading-relaxed text-zinc-300">
-          We use the following third parties to operate EquiForm. Each
+          We use trusted third-party providers to operate EquiForm. Each
           processes data only as needed to provide their service to us:
         </p>
         <ul className="mb-6 list-disc space-y-2 pl-5 leading-relaxed text-zinc-300">
           <li>
-            <span className="font-medium text-white">Supabase</span> — account
+            <span className="font-medium text-white">
+              Account and data hosting:
+            </span>{" "}
             authentication, database, and file storage.
           </li>
           <li>
-            <span className="font-medium text-white">Stripe</span> — payment
-            processing.
+            <span className="font-medium text-white">Payment processing:</span>{" "}
+            to securely handle purchases of report credits.
           </li>
           <li>
-            <span className="font-medium text-white">Resend</span> —
-            transactional email delivery.
+            <span className="font-medium text-white">Email delivery:</span>{" "}
+            to send transactional and, if opted in, product update emails.
           </li>
           <li>
-            <span className="font-medium text-white">Vercel</span> — website
-            hosting.
+            <span className="font-medium text-white">Website hosting:</span>{" "}
+            to run and serve the EquiForm application.
           </li>
           <li>
             <span className="font-medium text-white">
-              Anthropic, Roboflow, PhotoRoom, Meshy AI
+              AI photo analysis and 3D modeling:
             </span>{" "}
-            — AI-powered photo analysis and 3D model generation.
+            to generate conformation scores, reports, and optional 3D models
+            from your uploaded photos.
           </li>
         </ul>
 
@@ -155,10 +157,10 @@ export default function PrivacyPolicyPage() {
           Data security
         </h2>
         <p className="mb-6 leading-relaxed text-zinc-300">
-          We use industry-standard providers (Supabase, Stripe, Vercel) that
-          maintain their own security safeguards to protect your information.
-          No method of transmission or storage is 100% secure, and we cannot
-          guarantee absolute security.
+          We use industry-standard third-party providers that maintain their
+          own security safeguards to protect your information. No method of
+          transmission or storage is 100% secure, and we cannot guarantee
+          absolute security.
         </p>
 
         <h2 className="mb-3 mt-8 text-lg font-semibold text-white">

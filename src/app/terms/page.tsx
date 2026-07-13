@@ -77,10 +77,9 @@ export default function TermsOfServicePage() {
           You retain ownership of the photos and information you submit. By
           uploading a photo, you confirm that you have the right to use it
           and to have it processed by EquiForm and its third-party AI
-          providers (Anthropic, Roboflow, PhotoRoom, and Meshy AI) for the
-          purpose of generating your analysis. You agree not to upload
-          content that infringes on others&apos; rights or that is unlawful,
-          abusive, or offensive.
+          processing providers for the purpose of generating your analysis.
+          You agree not to upload content that infringes on others&apos;
+          rights or that is unlawful, abusive, or offensive.
         </p>
 
         <h2 className="mb-3 mt-8 text-lg font-semibold text-white">
