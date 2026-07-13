@@ -345,6 +345,7 @@ function buildReportContext(
   age?: string | null,
   sex?: string | null,
   coatColor?: string | null,
+  includeDescriptorInSummary?: boolean,
 ): string {
   let result = "";
 
@@ -366,7 +367,9 @@ function buildReportContext(
     result += `\n\nDISCIPLINE CONTEXT: This horse is evaluated for ${discipline}. Tailor your conformation analysis, scoring, and notes to the conformation priorities most important for this discipline.`;
   }
 
-  result += `\n\nWRITING STYLE — IMPORTANT: The horse's age, breed, coat color, and sex are already displayed prominently in the report header, and this report combines four separate view analyses (left, right, front, hind) into one document — each written independently. Do NOT restate this descriptor (e.g. "This 3-year-old dark bay Quarter Horse gelding...") anywhere in your response, including at the start of the summary — it becomes heavily repetitive once all four views are combined. Open the summary and every section's notes directly with the actual conformation observation instead (e.g. "Presents as a solid barrel racing prospect with..." rather than "This 3-year-old dark bay Quarter Horse gelding presents...").`;
+  result += includeDescriptorInSummary
+    ? `\n\nWRITING STYLE — IMPORTANT: This report combines four separate view analyses (left, right, front, hind) into one document, each written independently. You may open the summary ONCE with the horse's age, breed, coat color, and sex (e.g. "This 3-year-old dark bay Quarter Horse gelding presents...") — this is the first of the four sections, so it's the one place this descriptor belongs. Do NOT repeat it again anywhere else in your response, including in any individual section's notes — jump straight into the conformation observation there instead.`
+    : `\n\nWRITING STYLE — IMPORTANT: The horse's age, breed, coat color, and sex are already stated in the report header and in the first of the four view summaries in this combined report. Do NOT restate this descriptor (e.g. "This 3-year-old dark bay Quarter Horse gelding...") anywhere in your response, including at the start of the summary — it becomes heavily repetitive once all four views are combined. Open the summary and every section's notes directly with the actual conformation observation instead (e.g. "Presents as a solid barrel racing prospect with..." rather than "This 3-year-old dark bay Quarter Horse gelding presents...").`;
 
   return result;
 }
@@ -398,7 +401,14 @@ async function generateViewReport(
           buildAnthropicImageContent(prepared),
           {
             type: "text",
-            text: buildReportContext(breed, discipline, age, sex, coatColor),
+            text: buildReportContext(
+              breed,
+              discipline,
+              age,
+              sex,
+              coatColor,
+              view === "left",
+            ),
           },
         ],
       },
