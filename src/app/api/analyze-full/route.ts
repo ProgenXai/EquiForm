@@ -295,7 +295,7 @@ function buildAnthropicImageContent(prepared: PreparedViewImage) {
   };
 }
 
-async function validateViewImage(
+async function runImageValidationCheck(
   anthropic: Anthropic,
   view: FullReportViewKey,
   prepared: PreparedViewImage,
@@ -322,6 +322,21 @@ async function validateViewImage(
     .trim();
 
   return parseValidationResponse(validationText);
+}
+
+async function validateViewImage(
+  anthropic: Anthropic,
+  view: FullReportViewKey,
+  prepared: PreparedViewImage,
+): Promise<boolean> {
+  // The validation call is an LLM judgment on a borderline case and isn't
+  // fully deterministic — a valid photo can occasionally get a false
+  // rejection. Retry once before treating the photo as invalid so a single
+  // flaky call doesn't block a legitimate submission.
+  const firstAttempt = await runImageValidationCheck(anthropic, view, prepared);
+  if (firstAttempt) return true;
+
+  return runImageValidationCheck(anthropic, view, prepared);
 }
 
 function buildReportContext(
