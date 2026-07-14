@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { sendAdminAlert } from "@/lib/email/admin-alerts";
 import { sendWelcomeEmail } from "@/lib/email/templates";
 
 type WelcomeEmailBody = {
@@ -26,22 +25,6 @@ export async function POST(request: Request) {
 
   try {
     const result = await sendWelcomeEmail({ email, name });
-
-    const signedUpAt = new Date().toLocaleString("en-US", {
-      dateStyle: "full",
-      timeStyle: "long",
-    });
-
-    await sendAdminAlert(
-      "New EquiForm User Signup",
-      [
-        `User email: ${email}`,
-        `Signed up: ${signedUpAt}`,
-        name ? `First name: ${name}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
 
     return NextResponse.json({ success: true, id: result.id });
   } catch (error) {
