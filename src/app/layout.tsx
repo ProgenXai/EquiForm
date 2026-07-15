@@ -13,13 +13,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Apex equiform.app 307s to www; use the canonical host so og:image is a direct 200.
+const SITE_URL = "https://www.equiform.app";
+const SITE_TITLE = "EquiForm";
+const SITE_DESCRIPTION =
+  "The most advanced AI equine conformation analysis available";
+const OG_IMAGE_URL = `${SITE_URL}/equiform-logo.png`;
+
 export const metadata: Metadata = {
-  title: "EquiForm",
-  description:
-    "The most advanced AI equine conformation analysis available",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   icons: {
     icon: "/equiform-logo.png",
     apple: "/equiform-logo.png",
+  },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_TITLE,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: OG_IMAGE_URL,
+        width: 1254,
+        height: 1254,
+        alt: "EquiForm logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE_URL],
   },
 };
 
