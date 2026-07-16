@@ -472,6 +472,11 @@ export async function POST(request: Request) {
   const apiKey = process.env.PROGENXAI_API_KEY?.trim();
   const requestKey = request.headers.get("x-progenxai-key")?.trim();
 
+  console.log(
+    "PROGENXAI_API_KEY is set:",
+    !!process.env.PROGENXAI_API_KEY && process.env.PROGENXAI_API_KEY.length > 0,
+  );
+
   if (!apiKey || requestKey !== apiKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
