@@ -47,6 +47,9 @@ const FRONT_VIEW_VALIDATION_PROMPT =
 const HIND_VIEW_VALIDATION_PROMPT =
   "Does this image show a single horse from behind or near-behind, suitable for hind conformation analysis? Accept if: the horse is generally facing away from the camera (within roughly 45 degrees), the hindquarters and at least one hind leg are visible, and the horse is standing or nearly standing still. Reject only if: there is no horse visible, the horse is in full side profile, the horse is clearly running or jumping, or a person or large object is completely blocking the hindquarters. Do not reject for slight angle, tail position, partial front leg visibility, lighting, or coat color.";
 
+const UNKNOWN_ANGLE_VALIDATION_PROMPT =
+  "Does this image show a horse that can be used for conformation analysis, even if the camera angle is imperfect or undetermined? Accept if a horse is clearly visible and standing or nearly standing still. Reject only if there is no horse, the image is so blurry or dark the horse cannot be evaluated, or the horse is clearly running or jumping. When in doubt, accept.";
+
 const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
   left: SIDE_PROFILE_VALIDATION_PROMPT,
   right: SIDE_PROFILE_VALIDATION_PROMPT,
@@ -120,17 +123,46 @@ const MARKING_NAMES: Record<string, string> = {
 
 export const maxDuration = 300;
 
+/** Simplified view tag returned in views_analyzed for the matching engine. */
+type ProgenXaiViewTag = "side" | "front" | "hind" | "unknown";
+
+type ProgenXaiImageInput = {
+  url?: string;
+  imageUrl?: string;
+  image_url?: string;
+  view?: string;
+  view_type?: string;
+  viewType?: string;
+  angle?: string;
+};
+
 type ProgenXaiAnalyzeRequestBody = {
   leftUrl?: string;
   rightUrl?: string;
   frontUrl?: string;
   hindUrl?: string;
+  sideUrl?: string;
+  unknownUrl?: string;
+  /** ProgenXai stallion map: left_side / right_side / front / hind / side / unknown */
+  photo_urls?: Partial<Record<string, string>>;
+  /** Tagged image list (1–4). Each entry needs a URL + view tag. */
+  images?: ProgenXaiImageInput[];
+  photos?: ProgenXaiImageInput[];
   horseName?: string;
+  horse_name?: string;
   breed?: string;
   coatColor?: string;
-  age?: string;
+  age?: string | number | null;
   sex?: string;
   discipline?: string;
+};
+
+type ResolvedProgenXaiView = {
+  /** Internal pipeline slot (Roboflow / prompts). */
+  slot: FullReportViewKey;
+  /** Public tag for views_analyzed. */
+  tag: ProgenXaiViewTag;
+  url: string;
 };
 
 const FULL_REPORT_URL_FIELDS: Record<
@@ -142,6 +174,273 @@ const FULL_REPORT_URL_FIELDS: Record<
   front: "frontUrl",
   hind: "hindUrl",
 };
+
+/** Normalize caller view labels into public tags or specific side slots. */
+function normalizeViewTag(
+  raw: string,
+): ProgenXaiViewTag | "left" | "right" | null {
+  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  switch (key) {
+    case "left":
+    case "lefturl":
+    case "left_side":
+    case "leftside":
+      return "left";
+    case "right":
+    case "righturl":
+    case "right_side":
+    case "rightside":
+      return "right";
+    case "side":
+    case "side_profile":
+    case "sideprofile":
+    case "profile":
+      return "side";
+    case "front":
+    case "fronturl":
+      return "front";
+    case "hind":
+    case "hindurl":
+    case "rear":
+    case "back":
+      return "hind";
+    case "unknown":
+    case "unknown_angle":
+    case "unknownangle":
+    case "undetermined":
+    case "other":
+      return "unknown";
+    default:
+      return null;
+  }
+}
+
+function publicTagForSlotOrLabel(
+  label: ProgenXaiViewTag | FullReportViewKey,
+): ProgenXaiViewTag {
+  if (label === "left" || label === "right" || label === "side") return "side";
+  if (label === "front") return "front";
+  if (label === "hind") return "hind";
+  return "unknown";
+}
+
+function pipelineSlotForTag(
+  tag: ProgenXaiViewTag | FullReportViewKey,
+  occupied: Partial<Record<FullReportViewKey, true>>,
+): FullReportViewKey | null {
+  if (tag === "front") return occupied.front ? null : "front";
+  if (tag === "hind") return occupied.hind ? null : "hind";
+  if (tag === "left") return occupied.left ? null : "left";
+  if (tag === "right") return occupied.right ? null : "right";
+
+  // "side" / "unknown" fill the next free side slot (left, then right).
+  if (!occupied.left) return "left";
+  if (!occupied.right) return "right";
+  return null;
+}
+
+function extractImageUrl(entry: ProgenXaiImageInput): string | null {
+  for (const candidate of [entry.url, entry.imageUrl, entry.image_url]) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return null;
+}
+
+function extractImageViewLabel(entry: ProgenXaiImageInput): string | null {
+  for (const candidate of [entry.view, entry.view_type, entry.viewType, entry.angle]) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return null;
+}
+
+function resolveProvidedViews(
+  body: ProgenXaiAnalyzeRequestBody,
+): ResolvedProgenXaiView[] {
+  const resolved: ResolvedProgenXaiView[] = [];
+  const occupied: Partial<Record<FullReportViewKey, true>> = {};
+
+  function tryAdd(url: string, label: ProgenXaiViewTag | FullReportViewKey) {
+    if (resolved.length >= 4) return;
+    const slot = pipelineSlotForTag(label, occupied);
+    if (!slot) return;
+    occupied[slot] = true;
+    resolved.push({
+      slot,
+      tag: publicTagForSlotOrLabel(label),
+      url,
+    });
+  }
+
+  // Explicit left/right/front/hind URL fields first (most specific).
+  for (const view of FULL_REPORT_VIEW_KEYS) {
+    const urlField = FULL_REPORT_URL_FIELDS[view];
+    const rawUrl = body[urlField];
+    if (typeof rawUrl === "string" && rawUrl.trim()) {
+      tryAdd(rawUrl.trim(), view);
+    }
+  }
+
+  if (typeof body.sideUrl === "string" && body.sideUrl.trim()) {
+    tryAdd(body.sideUrl.trim(), "side");
+  }
+  if (typeof body.unknownUrl === "string" && body.unknownUrl.trim()) {
+    tryAdd(body.unknownUrl.trim(), "unknown");
+  }
+
+  if (body.photo_urls && typeof body.photo_urls === "object") {
+    for (const [rawKey, rawUrl] of Object.entries(body.photo_urls)) {
+      if (typeof rawUrl !== "string" || !rawUrl.trim()) continue;
+      const normalized = normalizeViewTag(rawKey);
+      if (!normalized) continue;
+      tryAdd(rawUrl.trim(), normalized);
+    }
+  }
+
+  const imageList = [
+    ...(Array.isArray(body.images) ? body.images : []),
+    ...(Array.isArray(body.photos) ? body.photos : []),
+  ];
+  for (const entry of imageList) {
+    if (!entry || typeof entry !== "object") continue;
+    const url = extractImageUrl(entry);
+    if (!url) continue;
+    const rawLabel = extractImageViewLabel(entry);
+    const normalized = rawLabel ? normalizeViewTag(rawLabel) : "unknown";
+    if (!normalized) {
+      tryAdd(url, "unknown");
+      continue;
+    }
+    tryAdd(url, normalized);
+  }
+
+  return resolved;
+}
+
+function averageSectionScores(
+  reports: ConformationReport[],
+  picker: (r: ConformationReport) => number,
+): number | null {
+  if (reports.length === 0) return null;
+  return Math.round(
+    reports.reduce((sum, r) => sum + picker(r), 0) / reports.length,
+  );
+}
+
+/**
+ * Structure-area visibility by view:
+ * - Side (left/right): balance, shoulder, hip, topline, leg
+ * - Front: balance, leg (front-end traits only — not true side shoulder/hip/topline)
+ * - Hind: balance, hip, leg (not true side shoulder/topline)
+ *
+ * Unassessable areas are null / not_assessed — never filled with a neutral average.
+ */
+function combineAvailableReports(
+  reportsByView: Partial<Record<FullReportViewKey, ConformationReport>>,
+): {
+  overall_score: number | null;
+  balance_score: number | null;
+  shoulder_score: number | null;
+  hip_score: number | null;
+  topline_score: number | null;
+  leg_score: number | null;
+  report_text: string;
+  betterSide: "left" | "right" | null;
+} {
+  const present = FULL_REPORT_VIEW_KEYS.filter((v) => reportsByView[v]);
+  const reports = present.map((v) => reportsByView[v]!);
+
+  const left = reportsByView.left;
+  const right = reportsByView.right;
+  const front = reportsByView.front;
+  const hind = reportsByView.hind;
+
+  let betterSide: "left" | "right" | null = null;
+  if (left && right) {
+    betterSide =
+      left.overall_score >= right.overall_score ? "left" : "right";
+  } else if (left) {
+    betterSide = "left";
+  } else if (right) {
+    betterSide = "right";
+  }
+
+  const sideReports = [left, right].filter(
+    (report): report is ConformationReport => Boolean(report),
+  );
+  const hipReports = [...sideReports, ...(hind ? [hind] : [])];
+  const balanceAndLegReports = reports;
+
+  let overall_score: number | null;
+  if (left && right && front && hind) {
+    overall_score = calculateCombinedScore(
+      left,
+      right,
+      front,
+      hind,
+      betterSide ?? "left",
+    );
+  } else {
+    overall_score = averageSectionScores(reports, (r) => r.overall_score);
+  }
+
+  const report_text = present
+    .map((view) => {
+      const report = reportsByView[view]!;
+      return `${FULL_REPORT_VIEW_LABELS[view]}: ${report.summary}`.trim();
+    })
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    overall_score,
+    balance_score: averageSectionScores(
+      balanceAndLegReports,
+      (r) => r.balance.score,
+    ),
+    // True shoulder / topline need a side profile — never invent from front/hind remaps.
+    shoulder_score: averageSectionScores(
+      sideReports,
+      (r) => r.shoulder_angle.score,
+    ),
+    hip_score: averageSectionScores(hipReports, (r) => r.hip_angle.score),
+    topline_score: averageSectionScores(
+      sideReports,
+      (r) => r.topline_quality.score,
+    ),
+    leg_score: averageSectionScores(
+      balanceAndLegReports,
+      (r) => r.leg_alignment.score,
+    ),
+    report_text,
+    betterSide,
+  };
+}
+
+function buildDataCompleteness(viewCount: number): string {
+  if (viewCount >= 4) return "complete — 4 of 4 views";
+  return `partial — ${viewCount} of 4 views`;
+}
+
+function buildViewsAnalyzed(resolved: ResolvedProgenXaiView[]): ProgenXaiViewTag[] {
+  const seen = new Set<ProgenXaiViewTag>();
+  const tags: ProgenXaiViewTag[] = [];
+  for (const entry of resolved) {
+    if (seen.has(entry.tag)) continue;
+    seen.add(entry.tag);
+    tags.push(entry.tag);
+  }
+  return tags;
+}
+
+function structureScoreOrNotAssessed(
+  score: number | null,
+): number | "not_assessed" {
+  return score === null ? "not_assessed" : score;
+}
 
 type PreparedViewImage = {
   inputBuffer: Buffer;
@@ -254,7 +553,13 @@ async function validateViewImage(
   anthropic: Anthropic,
   view: FullReportViewKey,
   prepared: PreparedViewImage,
+  tag: ProgenXaiViewTag = publicTagForSlotOrLabel(view),
 ): Promise<boolean> {
+  const validationPrompt =
+    tag === "unknown"
+      ? UNKNOWN_ANGLE_VALIDATION_PROMPT
+      : IMAGE_VALIDATION_USER_PROMPTS[view];
+
   const validationMessage = await anthropic.messages.create({
     model: "claude-opus-4-5-20251101",
     max_tokens: 256,
@@ -264,7 +569,7 @@ async function validateViewImage(
         role: "user",
         content: [
           buildAnthropicImageContent(prepared),
-          { type: "text", text: IMAGE_VALIDATION_USER_PROMPTS[view] },
+          { type: "text", text: validationPrompt },
         ],
       },
     ],
@@ -495,12 +800,6 @@ export async function POST(request: Request) {
   if (!process.env.ROBOFLOW_MODEL_ID?.trim()) {
     missingRoboflow.push("ROBOFLOW_MODEL_ID");
   }
-  if (!process.env.ROBOFLOW_FRONT_MODEL_ID?.trim()) {
-    missingRoboflow.push("ROBOFLOW_FRONT_MODEL_ID");
-  }
-  if (!process.env.ROBOFLOW_HIND_MODEL_ID?.trim()) {
-    missingRoboflow.push("ROBOFLOW_HIND_MODEL_ID");
-  }
 
   if (missingRoboflow.length > 0) {
     return NextResponse.json(
@@ -521,6 +820,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Breed is required" }, { status: 400 });
   }
 
+  const horseName =
+    (typeof body.horseName === "string" && body.horseName.trim()) ||
+    (typeof body.horse_name === "string" && body.horse_name.trim()) ||
+    "";
+
   const coatColor =
     typeof body.coatColor === "string" && body.coatColor.trim()
       ? body.coatColor.trim()
@@ -530,31 +834,55 @@ export async function POST(request: Request) {
       ? formatDisciplineList(body.discipline)
       : null;
   const age =
-    typeof body.age === "string" && body.age.trim() ? body.age.trim() : null;
+    body.age == null
+      ? null
+      : String(body.age).trim()
+        ? String(body.age).trim()
+        : null;
   const sex =
     typeof body.sex === "string" && body.sex.trim() ? body.sex.trim() : null;
 
-  const imageUrls = {} as Record<FullReportViewKey, string>;
+  const resolvedViews = resolveProvidedViews(body);
+  const providedViews = resolvedViews.map((entry) => entry.slot);
+  const imageUrls = Object.fromEntries(
+    resolvedViews.map((entry) => [entry.slot, entry.url]),
+  ) as Partial<Record<FullReportViewKey, string>>;
 
-  for (const view of FULL_REPORT_VIEW_KEYS) {
-    const urlField = FULL_REPORT_URL_FIELDS[view];
-    const rawUrl = body[urlField];
-    if (typeof rawUrl !== "string" || !rawUrl.trim()) {
-      return NextResponse.json(
-        { error: "All four image URLs are required" },
-        { status: 400 },
-      );
-    }
+  if (resolvedViews.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "At least one conformation photo URL is required (1–4 images tagged side/front/hind/unknown, or leftUrl/rightUrl/frontUrl/hindUrl / photo_urls).",
+      },
+      { status: 400 },
+    );
+  }
 
-    imageUrls[view] = rawUrl.trim();
+  // Front/hind models only required when those views are present.
+  // If missing, we still allow Claude scoring for partial/historic archives
+  // (landmark QA is best-effort for those views).
+  const skipLandmarkViews = new Set<FullReportViewKey>();
+  if (
+    providedViews.includes("front") &&
+    !process.env.ROBOFLOW_FRONT_MODEL_ID?.trim()
+  ) {
+    skipLandmarkViews.add("front");
+  }
+  if (
+    providedViews.includes("hind") &&
+    !process.env.ROBOFLOW_HIND_MODEL_ID?.trim()
+  ) {
+    skipLandmarkViews.add("hind");
   }
 
   try {
-    const preparedByView = {} as Record<FullReportViewKey, PreparedViewImage>;
+    const preparedByView = {} as Partial<
+      Record<FullReportViewKey, PreparedViewImage>
+    >;
 
     await Promise.all(
-      FULL_REPORT_VIEW_KEYS.map(async (view) => {
-        const imageResponse = await fetch(imageUrls[view]);
+      providedViews.map(async (view) => {
+        const imageResponse = await fetch(imageUrls[view]!);
         if (!imageResponse.ok) {
           throw new Error(`Failed to fetch ${view} view image`);
         }
@@ -586,29 +914,34 @@ export async function POST(request: Request) {
     const leftPrepared = preparedByView.left;
     const rightPrepared = preparedByView.right;
 
-    const leftRaw = await sharp(leftPrepared.inputBuffer)
-      .resize(64, 64, { fit: "fill" })
-      .raw()
-      .toBuffer();
+    if (leftPrepared && rightPrepared) {
+      const leftRaw = await sharp(leftPrepared.inputBuffer)
+        .resize(64, 64, { fit: "fill" })
+        .raw()
+        .toBuffer();
 
-    const rightRaw = await sharp(rightPrepared.inputBuffer)
-      .resize(64, 64, { fit: "fill" })
-      .raw()
-      .toBuffer();
+      const rightRaw = await sharp(rightPrepared.inputBuffer)
+        .resize(64, 64, { fit: "fill" })
+        .raw()
+        .toBuffer();
 
-    const directSimilarity = compareImageSimilarity(leftRaw, rightRaw);
-    const rightFlipped = flipBufferHorizontally(rightRaw, 64, 64);
-    const flippedSimilarity = compareImageSimilarity(leftRaw, rightFlipped);
-    const DUPLICATE_THRESHOLD = 0.9;
+      const directSimilarity = compareImageSimilarity(leftRaw, rightRaw);
+      const rightFlipped = flipBufferHorizontally(rightRaw, 64, 64);
+      const flippedSimilarity = compareImageSimilarity(leftRaw, rightFlipped);
+      const DUPLICATE_THRESHOLD = 0.9;
 
-    if (directSimilarity > DUPLICATE_THRESHOLD || flippedSimilarity > DUPLICATE_THRESHOLD) {
-      return NextResponse.json(
-        {
-          error:
-            "It looks like the same photo may have been used for both side views. Please upload separate left and right side photos of your horse for the most accurate analysis.",
-        },
-        { status: 400 },
-      );
+      if (
+        directSimilarity > DUPLICATE_THRESHOLD ||
+        flippedSimilarity > DUPLICATE_THRESHOLD
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "It looks like the same photo may have been used for both side views. Please upload separate left and right side photos of your horse for the most accurate analysis.",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const anthropic = new Anthropic({
@@ -616,9 +949,14 @@ export async function POST(request: Request) {
     });
 
     const validationResults = await Promise.all(
-      FULL_REPORT_VIEW_KEYS.map(async (view) => ({
-        view,
-        valid: await validateViewImage(anthropic, view, preparedByView[view]),
+      resolvedViews.map(async (entry) => ({
+        view: entry.slot,
+        valid: await validateViewImage(
+          anthropic,
+          entry.slot,
+          preparedByView[entry.slot]!,
+          entry.tag,
+        ),
       })),
     );
 
@@ -631,8 +969,14 @@ export async function POST(request: Request) {
     }
 
     await Promise.all(
-      FULL_REPORT_VIEW_KEYS.map(async (view) => {
-        const prepared = preparedByView[view];
+      providedViews.map(async (view) => {
+        if (skipLandmarkViews.has(view)) {
+          console.warn(
+            `[progenxai/analyze] skipping Roboflow landmarks for ${view} (model id not configured)`,
+          );
+          return;
+        }
+        const prepared = preparedByView[view]!;
         const viewLabel = FULL_REPORT_VIEW_LABELS[view];
 
         try {
@@ -643,11 +987,13 @@ export async function POST(request: Request) {
             ROBOFLOW_VIEW_MODE[view],
           );
         } catch (error) {
-          if (isRoboflowLandmarkFailure(error)) {
-            throw new Error(roboflowLandmarkDetectionError(viewLabel));
-          }
-
-          throw error;
+          // Landmark QA is best-effort on the ProgenXai integration path.
+          // Never block scoring solely because Roboflow cannot lock keypoints —
+          // Claude still produces a usable (possibly lower-confidence) report.
+          console.warn(
+            `[progenxai/analyze] landmark QA failed for ${viewLabel}; continuing to Claude scoring:`,
+            error instanceof Error ? error.message : error,
+          );
         }
       }),
     );
@@ -677,101 +1023,98 @@ export async function POST(request: Request) {
       return parseCoatDetectionResponse(coatText);
     };
 
-    const [
-      leftReport,
-      rightReport,
-      frontReport,
-      hindReport,
-      leftCoatResult,
-      rightCoatResult,
-      frontCoatResult,
-      hindCoatResult,
-    ] = await Promise.all([
-      generateViewReport(
-        anthropic,
-        "left",
-        preparedByView.left,
-        breed,
-        discipline,
-        age,
-        sex,
-        coatColor,
-      ),
-      generateViewReport(
-        anthropic,
-        "right",
-        preparedByView.right,
-        breed,
-        discipline,
-        age,
-        sex,
-        coatColor,
-      ),
-      generateViewReport(
-        anthropic,
-        "front",
-        preparedByView.front,
-        breed,
-        discipline,
-        age,
-        sex,
-        coatColor,
-      ),
-      generateViewReport(
-        anthropic,
-        "hind",
-        preparedByView.hind,
-        breed,
-        discipline,
-        age,
-        sex,
-        coatColor,
-      ),
-      detectCoatColorWithPrompt(preparedByView.left, COAT_COLOR_DETECTION_PROMPT_SIDE),
-      detectCoatColorWithPrompt(
-        preparedByView.right,
-        COAT_COLOR_DETECTION_PROMPT_SIDE_RIGHT,
-      ),
-      detectCoatColorWithPrompt(
-        preparedByView.front,
-        COAT_COLOR_DETECTION_PROMPT_FRONT,
-      ),
-      detectCoatColorWithPrompt(preparedByView.hind, COAT_COLOR_DETECTION_PROMPT_HIND),
-    ]);
+    const COAT_PROMPTS: Record<FullReportViewKey, string> = {
+      left: COAT_COLOR_DETECTION_PROMPT_SIDE,
+      right: COAT_COLOR_DETECTION_PROMPT_SIDE_RIGHT,
+      front: COAT_COLOR_DETECTION_PROMPT_FRONT,
+      hind: COAT_COLOR_DETECTION_PROMPT_HIND,
+    };
 
-    const betterSide: "left" | "right" =
-      leftReport.overall_score >= rightReport.overall_score ? "left" : "right";
+    const reportsByView: Partial<Record<FullReportViewKey, ConformationReport>> =
+      {};
+    const coatByView: Partial<
+      Record<FullReportViewKey, { coatColor: string; markings: string[] }>
+    > = {};
 
+    await Promise.all(
+      providedViews.map(async (view) => {
+        const prepared = preparedByView[view]!;
+        const [report, coat] = await Promise.all([
+          generateViewReport(
+            anthropic,
+            view,
+            prepared,
+            breed,
+            discipline,
+            age,
+            sex,
+            coatColor,
+          ),
+          detectCoatColorWithPrompt(prepared, COAT_PROMPTS[view]),
+        ]);
+        reportsByView[view] = report;
+        coatByView[view] = coat;
+      }),
+    );
+
+    const combined = combineAvailableReports(reportsByView);
+
+    const coatCandidates = providedViews
+      .map((v) => coatByView[v]?.coatColor)
+      .filter((c): c is string => Boolean(c));
     const detectedCoatColor =
-      leftCoatResult.coatColor !== "bay"
-        ? leftCoatResult.coatColor
-        : rightCoatResult.coatColor;
+      coatCandidates.find((c) => c !== "bay") ?? coatCandidates[0] ?? "bay";
 
     const allMarkings = [
-      ...new Set([
-        ...leftCoatResult.markings,
-        ...rightCoatResult.markings,
-        ...frontCoatResult.markings,
-        ...hindCoatResult.markings,
-      ]),
+      ...new Set(
+        providedViews.flatMap((v) => coatByView[v]?.markings ?? []),
+      ),
     ].filter((m) => m !== "none");
     const markings = allMarkings.length > 0 ? allMarkings : ["none"];
     const markingsDescription = buildMarkingsDescription(markings);
-    const overallScore = calculateCombinedScore(
-      leftReport,
-      rightReport,
-      frontReport,
-      hindReport,
-      betterSide,
-    );
 
+    const partial_analysis = resolvedViews.length < 4;
+    const views_analyzed = buildViewsAnalyzed(resolvedViews);
+    const data_completeness = buildDataCompleteness(resolvedViews.length);
+
+    let report_text = combined.report_text;
+    if (partial_analysis) {
+      const caveat = `Partial conformation analysis (${resolvedViews.length} of 4 views). Scores have lower confidence than a full four-view set. Unassessed structure areas are marked not_assessed rather than estimated.`;
+      report_text = report_text ? `${caveat}\n\n${report_text}` : caveat;
+    }
+    if (markingsDescription) {
+      report_text = report_text
+        ? `${report_text}\n\n${markingsDescription}`
+        : markingsDescription;
+    }
+
+    // Flat ProgenXai-compatible payload (also keep nested reports for debugging).
     return NextResponse.json({
-      overallScore,
-      betterSide,
-      leftReport,
-      rightReport,
-      frontReport,
-      hindReport,
+      overall_score: combined.overall_score,
+      balance_score: structureScoreOrNotAssessed(combined.balance_score),
+      shoulder_score: structureScoreOrNotAssessed(combined.shoulder_score),
+      hip_score: structureScoreOrNotAssessed(combined.hip_score),
+      topline_score: structureScoreOrNotAssessed(combined.topline_score),
+      leg_score: structureScoreOrNotAssessed(combined.leg_score),
+      report_text,
+      horse_name: horseName,
+      breed,
+      age: age ?? "",
+      sex: sex ?? "",
+      discipline: discipline ?? "",
+      coat_color: detectedCoatColor,
+      overlay_url: null,
+      pdf_url: null,
+      partial_analysis,
+      views_analyzed,
+      data_completeness,
+      // Legacy nested fields (still useful for EquiForm clients)
+      overallScore: combined.overall_score,
+      betterSide: combined.betterSide,
+      leftReport: reportsByView.left ?? null,
+      rightReport: reportsByView.right ?? null,
+      frontReport: reportsByView.front ?? null,
+      hindReport: reportsByView.hind ?? null,
       coatColor: detectedCoatColor,
       markings,
       markingsDescription,
