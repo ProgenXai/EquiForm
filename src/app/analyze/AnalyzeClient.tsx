@@ -23,6 +23,9 @@ import type { Session } from "@supabase/supabase-js";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import DisciplineInput from "@/components/DisciplineInput";
+import HorseAgeField, {
+  formatHorseAgeForStorage,
+} from "@/components/HorseAgeField";
 import TypeaheadInput from "@/components/TypeaheadInput";
 import { raceGetSession } from "@/lib/supabase/bootstrap-auth-session";
 import { createClient } from "@/lib/supabase/client";
@@ -830,7 +833,9 @@ export default function AnalyzeClient() {
   const [breed, setBreed] = useState("");
   const [coatColor, setCoatColor] = useState("");
   const [age, setAge] = useState("");
+  const [deceased, setDeceased] = useState(false);
   const [sex, setSex] = useState("");
+  const ageForReport = formatHorseAgeForStorage(age, deceased);
   const [discipline, setDiscipline] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -1241,6 +1246,7 @@ export default function AnalyzeClient() {
     setBreed("");
     setCoatColor("");
     setAge("");
+    setDeceased(false);
     setSex("");
     setDiscipline("");
     setSingleViewUploadError(null);
@@ -1512,7 +1518,7 @@ export default function AnalyzeClient() {
           viewMode: "left",
           breed: breed.trim(),
           coatColor: coatColor.trim(),
-          age: age.trim(),
+          age: ageForReport,
           sex: sex.trim(),
           discipline: formatDisciplineList(discipline),
           horseName: horseName.trim(),
@@ -1623,7 +1629,7 @@ export default function AnalyzeClient() {
           report: result.report,
           horse_name: horseName,
           breed,
-          age,
+          age: ageForReport,
           sex,
           coat_color: coatColor,
           discipline: formatDisciplineList(discipline),
@@ -1749,7 +1755,7 @@ export default function AnalyzeClient() {
             : {}),
           horse_name: fullReportResult.horseName ?? horseName,
           breed,
-          age,
+          age: ageForReport,
           sex,
           coat_color: coatColor,
           discipline: formatDisciplineList(discipline),
@@ -1858,7 +1864,7 @@ export default function AnalyzeClient() {
     horseName.trim() !== "" &&
     breed.trim() !== "" &&
     coatColor.trim() !== "" &&
-    age.trim() !== "" &&
+    (age.trim() !== "" || deceased) &&
     sex.trim() !== "";
   const singleViewReportComplete =
     analysisMode !== null &&
@@ -1978,7 +1984,7 @@ export default function AnalyzeClient() {
           hindUrl,
           breed: breed.trim(),
           coatColor: coatColor.trim(),
-          age: age.trim(),
+          age: ageForReport,
           sex: sex.trim(),
           discipline: formatDisciplineList(discipline),
           horseName: horseName.trim(),
@@ -2329,24 +2335,14 @@ export default function AnalyzeClient() {
                 required
                 suggestions={COAT_COLOR_SUGGESTIONS}
               />
-              <div>
-                <label
-                  htmlFor="age"
-                  className="mb-2 block text-xs font-medium text-zinc-400"
-                >
-                  Age{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="age"
-                  type="text"
-                  value={age}
-                  onChange={(event) => setAge(event.target.value)}
-                  placeholder="e.g. 5 years, 18 months"
-                  required
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                />
-              </div>
+              <HorseAgeField
+                id="age"
+                age={age}
+                deceased={deceased}
+                onAgeChange={setAge}
+                onDeceasedChange={setDeceased}
+                required={!deceased}
+              />
               <div>
                 <label
                   htmlFor="sex"
@@ -2624,24 +2620,14 @@ export default function AnalyzeClient() {
                   required
                   suggestions={COAT_COLOR_SUGGESTIONS}
                 />
-                <div>
-                  <label
-                    htmlFor="full-report-age"
-                    className="mb-2 block text-xs font-medium text-zinc-400"
-                  >
-                    Age{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="full-report-age"
-                    type="text"
-                    value={age}
-                    onChange={(event) => setAge(event.target.value)}
-                    placeholder="e.g. 5 years, 18 months"
-                    required
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent focus:outline-none"
-                  />
-                </div>
+                <HorseAgeField
+                  id="full-report-age"
+                  age={age}
+                  deceased={deceased}
+                  onAgeChange={setAge}
+                  onDeceasedChange={setDeceased}
+                  required={!deceased}
+                />
                 <div>
                   <label
                     htmlFor="full-report-sex"
@@ -2842,7 +2828,7 @@ export default function AnalyzeClient() {
                           details={{
                             horseName: fullReportResult.horseName ?? horseName,
                             breed,
-                            age,
+                            age: ageForReport,
                             sex,
                             coatColor,
                             discipline: formatDisciplineList(discipline),
@@ -3184,7 +3170,7 @@ export default function AnalyzeClient() {
                 details={{
                   horseName,
                   breed,
-                  age,
+                  age: ageForReport,
                   sex,
                   coatColor,
                   discipline: formatDisciplineList(discipline),
