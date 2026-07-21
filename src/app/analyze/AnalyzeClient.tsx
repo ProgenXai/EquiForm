@@ -1586,7 +1586,9 @@ export default function AnalyzeClient() {
         await refreshSingleView3DBalance(activeSession.user.id);
       }
     } catch (err) {
+      setResult(null);
       setError(formatAnalysisError(err));
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -1888,7 +1890,8 @@ export default function AnalyzeClient() {
     !fullReportComplete ||
     !requiredHorseDetailsComplete ||
     loading ||
-    fullReportResult !== null ||
+    // Keep disabled after a successful analysis; always allow retry after an error.
+    (fullReportResult !== null && !error) ||
     fullReportUploadingViews.size > 0 ||
     (!authLoading && !hasFullReportAccess);
 
@@ -2046,7 +2049,10 @@ export default function AnalyzeClient() {
         await refreshFullReport3DBalance(activeSession.user.id);
       }
     } catch (err) {
+      setFullReportResult(null);
+      setFullReportDisplayError(false);
       setError(formatAnalysisError(err));
+      setLoading(false);
     } finally {
       setLoading(false);
     }

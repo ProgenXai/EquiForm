@@ -16,6 +16,7 @@ import {
   HIND_CONFORMATION_REPORT_PROMPT,
 } from "@/lib/analyze/prompt";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
+import { createMessageWithRetry } from "@/lib/analyze/anthropic-retry";
 import {
   isSideProfileViewMode,
   type CalibrationViewMode,
@@ -565,7 +566,7 @@ export async function POST(request: Request) {
       },
     };
 
-    const validationMessage = await anthropic.messages.create({
+    const validationMessage = await createMessageWithRetry(anthropic, {
       model: "claude-opus-4-5-20251101",
       max_tokens: 256,
       system: IMAGE_VALIDATION_SYSTEM_PROMPT,
@@ -622,7 +623,7 @@ export async function POST(request: Request) {
       coatColor,
     );
 
-    const reportMessage = await anthropic.messages.create({
+    const reportMessage = await createMessageWithRetry(anthropic, {
       model: "claude-opus-4-5-20251101",
       max_tokens: 2048,
       messages: [

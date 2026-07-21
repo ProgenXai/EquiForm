@@ -13,6 +13,8 @@ export const USER_FACING = {
     "We couldn't save your report and your credit could not be returned. Please contact support at EquiFormApp@gmail.com.",
   analysisPhoto:
     "We couldn't analyze this photo. Please try again with a clear photo of just the horse — no people, fences, or obstructions in the frame.",
+  highDemand:
+    "We're experiencing high demand right now. Please try again in a moment.",
   pdf: "We couldn't generate your PDF. Please try again from My Reports.",
   pdfUnavailable: "We couldn't generate a PDF for this report. Please try again later.",
   mesh3d:
@@ -92,14 +94,21 @@ const TECHNICAL_PATTERNS = [
   /json|parse|syntax|unexpected token|unterminated string|position \d+|at line \d+|column \d+|char(acter)? \d+|unexpected end/i,
   /\b(undefined|null|TypeError|ReferenceError|SyntaxError|stack trace)\b/i,
   /\b(API|endpoint|fetch failed|status code|HTTP)\b/i,
-  /\b(500|502|503|504|400|401|403|404)\b/,
+  /\b(500|502|503|504|529|400|401|403|404|429)\b/,
   /\b(Roboflow|Meshy|Anthropic|Stripe|Supabase|Resend)\b/i,
+  /overloaded_error|rate_limit_error|api_error|internal_server_error/i,
   /\[object Object\]/,
   /^[\[{]/,
   /\.(ts|tsx|js|jsx):\d+/i,
   /\b(SQL|postgres|PGRST)\b/i,
   /invalid input|violates|constraint|duplicate key/i,
 ];
+
+function isHighDemandMessage(message: string): boolean {
+  return /overloaded_error|\boverloaded\b|\brate[_ ]?limit\b|\b529\b|high demand/i.test(
+    message,
+  );
+}
 
 function normalizeMessage(value: unknown): string {
   if (typeof value === "string") {
@@ -117,6 +126,18 @@ function normalizeMessage(value: unknown): string {
     }
     if (typeof record.error === "string" && record.error.trim()) {
       return record.error.trim();
+    }
+    if (record.error && typeof record.error === "object") {
+      const nested = record.error as Record<string, unknown>;
+      if (typeof nested.message === "string" && nested.message.trim()) {
+        return nested.message.trim();
+      }
+      if (typeof nested.type === "string" && nested.type.trim()) {
+        return nested.type.trim();
+      }
+    }
+    if (typeof record.type === "string" && record.type.trim()) {
+      return record.type.trim();
     }
   }
 
@@ -271,6 +292,22 @@ export function formatAnalysisError(value: unknown): string {
     return USER_FACING.analysisPhoto;
   }
 
+  if (message === USER_FACING.highDemand || isHighDemandMessage(message)) {
+    return USER_FACING.highDemand;
+  }
+
+  // Never surface raw JSON / API payloads from Anthropic or upstream.
+  if (
+    /^[\[{]/.test(message.trim()) ||
+    /"type"\s*:\s*"error"/i.test(message) ||
+    /"overloaded_error"/i.test(message)
+  ) {
+    if (isHighDemandMessage(message)) {
+      return USER_FACING.highDemand;
+    }
+    return USER_FACING.analysisPhoto;
+  }
+
   const exactReplacement = DEV_MESSAGE_REPLACEMENTS[message];
   if (exactReplacement) {
     return exactReplacement;
@@ -305,6 +342,9 @@ export function formatAnalysisError(value: unknown): string {
   }
 
   if (isTechnicalErrorMessage(message)) {
+    if (isHighDemandMessage(message)) {
+      return USER_FACING.highDemand;
+    }
     return USER_FACING.analysisPhoto;
   }
 

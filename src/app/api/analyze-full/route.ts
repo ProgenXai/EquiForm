@@ -10,6 +10,7 @@ import {
   type HindConformationLandmarks,
 } from "@/lib/analyze/landmark-parser";
 import type { AnthropicImageMediaType } from "@/lib/analyze/media-types";
+import { createMessageWithRetry } from "@/lib/analyze/anthropic-retry";
 import { detectLandmarksWithRoboflow } from "@/lib/analyze/roboflow-inference";
 import {
   CONFORMATION_REPORT_PROMPT,
@@ -300,7 +301,7 @@ async function runImageValidationCheck(
   view: FullReportViewKey,
   prepared: PreparedViewImage,
 ): Promise<boolean> {
-  const validationMessage = await anthropic.messages.create({
+  const validationMessage = await createMessageWithRetry(anthropic, {
     model: "claude-opus-4-5-20251101",
     max_tokens: 256,
     system: IMAGE_VALIDATION_SYSTEM_PROMPT,
@@ -384,7 +385,7 @@ async function generateViewReport(
   sex?: string | null,
   coatColor?: string | null,
 ): Promise<ConformationReport> {
-  const reportMessage = await anthropic.messages.create({
+  const reportMessage = await createMessageWithRetry(anthropic, {
     model: "claude-opus-4-5-20251101",
     max_tokens: 2048,
     system: [
@@ -459,7 +460,7 @@ async function detectCoatColor(
   anthropic: Anthropic,
   prepared: PreparedViewImage,
 ): Promise<{ coatColor: string; markings: string[] }> {
-  const coatMessage = await anthropic.messages.create({
+  const coatMessage = await createMessageWithRetry(anthropic, {
     model: "claude-opus-4-5-20251101",
     max_tokens: 256,
     messages: [
@@ -1511,7 +1512,7 @@ export async function POST(request: Request) {
       prepared: PreparedViewImage,
       prompt: string,
     ): Promise<{ coatColor: string; markings: string[] }> => {
-      const coatMessage = await anthropic.messages.create({
+      const coatMessage = await createMessageWithRetry(anthropic, {
         model: "claude-opus-4-5-20251101",
         max_tokens: 256,
         messages: [
