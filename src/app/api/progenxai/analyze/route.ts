@@ -41,8 +41,11 @@ const IMAGE_VALIDATION_SYSTEM_PROMPT =
 const SIDE_PROFILE_VALIDATION_PROMPT =
   "Does this image show a horse in a side profile view suitable for conformation analysis? Accept if: the horse is facing left or right, the horse is standing still or nearly still, and the horse is reasonably visible from head to tail. Minor issues like shadows, tail touching a leg, lead rope, halter, fence, or barn background are always acceptable. Only reject if you are highly confident the image is clearly unsuitable — for example, the horse is facing directly toward or away from the camera, the horse is running or jumping, the photo is so blurry or dark the horse cannot be evaluated, or there is no horse in the image at all. When in doubt, accept.";
 
-const FRONT_VIEW_VALIDATION_PROMPT =
-  "Does this image show a single horse in a front or near-front view suitable for conformation analysis? Accept if: the horse is facing toward the camera (within roughly 45 degrees), the horse is standing still or nearly still, and the horse fills a reasonable portion of the frame. A lead rope or halter is always acceptable and should never cause rejection. Reject only if: there is no horse, the horse is in full side profile, the horse is facing completely away, or the horse is clearly running or jumping.";
+const FRONT_VIEW_VALIDATION_PROMPT_LIVING =
+  "Does this image show a single horse in a proper straight-on front view suitable for conformation analysis? Accept ONLY if: the horse is facing the camera squarely (head and both front legs aligned toward the camera — not a 3/4 or oblique angle), the horse is standing still or nearly still, and the horse fills a reasonable portion of the frame. A lead rope or halter is always acceptable and should never cause rejection. Reject if: there is no horse, the horse is in full side profile, the horse is facing completely away, the horse is at a clear 3/4 or angled front (body or face turned so one side is more visible than the other), or the horse is clearly running or jumping.";
+
+const FRONT_VIEW_VALIDATION_PROMPT_DECEASED =
+  "Does this image show a single horse in a front or near-front view suitable for conformation analysis? Accept if: the horse is facing toward the camera (within roughly 45 degrees — a 3/4 front angle is acceptable for deceased horses), the horse is standing still or nearly still, and the horse fills a reasonable portion of the frame. A lead rope or halter is always acceptable and should never cause rejection. Reject only if: there is no horse, the horse is in full side profile, the horse is facing completely away, or the horse is clearly running or jumping.";
 
 const HIND_VIEW_VALIDATION_PROMPT =
   "Does this image show a single horse from behind or near-behind, suitable for hind conformation analysis? Accept if: the horse is generally facing away from the camera (within roughly 45 degrees), the hindquarters and at least one hind leg are visible, and the horse is standing or nearly standing still. Reject only if: there is no horse visible, the horse is in full side profile, the horse is clearly running or jumping, or a person or large object is completely blocking the hindquarters. Do not reject for slight angle, tail position, partial front leg visibility, lighting, or coat color.";
@@ -50,12 +53,11 @@ const HIND_VIEW_VALIDATION_PROMPT =
 const UNKNOWN_ANGLE_VALIDATION_PROMPT =
   "Does this image show a horse that can be used for conformation analysis, even if the camera angle is imperfect or undetermined? Accept if a horse is clearly visible and standing or nearly standing still. Reject only if there is no horse, the image is so blurry or dark the horse cannot be evaluated, or the horse is clearly running or jumping. When in doubt, accept.";
 
-const IMAGE_VALIDATION_USER_PROMPTS: Record<FullReportViewKey, string> = {
-  left: SIDE_PROFILE_VALIDATION_PROMPT,
-  right: SIDE_PROFILE_VALIDATION_PROMPT,
-  front: FRONT_VIEW_VALIDATION_PROMPT,
-  hind: HIND_VIEW_VALIDATION_PROMPT,
-};
+function frontViewValidationPrompt(isDeceased: boolean): string {
+  return isDeceased
+    ? FRONT_VIEW_VALIDATION_PROMPT_DECEASED
+    : FRONT_VIEW_VALIDATION_PROMPT_LIVING;
+}
 
 const COAT_COLOR_DETECTION_PROMPT_SIDE =
   'You are examining a horse SIDE PROFILE photo. 1) Identify the base coat color (must be one of: black, bay, dark_bay, chestnut, sorrel, gray, dun, buckskin, palomino, roan, cremello, pinto). 2) Look carefully for white markings visible from this side: FACE - star (white spot on forehead), snip (white on muzzle), stripe (narrow white line down face), blaze (wide white stripe down face). LEGS - only report leg markings you can CLEARLY see on the legs visible in this side view. Do NOT guess or assume markings you cannot clearly see. Return ONLY valid JSON: { "coat": "black", "markings": ["star", "snip"] }';
@@ -155,6 +157,10 @@ type ProgenXaiAnalyzeRequestBody = {
   age?: string | number | null;
   sex?: string;
   discipline?: string;
+  /** When true, 2–3 views are allowed; Front view QA also allows a 3/4 angle. */
+  deceased?: boolean;
+  is_deceased?: boolean;
+  isDeceased?: boolean;
 };
 
 type ResolvedProgenXaiView = {
@@ -554,11 +560,16 @@ async function validateViewImage(
   view: FullReportViewKey,
   prepared: PreparedViewImage,
   tag: ProgenXaiViewTag = publicTagForSlotOrLabel(view),
+  isDeceased = false,
 ): Promise<boolean> {
   const validationPrompt =
     tag === "unknown"
       ? UNKNOWN_ANGLE_VALIDATION_PROMPT
-      : IMAGE_VALIDATION_USER_PROMPTS[view];
+      : view === "front"
+        ? frontViewValidationPrompt(isDeceased)
+        : view === "hind"
+          ? HIND_VIEW_VALIDATION_PROMPT
+          : SIDE_PROFILE_VALIDATION_PROMPT;
 
   const validationMessage = await anthropic.messages.create({
     model: "claude-opus-4-5-20251101",
@@ -841,6 +852,10 @@ export async function POST(request: Request) {
         : null;
   const sex =
     typeof body.sex === "string" && body.sex.trim() ? body.sex.trim() : null;
+  const isDeceased =
+    body.deceased === true ||
+    body.is_deceased === true ||
+    body.isDeceased === true;
 
   const resolvedViews = resolveProvidedViews(body);
   const providedViews = resolvedViews.map((entry) => entry.slot);
@@ -853,6 +868,17 @@ export async function POST(request: Request) {
       {
         error:
           "At least one conformation photo URL is required (1–4 images tagged side/front/hind/unknown, or leftUrl/rightUrl/frontUrl/hindUrl / photo_urls).",
+      },
+      { status: 400 },
+    );
+  }
+
+  const viewCount = resolvedViews.length;
+  if ((viewCount === 2 || viewCount === 3) && !isDeceased) {
+    return NextResponse.json(
+      {
+        error:
+          "A full 4-view set is required unless the horse is marked deceased.",
       },
       { status: 400 },
     );
@@ -956,6 +982,7 @@ export async function POST(request: Request) {
           entry.slot,
           preparedByView[entry.slot]!,
           entry.tag,
+          isDeceased,
         ),
       })),
     );
