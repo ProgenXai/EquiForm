@@ -41,6 +41,7 @@ import {
   USER_FACING,
 } from "@/lib/user-facing-errors";
 import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
+import { getReportDownloadPath } from "@/lib/reports/pdf-storage";
 
 const HorseViewer3D = dynamic(
   () => import("@/components/HorseViewer3D"),
@@ -1650,7 +1651,11 @@ export default function AnalyzeClient() {
       setResult((current) =>
         current ? { ...current, pdfUrl: data.pdfUrl } : current,
       );
-      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+      window.open(
+        getReportDownloadPath(result.reportId),
+        "_blank",
+        "noopener,noreferrer",
+      );
     } catch (err) {
       setError(formatPdfError(err));
     } finally {
@@ -1662,7 +1667,15 @@ export default function AnalyzeClient() {
     if (!result) return;
 
     if (result.pdfUrl) {
-      window.open(result.pdfUrl, "_blank", "noopener,noreferrer");
+      if (!result.reportId) {
+        setError(USER_FACING.pdf);
+        return;
+      }
+      window.open(
+        getReportDownloadPath(result.reportId),
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
 
@@ -1776,7 +1789,11 @@ export default function AnalyzeClient() {
       setFullReportResult((current) =>
         current ? { ...current, pdfUrl: data.pdfUrl } : current,
       );
-      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+      window.open(
+        getReportDownloadPath(fullReportResult.reportId),
+        "_blank",
+        "noopener,noreferrer",
+      );
     } catch (err) {
       setError(formatPdfError(err));
     } finally {
@@ -1794,7 +1811,15 @@ export default function AnalyzeClient() {
     }
 
     if (fullReportResult.pdfUrl) {
-      window.open(fullReportResult.pdfUrl, "_blank", "noopener,noreferrer");
+      if (!fullReportResult.reportId) {
+        setError(USER_FACING.pdf);
+        return;
+      }
+      window.open(
+        getReportDownloadPath(fullReportResult.reportId),
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
 

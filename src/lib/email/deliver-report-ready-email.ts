@@ -113,6 +113,7 @@ export async function deliverReportReadyEmail(options: {
     email: options.userEmail,
     greetingName,
     horseName: options.horseName,
+    reportId: options.reportId,
     pdfBase64: Buffer.from(pdfBytes).toString("base64"),
     pdfFilename: sanitizePdfFilename(options.horseName),
   });

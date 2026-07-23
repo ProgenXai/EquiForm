@@ -14,6 +14,11 @@ import type {
   LeftRightVarianceItem,
 } from "@/lib/analyze/types";
 import { formatDisciplineList } from "@/lib/format-discipline";
+import {
+  getReportDownloadUrl,
+  getReportPdfStoragePath,
+  PDF_STORAGE_BUCKET,
+} from "@/lib/reports/pdf-storage";
 import type { createServiceRoleClient } from "@/lib/supabase/server";
 
 const require = createRequire(import.meta.url);
@@ -64,7 +69,6 @@ const MARGIN = 50;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const FOOTER_Y = 28;
 const ACCENT_RGB = rgb(0, 212 / 255, 200 / 255);
-const PDF_STORAGE_BUCKET = "horse-photos";
 const PDF_SUBTITLE = "AI-Powered Equine Conformation Analysis Report";
 const MODEL3D_SNAPSHOT_IMAGE_GAP = 16;
 const MODEL3D_SNAPSHOT_BOTTOM_GAP = 20;
@@ -495,7 +499,7 @@ export async function persistReportPdf(
   reportId: string,
   serviceClient: ReturnType<typeof createServiceRoleClient>,
 ): Promise<string> {
-  const storagePath = `reports/${userId}/${reportId}.pdf`;
+  const storagePath = getReportPdfStoragePath(userId, reportId);
 
   const { error: uploadError } = await serviceClient.storage
     .from(PDF_STORAGE_BUCKET)
@@ -508,11 +512,7 @@ export async function persistReportPdf(
     throw new Error(`Failed to upload PDF: ${uploadError.message}`);
   }
 
-  const { data: publicUrlData } = serviceClient.storage
-    .from(PDF_STORAGE_BUCKET)
-    .getPublicUrl(storagePath);
-
-  const pdfUrl = publicUrlData.publicUrl;
+  const pdfUrl = getReportDownloadUrl(reportId);
 
   const { error: updateError } = await serviceClient
     .from("reports")

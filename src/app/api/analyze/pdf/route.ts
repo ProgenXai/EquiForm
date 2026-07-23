@@ -7,6 +7,10 @@ import {
   persistReportPdf,
   type ReportPdfRequestBody,
 } from "@/lib/pdf/generate-report-pdf";
+import {
+  downloadReportPdfBytes,
+  getReportDownloadUrl,
+} from "@/lib/reports/pdf-storage";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { USER_FACING } from "@/lib/user-facing-errors";
 
@@ -86,14 +90,15 @@ export async function POST(request: Request) {
     Boolean(body.model3d_snapshot?.trim()) || body.model3d_placeholder === true;
 
   if (existingReport.pdf_url && !shouldRegenerate && !body.model3d_snapshot?.trim()) {
+    const pdfUrl = getReportDownloadUrl(reportId);
+
     if (body.sendEmail && !existingReport.report_email_sent_at) {
       try {
-        const pdfResponse = await fetch(existingReport.pdf_url);
-        if (!pdfResponse.ok) {
-          throw new Error("Failed to fetch existing PDF");
-        }
-
-        const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
+        const pdfBytes = await downloadReportPdfBytes(
+          serviceClient,
+          user.id,
+          reportId,
+        );
         const horseName =
           typeof body.horse_name === "string" && body.horse_name.trim()
             ? body.horse_name.trim()
@@ -116,7 +121,16 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ pdfUrl: existingReport.pdf_url });
+    // Migrate legacy Supabase public URLs to the app download route.
+    if (existingReport.pdf_url !== pdfUrl) {
+      await serviceClient
+        .from("reports")
+        .update({ pdf_url: pdfUrl })
+        .eq("id", reportId)
+        .eq("user_id", user.id);
+    }
+
+    return NextResponse.json({ pdfUrl });
   }
 
   if (!body.report) {

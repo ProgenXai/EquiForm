@@ -42,7 +42,10 @@ const SIDE_PROFILE_VALIDATION_PROMPT =
   "Does this image show a horse in a side profile view suitable for conformation analysis? Accept if: the horse is facing left or right, the horse is standing still or nearly still, and the horse is reasonably visible from head to tail. Minor issues like shadows, tail touching a leg, lead rope, halter, fence, or barn background are always acceptable. Only reject if you are highly confident the image is clearly unsuitable — for example, the horse is facing directly toward or away from the camera, the horse is running or jumping, the photo is so blurry or dark the horse cannot be evaluated, or there is no horse in the image at all. When in doubt, accept.";
 
 const FRONT_VIEW_VALIDATION_PROMPT_LIVING =
-  "Does this image show a single horse in a proper straight-on front view suitable for conformation analysis? Accept ONLY if: the horse is facing the camera squarely (head and both front legs aligned toward the camera — not a 3/4 or oblique angle), the horse is standing still or nearly still, and the horse fills a reasonable portion of the frame. A lead rope or halter is always acceptable and should never cause rejection. Reject if: there is no horse, the horse is in full side profile, the horse is facing completely away, the horse is at a clear 3/4 or angled front (body or face turned so one side is more visible than the other), or the horse is clearly running or jumping.";
+  'Is this a proper straight-on FRONT conformation photo of a living horse? ACCEPT only if the horse\'s chest and both front legs face the camera squarely with roughly equal left/right body visibility. REJECT if the body is at a 3/4, diagonal, or oblique angle (one shoulder or side of the barrel more visible than the other) — even when the head is turned toward the camera. A lead rope or halter is always acceptable. Respond with ONLY {"valid": true} or {"valid": false}. Do not use other JSON keys.';
+
+const FRONT_THREE_QUARTER_CHECK_PROMPT =
+  'Look only at the horse\'s BODY orientation (ignore whether the head is turned toward the camera). Is the body at a 3/4 / diagonal / oblique angle so one shoulder or side of the barrel is clearly more visible than the other? Respond with ONLY {"is_three_quarter": true} or {"is_three_quarter": false}.';
 
 const FRONT_VIEW_VALIDATION_PROMPT_DECEASED =
   "Does this image show a single horse in a front or near-front view suitable for conformation analysis? Accept if: the horse is facing toward the camera (within roughly 45 degrees — a 3/4 front angle is acceptable for deceased horses), the horse is standing still or nearly still, and the horse fills a reasonable portion of the frame. A lead rope or halter is always acceptable and should never cause rejection. Reject only if: there is no horse, the horse is in full side profile, the horse is facing completely away, or the horse is clearly running or jumping.";
@@ -105,6 +108,27 @@ const FULL_REPORT_VIEW_LABELS: Record<FullReportViewKey, string> = {
   front: "Front View",
   hind: "Hind View",
 };
+
+/** User-facing reason when a submitted view fails Claude angle/pose QA. */
+function viewValidationFailureMessage(
+  view: FullReportViewKey,
+  isDeceased: boolean,
+): string {
+  switch (view) {
+    case "front":
+      return isDeceased
+        ? "Front photo rejected: must show the horse facing toward the camera — please replace it."
+        : "Front photo rejected: must be a straight-on shot for living horses — please replace it.";
+    case "hind":
+      return "Hind photo rejected: must show the horse from behind — please replace it.";
+    case "left":
+      return "Left Side photo rejected: must be a clear side profile — please replace it.";
+    case "right":
+      return "Right Side photo rejected: must be a clear side profile — please replace it.";
+    default:
+      return INVALID_IMAGE_ERROR;
+  }
+}
 
 const ROBOFLOW_LANDMARK_FAILURE_MESSAGES = new Set([
   "Roboflow returned no predictions",
@@ -476,14 +500,42 @@ function toAnthropicMediaType(fileType: string): AnthropicImageMediaType {
 
 function parseValidationResponse(text: string): boolean {
   try {
-    const parsed = JSON.parse(text) as { valid?: boolean };
-    return parsed.valid === true;
+    const parsed = JSON.parse(text) as {
+      valid?: boolean;
+      is_valid?: boolean;
+    };
+    if (typeof parsed.valid === "boolean") return parsed.valid === true;
+    if (typeof parsed.is_valid === "boolean") return parsed.is_valid === true;
+    return false;
   } catch {
-    const jsonMatch = text.match(/\{[\s\S]*"valid"[\s\S]*\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return false;
     try {
-      const parsed = JSON.parse(jsonMatch[0]) as { valid?: boolean };
-      return parsed.valid === true;
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        valid?: boolean;
+        is_valid?: boolean;
+      };
+      if (typeof parsed.valid === "boolean") return parsed.valid === true;
+      if (typeof parsed.is_valid === "boolean") return parsed.is_valid === true;
+      return false;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function parseThreeQuarterResponse(text: string): boolean {
+  try {
+    const parsed = JSON.parse(text) as { is_three_quarter?: boolean };
+    return parsed.is_three_quarter === true;
+  } catch {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return false;
+    try {
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        is_three_quarter?: boolean;
+      };
+      return parsed.is_three_quarter === true;
     } catch {
       return false;
     }
@@ -592,7 +644,40 @@ async function validateViewImage(
     .join("\n")
     .trim();
 
-  return parseValidationResponse(validationText);
+  const baseValid = parseValidationResponse(validationText);
+  if (!baseValid) return false;
+
+  // Living horses: hard-fail 3/4 Front body angles even if the primary check
+  // accepted a head-on face with an angled body.
+  if (view === "front" && !isDeceased) {
+    const threeQuarterMessage = await anthropic.messages.create({
+      model: "claude-opus-4-5-20251101",
+      max_tokens: 128,
+      system: IMAGE_VALIDATION_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [
+            buildAnthropicImageContent(prepared),
+            { type: "text", text: FRONT_THREE_QUARTER_CHECK_PROMPT },
+          ],
+        },
+      ],
+    });
+    const threeQuarterText = threeQuarterMessage.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+      .trim();
+    if (parseThreeQuarterResponse(threeQuarterText)) {
+      console.warn(
+        "[progenxai/analyze] living Front rejected: body is 3/4 angle",
+      );
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function withReportContext(
@@ -991,8 +1076,23 @@ export async function POST(request: Request) {
       .filter((result) => !result.valid)
       .map((result) => result.view);
 
+    // Never drop failed views and continue with a partial report — reject the
+    // whole analyze so callers (ProgenXai) can show which photo(s) to replace.
     if (failedViews.length > 0) {
-      return NextResponse.json({ error: INVALID_IMAGE_ERROR }, { status: 400 });
+      const failed_views = failedViews.map((view) => ({
+        view,
+        label: FULL_REPORT_VIEW_LABELS[view],
+        message: viewValidationFailureMessage(view, isDeceased),
+      }));
+      const error = failed_views.map((f) => f.message).join(" ");
+      console.warn(
+        `[progenxai/analyze] view validation failed (deceased=${isDeceased}):`,
+        failedViews.join(", "),
+      );
+      return NextResponse.json(
+        { error, failed_views, deceased: isDeceased },
+        { status: 400 },
+      );
     }
 
     await Promise.all(

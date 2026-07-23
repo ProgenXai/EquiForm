@@ -16,6 +16,10 @@ import {
   raceWithDataLoadTimeout,
 } from "@/lib/supabase/bootstrap-auth-session";
 import { formatDisciplineList } from "@/lib/format-discipline";
+import {
+  getReportDownloadPath,
+  getReportPdfStoragePath,
+} from "@/lib/reports/pdf-storage";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
 import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
 
@@ -225,7 +229,11 @@ export default function MyReportsPage() {
 
   async function handleDownloadPdf(report: ReportRow) {
     if (report.pdf_url) {
-      window.open(report.pdf_url, "_blank", "noopener,noreferrer");
+      window.open(
+        getReportDownloadPath(report.id),
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
 
@@ -277,7 +285,11 @@ export default function MyReportsPage() {
           row.id === report.id ? { ...row, pdf_url: data.pdfUrl ?? null } : row,
         ),
       );
-      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+      window.open(
+        getReportDownloadPath(report.id),
+        "_blank",
+        "noopener,noreferrer",
+      );
     } catch (err) {
       setDownloadError(formatPdfError(err));
     } finally {
@@ -321,11 +333,12 @@ export default function MyReportsPage() {
 
       const overlayPath = extractPath(report.overlay_url);
       const glbPath = extractPath(report.glb_url);
-      const pdfPath = extractPath(report.pdf_url);
+      // PDFs use a stable storage path; pdf_url may be an app download route.
+      const pdfPath = getReportPdfStoragePath(session.user.id, report.id);
 
       if (overlayPath) pathsToDelete.push(overlayPath);
       if (glbPath) pathsToDelete.push(glbPath);
-      if (pdfPath) pathsToDelete.push(pdfPath);
+      if (report.pdf_url) pathsToDelete.push(pdfPath);
 
       if (pathsToDelete.length > 0) {
         await supabase.storage.from(bucket).remove(pathsToDelete);

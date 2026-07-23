@@ -1,4 +1,5 @@
 import { getResendClient } from "@/lib/email/resend";
+import { getReportDownloadUrl } from "@/lib/reports/pdf-storage";
 
 export const EMAIL_FROM = "EquiForm <noreply@equiform.app>";
 
@@ -109,18 +110,21 @@ export function reportReadyEmailSubject(horseName: string): string {
 export function reportReadyEmailHtml(
   greetingName: string,
   horseName: string,
+  reportId: string,
 ): string {
   const horse = horseName.trim() || "your horse";
   const greeting = greetingName === "there" ? "Hi there," : `Hi ${greetingName},`;
+  const downloadUrl = getReportDownloadUrl(reportId);
 
   const body = `
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${TEXT};">Your Report is Ready</h1>
     <p style="margin:0 0 16px;color:${MUTED};">${greeting}</p>
     <p style="margin:0 0 16px;color:${MUTED};">
       Your conformation analysis for <strong style="color:${TEXT};">${horse}</strong> is complete!
-      Your report is attached. You can also view and download it anytime from My Reports.
+      Your report is attached. You can also download it anytime from the link below or from My Reports.
     </p>
-    ${button("https://equiform.app/my-reports", "View in My Reports")}
+    ${button(downloadUrl, "Download PDF")}
+    ${button("https://equiform.app/my-reports", "View in My Reports", false)}
   `;
 
   return emailLayout("Your EquiForm Report is Ready", body);
@@ -176,6 +180,7 @@ export async function sendReportEmail(options: {
   email: string;
   greetingName: string;
   horseName: string;
+  reportId: string;
   pdfBase64: string;
   pdfFilename: string;
 }): Promise<{ id?: string }> {
@@ -190,7 +195,11 @@ export async function sendReportEmail(options: {
     from: EMAIL_FROM,
     to: options.email,
     subject: reportReadyEmailSubject(horseName),
-    html: reportReadyEmailHtml(options.greetingName, horseName),
+    html: reportReadyEmailHtml(
+      options.greetingName,
+      horseName,
+      options.reportId,
+    ),
     attachments: [
       {
         filename: options.pdfFilename,

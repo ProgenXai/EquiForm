@@ -12,6 +12,7 @@ import type { CalibrationViewMode } from "@/lib/calibration/landmarks";
 import type { HorseViewer3DHandle } from "@/components/HorseViewer3D";
 import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 import { createClient } from "@/lib/supabase/client";
+import { getReportDownloadPath } from "@/lib/reports/pdf-storage";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
 import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
 
@@ -464,7 +465,11 @@ export default function ReportDetailPage() {
     if (!report) return;
 
     if (report.pdf_url) {
-      window.open(report.pdf_url, "_blank", "noopener,noreferrer");
+      window.open(
+        getReportDownloadPath(report.id),
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
 
@@ -526,7 +531,11 @@ export default function ReportDetailPage() {
       setReport((current) =>
         current ? { ...current, pdf_url: data.pdfUrl ?? null } : current,
       );
-      window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+      window.open(
+        getReportDownloadPath(report.id),
+        "_blank",
+        "noopener,noreferrer",
+      );
     } catch (err) {
       setPdfError(formatPdfError(err));
     } finally {

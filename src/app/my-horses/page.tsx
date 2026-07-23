@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { formatDisciplineList } from "@/lib/format-discipline";
+import AppHamburgerMenu from "@/components/AppHamburgerMenu";
+import { getReportPdfStoragePath } from "@/lib/reports/pdf-storage";
 import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_LOAD_ERROR_MESSAGE,
@@ -13,8 +16,6 @@ import {
   DATA_LOAD_TIMEOUT_MS,
   raceWithDataLoadTimeout,
 } from "@/lib/supabase/bootstrap-auth-session";
-import { formatDisciplineList } from "@/lib/format-discipline";
-import AppHamburgerMenu from "@/components/AppHamburgerMenu";
 
 type HorseRow = {
   id: string;
@@ -166,10 +167,13 @@ export default function MyHorsesPage() {
         for (const report of reports) {
           const overlayPath = extractPath(report.overlay_url);
           const glbPath = extractPath(report.glb_url);
-          const pdfPath = extractPath(report.pdf_url);
           if (overlayPath) pathsToDelete.push(overlayPath);
           if (glbPath) pathsToDelete.push(glbPath);
-          if (pdfPath) pathsToDelete.push(pdfPath);
+          if (report.pdf_url) {
+            pathsToDelete.push(
+              getReportPdfStoragePath(session.user.id, report.id),
+            );
+          }
         }
 
         if (pathsToDelete.length > 0) {
