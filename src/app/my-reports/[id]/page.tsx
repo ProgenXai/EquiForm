@@ -393,7 +393,7 @@ export default function ReportDetailPage() {
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        router.replace("/");
+        router.replace("/auth");
         return;
       }
 

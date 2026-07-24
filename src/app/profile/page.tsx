@@ -93,7 +93,7 @@ function ProfilePageContent() {
     const cleanup = bootstrapAuthSession({
       logPrefix: `[profile:${effectRunId}]`,
       onUnauthenticated: () => {
-        router.replace("/");
+        router.replace("/auth");
       },
       onTimeout: () => {
         setLoading(false);
@@ -288,7 +288,7 @@ function ProfilePageContent() {
       );
 
       if (isSetupFlow) {
-        router.push("/welcome");
+        router.push("/");
         return;
       }
 

@@ -380,7 +380,7 @@ export default function MyReportsPage() {
     const cleanup = bootstrapAuthSession({
       logPrefix: `[my-reports:${effectRunId}]`,
       onUnauthenticated: () => {
-        router.replace("/");
+        router.replace("/auth");
       },
       onTimeout: () => {
         setLoading(false);

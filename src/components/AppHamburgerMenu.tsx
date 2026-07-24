@@ -50,6 +50,7 @@ function buildProfileDisplayName(
 export default function AppHamburgerMenu() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -86,11 +87,13 @@ export default function AppHamburgerMenu() {
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
+        setIsLoggedIn(false);
         setDisplayName(null);
         setAvatarUrl(null);
         return;
       }
 
+      setIsLoggedIn(true);
       await loadProfileSummary(session.user);
     }
 
@@ -100,11 +103,13 @@ export default function AppHamburgerMenu() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
+        setIsLoggedIn(false);
         setDisplayName(null);
         setAvatarUrl(null);
         return;
       }
 
+      setIsLoggedIn(true);
       void loadProfileSummary(session.user);
     });
 
@@ -221,18 +226,28 @@ export default function AppHamburgerMenu() {
           >
             Contact & Feedback
           </Link>
-          <button
-            type="button"
-            onClick={async () => {
-              setMenuOpen(false);
-              const supabase = createClient();
-              await supabase.auth.signOut();
-              router.push("/");
-            }}
-            className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            Sign Out
-          </button>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={async () => {
+                setMenuOpen(false);
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                router.push("/");
+              }}
+              className="block w-full px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <Link
+              href="/auth"
+              className="block px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              onClick={() => setMenuOpen(false)}
+            >
+              Login
+            </Link>
+          )}
         </div>
       ) : null}
     </div>

@@ -2474,7 +2474,7 @@ export default function AnalyzeClient() {
 
             {!authLoading && !isAdmin && !isLoggedIn ? (
               <Link
-                href="/"
+                href="/auth"
                 className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 Sign In
@@ -2784,7 +2784,7 @@ export default function AnalyzeClient() {
 
                 {!authLoading && !isAdmin && !isLoggedIn ? (
                   <Link
-                    href="/"
+                    href="/auth"
                     className="mt-3 block w-full rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-accent-hover"
                   >
                     Sign In

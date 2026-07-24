@@ -77,7 +77,7 @@ export default function HomePage() {
     const cleanup = bootstrapAuthSession({
       logPrefix: "[home]",
       onUnauthenticated: () => {
-        router.replace("/");
+        router.replace("/auth");
       },
       onTimeout: () => {
         setLoading(false);

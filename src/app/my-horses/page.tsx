@@ -63,7 +63,7 @@ export default function MyHorsesPage() {
     const cleanup = bootstrapAuthSession({
       logPrefix: `[my-horses:${effectRunId}]`,
       onUnauthenticated: () => {
-        router.replace("/");
+        router.replace("/auth");
       },
       onTimeout: () => {
         setLoading(false);
