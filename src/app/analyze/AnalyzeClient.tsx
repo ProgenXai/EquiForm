@@ -2091,11 +2091,12 @@ export default function AnalyzeClient() {
 
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
+      <AppHamburgerMenu />
       {(analysisMode === "single" || analysisMode === "single3d") && singleViewPhoto?.previewUrl ? (
         <button
           type="button"
           onClick={handleRemoveSingleViewPhoto}
-          className="mb-4 rounded-xl border border-zinc-700 bg-transparent px-6 py-3 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+          className="px-0 pt-0 pb-4 text-sm font-medium text-accent transition hover:text-accent-hover"
         >
           ← Back
         </button>
@@ -2104,12 +2105,11 @@ export default function AnalyzeClient() {
         <button
           type="button"
           onClick={() => void handleRemoveFullReportPhotos()}
-          className="mb-4 rounded-xl border border-zinc-700 bg-transparent px-6 py-3 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+          className="px-0 pt-0 pb-4 text-sm font-medium text-accent transition hover:text-accent-hover"
         >
           ← Back
         </button>
       ) : null}
-      <AppHamburgerMenu />
       <div className="relative max-w-5xl mx-auto w-full">
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
@@ -2243,7 +2243,7 @@ export default function AnalyzeClient() {
               <button
                 type="button"
                 onClick={handleChangePackage}
-                className="mb-6 rounded-xl border border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800"
+                className="mb-6 text-sm font-medium text-accent transition hover:text-accent-hover"
               >
                 ← Choose a different package
               </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -100,16 +101,24 @@ function AuthPageContent() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
+      <Link
+        href="/"
+        className="inline-block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
+      >
+        ← Home
+      </Link>
       <header className="border-b border-zinc-800 bg-black px-6 py-8 text-center">
         <div className="flex justify-center">
-          <Image
-            src="/equiform-logo.png"
-            alt="EquiForm"
-            width={300}
-            height={300}
-            priority
-            className="object-contain"
-          />
+          <Link href="/" aria-label="EquiForm home">
+            <Image
+              src="/equiform-logo.png"
+              alt="EquiForm"
+              width={300}
+              height={300}
+              priority
+              className="object-contain"
+            />
+          </Link>
         </div>
         <p className="mt-2 text-sm text-zinc-400">
           The most advanced AI equine conformation analysis available

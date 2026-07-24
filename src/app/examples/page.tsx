@@ -102,6 +102,7 @@ export default function PhotoGuidePage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <AppHamburgerMenu />
+      <ExamplesBackButton />
       <header className="border-b border-zinc-800 bg-black px-6 py-4 text-center sm:py-8">
         <div className="flex justify-center">
           <Image
@@ -131,7 +132,6 @@ export default function PhotoGuidePage() {
 
         <div className="mt-10 flex flex-col items-center gap-4">
           <PhotoGuideCta />
-          <ExamplesBackButton />
         </div>
       </main>
     </div>

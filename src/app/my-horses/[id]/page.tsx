@@ -142,7 +142,7 @@ export default function HorseProgressPage() {
         <AppHamburgerMenu />
         <Link
           href="/my-horses"
-          className="text-sm font-medium text-accent transition hover:text-accent-hover"
+          className="inline-block px-6 pt-6 text-sm font-medium text-accent transition hover:text-accent-hover"
         >
           ← Back to My Horses
         </Link>
