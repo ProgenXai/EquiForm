@@ -1,17 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthError } from "@/lib/user-facing-errors";
 
 type AuthMode = "login" | "signup";
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<AuthMode>(() =>
+    searchParams.get("mode") === "signup" ? "signup" : "login",
+  );
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -291,5 +294,19 @@ export default function AuthPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
+          Loading…
+        </div>
+      }
+    >
+      <AuthPageContent />
+    </Suspense>
   );
 }

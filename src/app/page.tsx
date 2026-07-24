@@ -51,6 +51,14 @@ export default function HomePage() {
             <p className="mt-4 text-base text-zinc-300 sm:text-lg">
               The most advanced AI equine conformation analysis available
             </p>
+            <div className="mt-8 flex justify-center">
+              <Link
+                href="/auth?mode=signup"
+                className="rounded-lg bg-accent px-8 py-3.5 text-center text-base font-semibold text-white transition hover:bg-accent-hover sm:px-10 sm:text-lg"
+              >
+                Get Started
+              </Link>
+            </div>
           </div>
         </header>
 
