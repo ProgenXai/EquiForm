@@ -2092,6 +2092,15 @@ export default function AnalyzeClient() {
   return (
     <div className="min-h-screen bg-black text-white w-full px-6 py-8">
       <AppHamburgerMenu />
+      {showPackageSelection ? (
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="px-0 pt-0 pb-4 text-sm font-medium text-accent transition hover:text-accent-hover"
+        >
+          ← Back
+        </button>
+      ) : null}
       {(analysisMode === "single" || analysisMode === "single3d") && singleViewPhoto?.previewUrl ? (
         <button
           type="button"
