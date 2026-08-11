@@ -41,7 +41,7 @@ import {
   USER_FACING,
 } from "@/lib/user-facing-errors";
 import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
-import { getReportDownloadPath } from "@/lib/reports/pdf-storage";
+import { getReportPdfViewerPath } from "@/lib/reports/pdf-storage";
 
 const HorseViewer3D = dynamic(
   () => import("@/components/HorseViewer3D"),
@@ -1651,11 +1651,7 @@ export default function AnalyzeClient() {
       setResult((current) =>
         current ? { ...current, pdfUrl: data.pdfUrl } : current,
       );
-      window.open(
-        getReportDownloadPath(result.reportId),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      router.push(getReportPdfViewerPath(result.reportId));
     } catch (err) {
       setError(formatPdfError(err));
     } finally {
@@ -1671,11 +1667,7 @@ export default function AnalyzeClient() {
         setError(USER_FACING.pdf);
         return;
       }
-      window.open(
-        getReportDownloadPath(result.reportId),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      router.push(getReportPdfViewerPath(result.reportId));
       return;
     }
 
@@ -1789,11 +1781,7 @@ export default function AnalyzeClient() {
       setFullReportResult((current) =>
         current ? { ...current, pdfUrl: data.pdfUrl } : current,
       );
-      window.open(
-        getReportDownloadPath(fullReportResult.reportId),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      router.push(getReportPdfViewerPath(fullReportResult.reportId));
     } catch (err) {
       setError(formatPdfError(err));
     } finally {
@@ -1815,11 +1803,7 @@ export default function AnalyzeClient() {
         setError(USER_FACING.pdf);
         return;
       }
-      window.open(
-        getReportDownloadPath(fullReportResult.reportId),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      router.push(getReportPdfViewerPath(fullReportResult.reportId));
       return;
     }
 

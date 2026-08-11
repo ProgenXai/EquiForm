@@ -14,6 +14,11 @@ export function getReportDownloadPath(reportId: string): string {
   return `/api/reports/${reportId}/download`;
 }
 
+/** In-app PDF viewer with app chrome (Back/Close) — preferred over opening the raw PDF URL. */
+export function getReportPdfViewerPath(reportId: string): string {
+  return `/my-reports/${reportId}/pdf`;
+}
+
 /** Absolute equiform.app URL stored in `reports.pdf_url` and shared externally. */
 export function getReportDownloadUrl(reportId: string): string {
   const appUrl =

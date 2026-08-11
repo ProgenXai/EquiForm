@@ -17,8 +17,8 @@ import {
 } from "@/lib/supabase/bootstrap-auth-session";
 import { formatDisciplineList } from "@/lib/format-discipline";
 import {
-  getReportDownloadPath,
   getReportPdfStoragePath,
+  getReportPdfViewerPath,
 } from "@/lib/reports/pdf-storage";
 import { formatPdfError, USER_FACING } from "@/lib/user-facing-errors";
 import { parseStoredLeftRightVariance } from "@/lib/pdf/build-full-report-pdf-report";
@@ -229,11 +229,7 @@ export default function MyReportsPage() {
 
   async function handleDownloadPdf(report: ReportRow) {
     if (report.pdf_url) {
-      window.open(
-        getReportDownloadPath(report.id),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      router.push(getReportPdfViewerPath(report.id));
       return;
     }
 
@@ -285,11 +281,7 @@ export default function MyReportsPage() {
           row.id === report.id ? { ...row, pdf_url: data.pdfUrl ?? null } : row,
         ),
       );
-      window.open(
-        getReportDownloadPath(report.id),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      router.push(getReportPdfViewerPath(report.id));
     } catch (err) {
       setDownloadError(formatPdfError(err));
     } finally {
