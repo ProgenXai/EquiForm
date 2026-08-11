@@ -19,16 +19,9 @@ export default function ReportPdfViewerPage() {
   }, [params]);
 
   const pdfSrc = reportId ? getReportDownloadPath(reportId) : "";
-  // Fit-to-width so mobile/PWA iframe viewers don't open Letter pages at ~100% zoom.
-  // Chrome/PDFium honor Adobe open parameters; unsupported browsers ignore the hash.
-  const pdfIframeSrc = pdfSrc ? `${pdfSrc}#view=FitH` : "";
   const reportHref = reportId ? `/my-reports/${reportId}` : "/my-reports";
 
   const handleClose = useCallback(() => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
     router.push(reportHref);
   }, [reportHref, router]);
 
@@ -47,39 +40,27 @@ export default function ReportPdfViewerPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
-      <button
-        type="button"
-        onClick={handleClose}
-        aria-label="Close PDF"
-        className="absolute z-20 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-2xl leading-none text-white transition hover:bg-zinc-700"
-        style={{
-          top: "max(0.75rem, env(safe-area-inset-top))",
-          right: "max(0.75rem, env(safe-area-inset-right))",
-        }}
+    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+      {/* X must sit outside the iframe — native PDF plugins steal taps from overlays. */}
+      <div
+        className="flex shrink-0 justify-end px-3 pb-2"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
-        ×
-      </button>
+        <button
+          type="button"
+          onClick={handleClose}
+          aria-label="Close PDF"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-2xl leading-none text-white transition hover:bg-zinc-700"
+        >
+          ×
+        </button>
+      </div>
 
       <iframe
-        src={pdfIframeSrc}
+        src={pdfSrc}
         title="EquiForm report PDF"
-        className="absolute inset-0 h-full w-full border-0 bg-zinc-950"
+        className="min-h-0 w-full flex-1 border-0 bg-zinc-950"
       />
-
-      <noscript>
-        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-sm text-zinc-400">
-            Enable JavaScript to preview the PDF, or download it directly.
-          </p>
-          <a
-            href={getReportDownloadPath(reportId, { download: true })}
-            className="text-sm font-medium text-accent underline"
-          >
-            Download PDF
-          </a>
-        </div>
-      </noscript>
     </div>
   );
 }
