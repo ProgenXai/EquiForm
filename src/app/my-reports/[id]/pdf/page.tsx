@@ -19,6 +19,9 @@ export default function ReportPdfViewerPage() {
   }, [params]);
 
   const pdfSrc = reportId ? getReportDownloadPath(reportId) : "";
+  // Fit-to-width so mobile/PWA iframe viewers don't open Letter pages at ~100% zoom.
+  // Chrome/PDFium honor Adobe open parameters; unsupported browsers ignore the hash.
+  const pdfIframeSrc = pdfSrc ? `${pdfSrc}#view=FitH` : "";
   const reportHref = reportId ? `/my-reports/${reportId}` : "/my-reports";
 
   const handleClose = useCallback(() => {
@@ -59,7 +62,7 @@ export default function ReportPdfViewerPage() {
       </button>
 
       <iframe
-        src={pdfSrc}
+        src={pdfIframeSrc}
         title="EquiForm report PDF"
         className="absolute inset-0 h-full w-full border-0 bg-zinc-950"
       />

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; }
+    .wrap { position: fixed; inset: 0; background: #000; }
+    iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #09090b; }
+    button {
+      position: absolute; z-index: 20; top: 12px; right: 12px;
+      width: 40px; height: 40px; border: 0; border-radius: 9999px;
+      background: #27272a; color: #fff; font-size: 24px; line-height: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <button type="button" aria-label="Close PDF">×</button>
+    <iframe src="/_fith_test/report.pdf#view=FitH" title="EquiForm report PDF"></iframe>
+  </div>
+</body>
+</html>
