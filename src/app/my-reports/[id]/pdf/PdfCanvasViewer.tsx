@@ -31,10 +31,24 @@ function touchDistance(a: Touch, b: Touch): number {
   return Math.hypot(dx, dy);
 }
 
+/** pdfjs-dist document handle — destroy() tears down the worker-backed instance. */
+type PdfDocumentHandle = {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<import("pdfjs-dist").PDFPageProxy>;
+  destroy: () => Promise<void>;
+};
+
+function releasePdfDocument(
+  pdf: PdfDocumentHandle | null | undefined,
+): void {
+  if (!pdf) return;
+  void pdf.destroy().catch(() => {});
+}
+
 export function PdfCanvasViewer({ url }: PdfCanvasViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pagesHostRef = useRef<HTMLDivElement | null>(null);
-  const pdfRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(null);
+  const pdfRef = useRef<PdfDocumentHandle | null>(null);
   const renderGenerationRef = useRef(0);
   const widthRef = useRef(0);
   /** Zoom used for the last canvas render. */
@@ -97,7 +111,7 @@ export function PdfCanvasViewer({ url }: PdfCanvasViewerProps) {
 
     async function loadPdf() {
       setLoadState({ status: "loading" });
-      pdfRef.current?.destroy().catch(() => {});
+      releasePdfDocument(pdfRef.current);
       pdfRef.current = null;
 
       try {
@@ -144,7 +158,7 @@ export function PdfCanvasViewer({ url }: PdfCanvasViewerProps) {
 
         const data = new Uint8Array(await response.arrayBuffer());
         loadingTask = pdfjs.getDocument({ data });
-        const pdf = await loadingTask.promise;
+        const pdf = (await loadingTask.promise) as PdfDocumentHandle;
         if (cancelled) {
           await pdf.destroy();
           return;
@@ -169,7 +183,7 @@ export function PdfCanvasViewer({ url }: PdfCanvasViewerProps) {
     return () => {
       cancelled = true;
       void loadingTask?.destroy();
-      pdfRef.current?.destroy().catch(() => {});
+      releasePdfDocument(pdfRef.current);
       pdfRef.current = null;
     };
   }, [url, reloadToken]);
