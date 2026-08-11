@@ -9,9 +9,13 @@ export function getReportPdfStoragePath(
   return `reports/${userId}/${reportId}.pdf`;
 }
 
-/** Same-origin path for in-app opens (window.open / fetch). */
-export function getReportDownloadPath(reportId: string): string {
-  return `/api/reports/${reportId}/download`;
+/** Same-origin path for in-app opens (iframe / fetch). Pass download: true for attachment. */
+export function getReportDownloadPath(
+  reportId: string,
+  options?: { download?: boolean },
+): string {
+  const path = `/api/reports/${reportId}/download`;
+  return options?.download ? `${path}?download=1` : path;
 }
 
 /** In-app PDF viewer with app chrome (Back/Close) — preferred over opening the raw PDF URL. */

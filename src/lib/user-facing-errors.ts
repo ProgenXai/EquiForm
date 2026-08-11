@@ -334,6 +334,7 @@ export function formatAnalysisError(value: unknown): string {
     message.startsWith("Your analysis was saved") ||
     message.includes("didn't meet the criteria") ||
     message.includes("photo guidelines") ||
+    message.includes("couldn't analyze your") ||
     message.includes("landmarks") ||
     message.includes("same photo may have been used");
 

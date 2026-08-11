@@ -143,12 +143,14 @@ export async function GET(
     }
 
     const filename = sanitizePdfFilename(report.horse_name);
+    const wantDownload =
+      new URL(request.url).searchParams.get("download") === "1";
 
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${filename}"`,
+        "Content-Disposition": `${wantDownload ? "attachment" : "inline"}; filename="${filename}"`,
         "Cache-Control": "private, no-store",
         "Content-Length": String(pdfBytes.byteLength),
         "X-Content-Type-Options": "nosniff",

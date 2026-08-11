@@ -2,6 +2,13 @@ import { createRequire } from "node:module";
 
 import {
   PDFDocument,
+  clip,
+  closePath,
+  endPath,
+  lineTo,
+  moveTo,
+  popGraphicsState,
+  pushGraphicsState,
   rgb,
   StandardFonts,
   type PDFImage,
@@ -269,6 +276,69 @@ function getFullReportOverlayLabel(
   return `Overlay — ${sideLabel} Side (highest scoring view)`;
 }
 
+/**
+ * Draw an image spanning the full content column (equal page margins).
+ * When the full-width height would exceed maxHeight, cover-crop top/bottom
+ * so the photo block stays page-centered without leftover side gutters.
+ */
+function drawContentWidthImage(
+  page: PDFPage,
+  image: PDFImage,
+  yTop: number,
+  maxHeight: number,
+): number {
+  const widthScale = CONTENT_WIDTH / image.width;
+  const fullWidthHeight = image.height * widthScale;
+
+  if (fullWidthHeight <= maxHeight) {
+    page.drawImage(image, {
+      x: MARGIN,
+      y: yTop - fullWidthHeight,
+      width: CONTENT_WIDTH,
+      height: fullWidthHeight,
+    });
+    return yTop - fullWidthHeight;
+  }
+
+  const boxHeight = maxHeight;
+  const coverScale = Math.max(
+    CONTENT_WIDTH / image.width,
+    boxHeight / image.height,
+  );
+  const drawnWidth = image.width * coverScale;
+  const drawnHeight = image.height * coverScale;
+  const x = MARGIN + (CONTENT_WIDTH - drawnWidth) / 2;
+  const y = yTop - boxHeight + (boxHeight - drawnHeight) / 2;
+
+  page.pushOperators(
+    pushGraphicsState(),
+    moveTo(MARGIN, yTop - boxHeight),
+    lineTo(MARGIN + CONTENT_WIDTH, yTop - boxHeight),
+    lineTo(MARGIN + CONTENT_WIDTH, yTop),
+    lineTo(MARGIN, yTop),
+    closePath(),
+    clip(),
+    endPath(),
+  );
+  page.drawImage(image, {
+    x,
+    y,
+    width: drawnWidth,
+    height: drawnHeight,
+  });
+  page.pushOperators(popGraphicsState());
+
+  return yTop - boxHeight;
+}
+
+function measureContentWidthImageHeight(
+  image: PDFImage,
+  maxHeight: number,
+): number {
+  const fullWidthHeight = image.height * (CONTENT_WIDTH / image.width);
+  return Math.min(fullWidthHeight, maxHeight);
+}
+
 function measureFullReportOverlayBlock(
   image: PDFImage,
   font: PDFFont,
@@ -278,11 +348,7 @@ function measureFullReportOverlayBlock(
   const labelSize = 9;
   const labelGap = 6;
   const bottomGap = 10;
-  const scale = Math.min(
-    CONTENT_WIDTH / image.width,
-    maxHeight / image.height,
-  );
-  const imageHeight = image.height * scale;
+  const imageHeight = measureContentWidthImageHeight(image, maxHeight);
   return imageHeight + labelGap + labelSize + bottomGap;
 }
 
@@ -297,20 +363,8 @@ function drawFullReportOverlay(
   const labelSize = 9;
   const labelGap = 6;
   const bottomGap = 10;
-  const scale = Math.min(
-    CONTENT_WIDTH / image.width,
-    maxHeight / image.height,
-  );
-  const imageWidth = image.width * scale;
-  const imageHeight = image.height * scale;
 
-  const imageBottomY = yTop - imageHeight;
-  page.drawImage(image, {
-    x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
-    y: imageBottomY,
-    width: imageWidth,
-    height: imageHeight,
-  });
+  const imageBottomY = drawContentWidthImage(page, image, yTop, maxHeight);
 
   const labelWidth = font.widthOfTextAtSize(label, labelSize);
   const labelY = imageBottomY - labelGap - labelSize;
@@ -748,20 +802,13 @@ export async function generateReportPdfBytes(
   );
 
   if (!isFullReport) {
-    const imageScale = Math.min(
-      CONTENT_WIDTH / overlayImage!.width,
-      overlayMaxHeight / overlayImage!.height,
+    const imageBottomY = drawContentWidthImage(
+      page,
+      overlayImage!,
+      y,
+      overlayMaxHeight,
     );
-    const imageWidth = overlayImage!.width * imageScale;
-    const imageHeight = overlayImage!.height * imageScale;
-
-    page.drawImage(overlayImage!, {
-      x: MARGIN + (CONTENT_WIDTH - imageWidth) / 2,
-      y: y - imageHeight,
-      width: imageWidth,
-      height: imageHeight,
-    });
-    y -= imageHeight + 20;
+    y = imageBottomY - 20;
 
     y -= gapBeforeScores;
     y = drawConformationScoresSection(page, y, report, fontBold, fontRegular);

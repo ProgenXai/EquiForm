@@ -58,11 +58,42 @@ const IMAGE_VALIDATION_USER_PROMPTS: Record<CalibrationViewMode, string> = {
     "Does this image show a single horse in a correct hind view for conformation analysis? To pass ALL of these must be true: the horse is facing directly away from the camera (not angled), the horse is standing completely still with all four feet flat on the ground, both hind legs are fully visible from hock to hoof, the hindquarters are square to the camera, and the tail is not completely covering both hind legs (a tied or braided tail that is partially visible is acceptable). Reject if the horse is angled, walking, the tail is covering the hind legs, or any person or object is blocking the view of the legs.",
 };
 
-const INVALID_IMAGE_ERROR =
-  "Your horse photo didn't meet the criteria. Please review the photo guidelines and resubmit.";
-
 const LANDMARK_DETECTION_USER_ERROR =
   "We couldn't detect horse landmarks in this photo. Please try a photo with better lighting, contrast, and the horse standing square.";
+
+function viewLabelForMode(viewMode: CalibrationViewMode): string {
+  switch (viewMode) {
+    case "front":
+      return "Front";
+    case "hind":
+      return "Hind";
+    case "left":
+      return "Left Side";
+    case "right":
+      return "Right Side";
+    case "side":
+      return "Side";
+  }
+}
+
+function viewValidationFailureMessage(viewMode: CalibrationViewMode): string {
+  const label = viewLabelForMode(viewMode);
+  switch (viewMode) {
+    case "front":
+      return `We couldn't analyze your ${label} photo — try a straight-on shot with your horse filling more of the frame (crop tighter if needed).`;
+    case "hind":
+      return `We couldn't analyze your ${label} photo — try a straight-from-behind shot with your horse filling more of the frame (crop tighter if needed).`;
+    case "left":
+    case "right":
+    case "side":
+      return `We couldn't analyze your ${label} photo — try a clear side profile with your horse filling more of the frame (crop tighter if needed).`;
+  }
+}
+
+function roboflowLandmarkDetectionError(viewMode: CalibrationViewMode): string {
+  const label = viewLabelForMode(viewMode);
+  return `We couldn't analyze your ${label} photo — we couldn't detect horse landmarks. Try cropping it tighter so your horse fills more of the frame, with better contrast, lighting, and the horse standing square.`;
+}
 
 const OVERLAY_STORAGE_BUCKET = "horse-photos";
 const FULL_REPORT_TEMP_PREFIX = "full-report-temp";
@@ -136,6 +167,13 @@ function getRoboflowModelIdForView(viewMode: CalibrationViewMode): string {
 }
 
 function toUserFacingAnalyzeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (
+    message.includes("couldn't analyze your") ||
+    message.includes("couldn't detect horse landmarks")
+  ) {
+    return message;
+  }
   if (error instanceof Error && error.message.includes("Roboflow")) {
     return LANDMARK_DETECTION_USER_ERROR;
   }
@@ -604,15 +642,35 @@ export async function POST(request: Request) {
     }
 
     if (!imageIsValid) {
-      return NextResponse.json({ error: INVALID_IMAGE_ERROR }, { status: 400 });
+      return NextResponse.json(
+        { error: viewValidationFailureMessage(viewMode) },
+        { status: 400 },
+      );
     }
 
-    const detectedLandmarks = await detectLandmarksWithRoboflow(
-      imageBase64,
-      imageWidth,
-      imageHeight,
-      viewMode,
-    );
+    let detectedLandmarks;
+    try {
+      detectedLandmarks = await detectLandmarksWithRoboflow(
+        imageBase64,
+        imageWidth,
+        imageHeight,
+        viewMode,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === "Roboflow returned no predictions" ||
+          error.message === "Roboflow horse prediction has no keypoints" ||
+          error.message === "Roboflow low confidence detection" ||
+          error.message.includes("Roboflow"))
+      ) {
+        return NextResponse.json(
+          { error: roboflowLandmarkDetectionError(viewMode) },
+          { status: 422 },
+        );
+      }
+      throw error;
+    }
     const landmarks = toConformationLandmarks(detectedLandmarks, viewMode);
     const reportPrompt = withReportContext(
       getConformationReportPrompt(viewMode),

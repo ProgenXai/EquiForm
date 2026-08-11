@@ -2,16 +2,38 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { getReportDownloadPath } from "@/lib/reports/pdf-storage";
+
+function filenameFromContentDisposition(
+  header: string | null,
+): string | null {
+  if (!header) return null;
+  const utfMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].trim());
+    } catch {
+      return utfMatch[1].trim();
+    }
+  }
+  const plainMatch = /filename="([^"]+)"|filename=([^;]+)/i.exec(header);
+  const raw = plainMatch?.[1] ?? plainMatch?.[2];
+  return raw?.trim() || null;
+}
 
 export default function ReportPdfViewerPage() {
   const router = useRouter();
   const params = useParams();
+  const [downloadBusy, setDownloadBusy] = useState(false);
   const reportId = useMemo(() => {
     const raw = params?.id;
-    return typeof raw === "string" ? raw.trim() : Array.isArray(raw) ? raw[0]?.trim() ?? "" : "";
+    return typeof raw === "string"
+      ? raw.trim()
+      : Array.isArray(raw)
+        ? (raw[0]?.trim() ?? "")
+        : "";
   }, [params]);
 
   const pdfSrc = reportId ? getReportDownloadPath(reportId) : "";
@@ -24,6 +46,39 @@ export default function ReportPdfViewerPage() {
     }
     router.push(reportHref);
   }, [reportHref, router]);
+
+  const handleDownload = useCallback(async () => {
+    if (!reportId || downloadBusy) return;
+
+    setDownloadBusy(true);
+    try {
+      const response = await fetch(
+        getReportDownloadPath(reportId, { download: true }),
+      );
+      if (!response.ok) {
+        throw new Error(`Download failed (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const filename =
+        filenameFromContentDisposition(
+          response.headers.get("Content-Disposition"),
+        ) || "EquiForm-Report.pdf";
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      anchor.rel = "noopener";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("[pdf-viewer] download failed:", error);
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [downloadBusy, reportId]);
 
   if (!reportId) {
     return (
@@ -53,13 +108,14 @@ export default function ReportPdfViewerPage() {
           ← Back
         </button>
         <p className="truncate text-sm font-medium text-zinc-300">Report PDF</p>
-        <a
-          href={pdfSrc}
-          download
-          className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
+        <button
+          type="button"
+          onClick={() => void handleDownload()}
+          disabled={downloadBusy}
+          className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Download
-        </a>
+          {downloadBusy ? "Saving…" : "Download"}
+        </button>
       </header>
 
       <div className="relative min-h-0 flex-1 bg-zinc-950">
@@ -71,13 +127,13 @@ export default function ReportPdfViewerPage() {
         <noscript>
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="text-sm text-zinc-400">
-              Enable JavaScript to preview the PDF, or open it directly.
+              Enable JavaScript to preview the PDF, or download it directly.
             </p>
             <a
-              href={pdfSrc}
+              href={getReportDownloadPath(reportId, { download: true })}
               className="text-sm font-medium text-accent underline"
             >
-              Open PDF
+              Download PDF
             </a>
           </div>
         </noscript>

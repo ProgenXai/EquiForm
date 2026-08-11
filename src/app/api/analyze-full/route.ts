@@ -119,9 +119,25 @@ const LANDMARK_DETECTION_USER_ERROR =
 const FULL_REPORT_VIEW_LABELS: Record<FullReportViewKey, string> = {
   left: "Left Side",
   right: "Right Side",
-  front: "Front View",
-  hind: "Hind View",
+  front: "Front",
+  hind: "Hind",
 };
+
+/** User-facing reason when a submitted view fails Claude angle/pose QA. */
+function viewValidationFailureMessage(view: FullReportViewKey): string {
+  switch (view) {
+    case "front":
+      return "We couldn't analyze your Front photo — try a straight-on shot with your horse filling more of the frame (crop tighter if needed).";
+    case "hind":
+      return "We couldn't analyze your Hind photo — try a straight-from-behind shot with your horse filling more of the frame (crop tighter if needed).";
+    case "left":
+      return "We couldn't analyze your Left Side photo — try a clear side profile with your horse filling more of the frame (crop tighter if needed).";
+    case "right":
+      return "We couldn't analyze your Right Side photo — try a clear side profile with your horse filling more of the frame (crop tighter if needed).";
+    default:
+      return INVALID_IMAGE_ERROR;
+  }
+}
 
 const ROBOFLOW_LANDMARK_FAILURE_MESSAGES = new Set([
   "Roboflow returned no predictions",
@@ -130,11 +146,18 @@ const ROBOFLOW_LANDMARK_FAILURE_MESSAGES = new Set([
 ]);
 
 function roboflowLandmarkDetectionError(viewLabel: string): string {
-  return `We couldn't detect horse landmarks in the ${viewLabel} photo. This can happen with certain coat colors, backgrounds, or angles. Try a photo with better contrast against the background, clearer lighting, and the horse standing square.`;
+  return `We couldn't analyze your ${viewLabel} photo — we couldn't detect horse landmarks. Try cropping it tighter so your horse fills more of the frame, with better contrast, lighting, and the horse standing square.`;
 }
 
 function toUserFacingFullReportError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
+  // Keep view-specific messages we already composed for the customer.
+  if (
+    message.includes("couldn't analyze your") ||
+    message.includes("couldn't detect horse landmarks in the")
+  ) {
+    return message;
+  }
   if (isRoboflowLandmarkFailure(error) || message.includes("Roboflow")) {
     return LANDMARK_DETECTION_USER_ERROR;
   }
@@ -1462,7 +1485,8 @@ export async function POST(request: Request) {
     const failedViews = validationResults.filter((result) => !result.valid).map((r) => r.view);
     if (failedViews.length > 0) {
       console.log("[analyze-full] validation failed for views:", failedViews.join(", "));
-      return NextResponse.json({ error: INVALID_IMAGE_ERROR }, { status: 400 });
+      const error = failedViews.map((view) => viewValidationFailureMessage(view)).join(" ");
+      return NextResponse.json({ error, failed_views: failedViews }, { status: 400 });
     }
 
     const detectedLandmarksByView = {} as Record<
@@ -1470,7 +1494,7 @@ export async function POST(request: Request) {
       Record<string, DetectedLandmarkPoint>
     >;
 
-    await Promise.all(
+    const landmarkResults = await Promise.all(
       FULL_REPORT_VIEW_KEYS.map(async (view) => {
         const prepared = preparedByView[view];
         const viewLabel = FULL_REPORT_VIEW_LABELS[view];
@@ -1486,6 +1510,7 @@ export async function POST(request: Request) {
             prepared.imageHeight,
             ROBOFLOW_VIEW_MODE[view],
           );
+          return { view, ok: true as const };
         } catch (error) {
           console.error(
             `[analyze-full] Roboflow inference failed for ${viewLabel} (${view}):`,
@@ -1493,13 +1518,24 @@ export async function POST(request: Request) {
           );
 
           if (isRoboflowLandmarkFailure(error)) {
-            throw new Error(roboflowLandmarkDetectionError(viewLabel));
+            return { view, ok: false as const };
           }
 
           throw error;
         }
       }),
     );
+
+    const landmarkFailedViews = landmarkResults
+      .filter((result) => !result.ok)
+      .map((result) => result.view);
+
+    if (landmarkFailedViews.length > 0) {
+      const error = landmarkFailedViews
+        .map((view) => roboflowLandmarkDetectionError(FULL_REPORT_VIEW_LABELS[view]))
+        .join(" ");
+      throw new Error(error);
+    }
 
     const conformationLandmarksByView = {
       left: toConformationLandmarks(detectedLandmarksByView.left, "left"),
