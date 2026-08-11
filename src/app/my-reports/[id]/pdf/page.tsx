@@ -19,6 +19,7 @@ export default function ReportPdfViewerPage() {
   }, [params]);
 
   const pdfSrc = reportId ? getReportDownloadPath(reportId) : "";
+  const pdfIframeSrc = pdfSrc ? `${pdfSrc}#view=FitH` : "";
   const reportHref = reportId ? `/my-reports/${reportId}` : "/my-reports";
 
   const handleClose = useCallback(() => {
@@ -57,7 +58,7 @@ export default function ReportPdfViewerPage() {
       </div>
 
       <iframe
-        src={pdfSrc}
+        src={pdfIframeSrc}
         title="EquiForm report PDF"
         className="min-h-0 w-full flex-1 border-0 bg-zinc-950"
       />
