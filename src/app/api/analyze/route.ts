@@ -215,7 +215,7 @@ async function submitMeshy3DTask(
   try {
     const meshyPayload = {
       image_urls: [imageUrl],
-      ai_model: "meshy-6",
+      ai_model: "latest",
       target_formats: ["glb"],
     };
 

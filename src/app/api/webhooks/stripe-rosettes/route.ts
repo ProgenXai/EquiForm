@@ -134,6 +134,27 @@ function buildFulfillmentLines(items: CartItem[]): FulfillmentLine[] | null {
   return lines.length > 0 ? lines : null;
 }
 
+function sessionIdMarker(sessionId: string): string {
+  return `[checkout:${sessionId}]`;
+}
+
+function logWebhook(
+  level: "info" | "error",
+  message: string,
+  details: Record<string, unknown>,
+) {
+  const payload = {
+    ts: new Date().toISOString(),
+    ...details,
+  };
+  const line = `[stripe-rosettes] ${message} ${JSON.stringify(payload)}`;
+  if (level === "error") {
+    console.error(line);
+  } else {
+    console.info(line);
+  }
+}
+
 async function sendFulfillmentAlert(
   session: Stripe.Checkout.Session,
   eventType: string,
@@ -141,15 +162,19 @@ async function sendFulfillmentAlert(
   message: string,
   packIds?: string[],
 ) {
-  void sendAdminAlert(
+  await sendAdminAlert(
     "Stripe payment fulfillment failed",
     [
       `What failed: ${message}`,
       `Event type: ${eventType}`,
+      `Session ID: ${session.id}`,
+      `Timestamp: ${new Date().toISOString()}`,
       userId ? `User ID: ${userId}` : null,
-      session.customer_email
-        ? `User email: ${session.customer_email}`
-        : null,
+      session.customer_details?.email
+        ? `User email: ${session.customer_details.email}`
+        : session.customer_email
+          ? `User email: ${session.customer_email}`
+          : null,
       packIds?.length ? `Pack IDs: ${packIds.join(", ")}` : null,
     ]
       .filter(Boolean)
@@ -162,6 +187,7 @@ export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
   if (!secretKey || !webhookSecret) {
+    logWebhook("error", "not configured", {});
     return NextResponse.json(
       { error: "Stripe webhook is not configured" },
       { status: 500 },
@@ -171,6 +197,7 @@ export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
 
   if (!signature) {
+    logWebhook("error", "missing stripe-signature header", {});
     return NextResponse.json({ error: "Missing stripe-signature" }, { status: 400 });
   }
 
@@ -183,12 +210,15 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[stripe-rosettes] signature verification failed:", error);
-    void sendAdminAlert(
+    logWebhook("error", "signature verification failed", {
+      error: message,
+    });
+    await sendAdminAlert(
       "Stripe webhook processing failed",
       [
         "What failed: Webhook signature verification",
         "Event type: unknown",
+        `Timestamp: ${new Date().toISOString()}`,
         `Error message: ${message}`,
       ].join("\n"),
     );
@@ -196,6 +226,10 @@ export async function POST(request: Request) {
   }
 
   if (event.type !== "checkout.session.completed") {
+    logWebhook("info", "ignored event type", {
+      eventId: event.id,
+      eventType: event.type,
+    });
     return NextResponse.json({ received: true });
   }
 
@@ -203,9 +237,25 @@ export async function POST(request: Request) {
   const userId = session.metadata?.userId?.trim();
   const cartItems = parseCartItems(session);
   const packIds = cartItems?.map((item) => item.packId);
+  const baseLog = {
+    eventId: event.id,
+    eventType: event.type,
+    sessionId: session.id,
+    userId: userId ?? null,
+    packIds: packIds ?? null,
+    amountTotal: session.amount_total ?? null,
+    paymentStatus: session.payment_status ?? null,
+    customerEmail:
+      session.customer_details?.email ?? session.customer_email ?? null,
+  };
+
+  logWebhook("info", "checkout.session.completed received", baseLog);
 
   if (!userId || !cartItems) {
-    console.error("[stripe-rosettes] missing metadata:", session.metadata);
+    logWebhook("error", "missing session metadata", {
+      ...baseLog,
+      metadata: session.metadata ?? null,
+    });
     await sendFulfillmentAlert(
       session,
       event.type,
@@ -218,7 +268,10 @@ export async function POST(request: Request) {
   const fulfillmentLines = buildFulfillmentLines(cartItems);
 
   if (!fulfillmentLines) {
-    console.error("[stripe-rosettes] invalid cart items:", cartItems);
+    logWebhook("error", "invalid cart items", {
+      ...baseLog,
+      cartItems,
+    });
     await sendFulfillmentAlert(
       session,
       event.type,
@@ -227,6 +280,41 @@ export async function POST(request: Request) {
       packIds,
     );
     return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
+  }
+
+  // Idempotency: skip if this checkout.session.id was already fulfilled.
+  // Marker is stored on every purchase row for the session (one per pack line).
+  const marker = sessionIdMarker(session.id);
+  const { data: existingFulfillments, error: idempotencyLookupError } =
+    await supabaseAdmin
+      .from("token_transactions")
+      .select("id")
+      .eq("type", "purchase")
+      .eq("user_id", userId)
+      .ilike("description", `%${marker}%`)
+      .limit(1);
+
+  if (idempotencyLookupError) {
+    logWebhook("error", "idempotency lookup failed", {
+      ...baseLog,
+      error: idempotencyLookupError.message,
+    });
+    await sendFulfillmentAlert(
+      session,
+      event.type,
+      userId,
+      "idempotency lookup",
+      packIds,
+    );
+    return NextResponse.json(
+      { error: idempotencyLookupError.message },
+      { status: 500 },
+    );
+  }
+
+  if (existingFulfillments && existingFulfillments.length > 0) {
+    logWebhook("info", "duplicate checkout session — already fulfilled", baseLog);
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   const { data: existing, error: lookupError } = await supabaseAdmin
@@ -238,7 +326,10 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (lookupError) {
-    console.error("[stripe-rosettes] user_tokens lookup failed:", lookupError);
+    logWebhook("error", "user_tokens lookup failed", {
+      ...baseLog,
+      error: lookupError.message,
+    });
     await sendFulfillmentAlert(
       session,
       event.type,
@@ -267,7 +358,10 @@ export async function POST(request: Request) {
       .eq("user_id", userId);
 
     if (updateError) {
-      console.error("[stripe-rosettes] user_tokens update failed:", updateError);
+      logWebhook("error", "user_tokens update failed", {
+        ...baseLog,
+        error: updateError.message,
+      });
       await sendFulfillmentAlert(
         session,
         event.type,
@@ -284,7 +378,10 @@ export async function POST(request: Request) {
     });
 
     if (insertError) {
-      console.error("[stripe-rosettes] user_tokens insert failed:", insertError);
+      logWebhook("error", "user_tokens insert failed", {
+        ...baseLog,
+        error: insertError.message,
+      });
       await sendFulfillmentAlert(
         session,
         event.type,
@@ -303,14 +400,15 @@ export async function POST(request: Request) {
         user_id: userId,
         amount: line.credits,
         type: "purchase",
-        description: line.description,
+        description: `${line.description} ${marker}`,
       });
 
     if (transactionError) {
-      console.error(
-        "[stripe-rosettes] token_transactions insert failed:",
-        transactionError,
-      );
+      logWebhook("error", "token_transactions insert failed", {
+        ...baseLog,
+        packId: line.packId,
+        error: transactionError.message,
+      });
       await sendFulfillmentAlert(
         session,
         event.type,
@@ -324,6 +422,16 @@ export async function POST(request: Request) {
       );
     }
   }
+
+  logWebhook("info", "credits granted successfully", {
+    ...baseLog,
+    creditsGranted: fulfillmentLines.map((line) => ({
+      packId: line.packId,
+      balanceColumn: line.balanceColumn,
+      credits: line.credits,
+    })),
+    balancesAfter: balanceUpdates,
+  });
 
   return NextResponse.json({ received: true });
 }

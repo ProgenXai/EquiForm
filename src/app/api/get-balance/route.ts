@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 
 const EMPTY_BALANCES = {
   single_view_balance: 0,
+  single_view_3d_balance: 0,
   full_report_balance: 0,
+  full_report_3d_balance: 0,
 };
 
 export async function GET(request: Request) {
@@ -34,12 +36,16 @@ export async function GET(request: Request) {
 
   const { data: tokenRow } = await supabase
     .from("user_tokens")
-    .select("single_view_balance, full_report_balance")
+    .select(
+      "single_view_balance, single_view_3d_balance, full_report_balance, full_report_3d_balance",
+    )
     .eq("user_id", user.id)
     .maybeSingle();
 
   return NextResponse.json({
     single_view_balance: tokenRow?.single_view_balance ?? 0,
+    single_view_3d_balance: tokenRow?.single_view_3d_balance ?? 0,
     full_report_balance: tokenRow?.full_report_balance ?? 0,
+    full_report_3d_balance: tokenRow?.full_report_3d_balance ?? 0,
   });
 }

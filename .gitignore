@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local reconciliation output (contains customer emails)
+scripts/reconcile-stripe-credits-report.json
