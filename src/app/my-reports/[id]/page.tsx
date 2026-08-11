@@ -645,12 +645,14 @@ export default function ReportDetailPage() {
                       } Side (best side)`
                     : "Conformation Overlay"}
                 </h2>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={overlayUrl}
-                  alt="Conformation overlay"
-                  className="mt-4 max-h-[400px] w-full rounded-lg border border-zinc-800 object-contain"
-                />
+                <div className="mt-4 w-full min-w-0 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={overlayUrl}
+                    alt="Conformation overlay"
+                    className="mx-auto block h-auto max-h-[70vh] max-h-[min(400px,70dvh)] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
+                  />
+                </div>
               </div>
             ) : null}
 

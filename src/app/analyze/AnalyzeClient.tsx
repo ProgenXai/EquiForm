@@ -2914,15 +2914,17 @@ export default function AnalyzeClient() {
                               <p className="mb-2 text-xs font-medium text-zinc-400">
                                 Best Side View
                               </p>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={
-                                  fullReportResult.overlayUrl ??
-                                  fullReportResult.overlayImage
-                                }
-                                alt="Conformation overlay on best side view"
-                                className="max-h-[250px] w-full rounded-lg border border-zinc-800 object-contain"
-                              />
+                              <div className="w-full min-w-0 overflow-hidden">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={
+                                    fullReportResult.overlayUrl ??
+                                    fullReportResult.overlayImage
+                                  }
+                                  alt="Conformation overlay on best side view"
+                                  className="mx-auto block h-auto max-h-[50vh] max-h-[min(250px,50dvh)] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
+                                />
+                              </div>
                             </div>
 
                             {fullReportResult.frontOverlayUrl ? (
@@ -2930,12 +2932,14 @@ export default function AnalyzeClient() {
                                 <p className="mb-2 text-xs font-medium text-zinc-400">
                                   Front View
                                 </p>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={fullReportResult.frontOverlayUrl}
-                                  alt="Conformation overlay on front view"
-                                  className="max-h-[250px] w-full rounded-lg border border-zinc-800 object-contain"
-                                />
+                                <div className="w-full min-w-0 overflow-hidden">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={fullReportResult.frontOverlayUrl}
+                                    alt="Conformation overlay on front view"
+                                    className="mx-auto block h-auto max-h-[50vh] max-h-[min(250px,50dvh)] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
+                                  />
+                                </div>
                               </div>
                             ) : null}
 
@@ -2944,12 +2948,14 @@ export default function AnalyzeClient() {
                                 <p className="mb-2 text-xs font-medium text-zinc-400">
                                   Hind View
                                 </p>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={fullReportResult.hindOverlayUrl}
-                                  alt="Conformation overlay on hind view"
-                                  className="max-h-[250px] w-full rounded-lg border border-zinc-800 object-contain"
-                                />
+                                <div className="w-full min-w-0 overflow-hidden">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={fullReportResult.hindOverlayUrl}
+                                    alt="Conformation overlay on hind view"
+                                    className="mx-auto block h-auto max-h-[50vh] max-h-[min(250px,50dvh)] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
+                                  />
+                                </div>
                               </div>
                             ) : null}
                           </div>
@@ -3198,35 +3204,37 @@ export default function AnalyzeClient() {
                 {result.report.overall_score}
                 <span className="text-lg font-normal text-zinc-500">/100</span>
               </p>
-              <div className="relative mt-4 w-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={result.overlayImage}
-                  alt="Conformation overlay"
-                  className="w-full rounded-lg border border-zinc-800"
-                />
-                {LANDMARKS.map((landmark) => {
-                  const point = result.landmarks[landmark.id];
-                  if (!point) return null;
-                  return (
-                    <span
-                      key={landmark.id}
-                      style={{
-                        position: "absolute",
-                        left: `${point.x * 100}%`,
-                        top: `${point.y * 100}%`,
-                        transform: "translate(12px, -50%)",
-                        fontSize: "11px",
-                        color: "white",
-                        textShadow: "0 0 3px black",
-                        whiteSpace: "nowrap",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      {landmark.label}
-                    </span>
-                  );
-                })}
+              <div className="mt-4 flex w-full min-w-0 justify-center overflow-hidden">
+                <div className="relative inline-block max-h-[70vh] max-h-[min(400px,70dvh)] max-w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={result.overlayImage}
+                    alt="Conformation overlay"
+                    className="block h-auto max-h-[70vh] max-h-[min(400px,70dvh)] w-auto max-w-full rounded-lg border border-zinc-800 object-contain"
+                  />
+                  {LANDMARKS.map((landmark) => {
+                    const point = result.landmarks[landmark.id];
+                    if (!point) return null;
+                    return (
+                      <span
+                        key={landmark.id}
+                        style={{
+                          position: "absolute",
+                          left: `${point.x * 100}%`,
+                          top: `${point.y * 100}%`,
+                          transform: "translate(12px, -50%)",
+                          fontSize: "11px",
+                          color: "white",
+                          textShadow: "0 0 3px black",
+                          whiteSpace: "nowrap",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {landmark.label}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
