@@ -18,7 +18,7 @@ export function getReportDownloadPath(
   return options?.download ? `${path}?download=1` : path;
 }
 
-/** In-app PDF viewer with app chrome (Back/Close) — preferred over opening the raw PDF URL. */
+/** In-app PDF viewer with a close control — preferred over opening the raw PDF URL. */
 export function getReportPdfViewerPath(reportId: string): string {
   return `/my-reports/${reportId}/pdf`;
 }
