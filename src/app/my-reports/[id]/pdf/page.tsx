@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { getReportDownloadPath } from "@/lib/reports/pdf-storage";
+
+const PDF_VIEWPORT_CONTENT =
+  "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes";
 
 export default function ReportPdfViewerPage() {
   const router = useRouter();
@@ -21,6 +24,22 @@ export default function ReportPdfViewerPage() {
   const pdfSrc = reportId ? getReportDownloadPath(reportId) : "";
   const pdfIframeSrc = pdfSrc ? `${pdfSrc}#view=FitH` : "";
   const reportHref = reportId ? `/my-reports/${reportId}` : "/my-reports";
+
+  // Soft client navigations may keep the root layout's maximum-scale=1 meta.
+  // Force-enable pinch-zoom while this viewer is mounted, then restore on exit.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+
+    const previous = meta.getAttribute("content");
+    meta.setAttribute("content", PDF_VIEWPORT_CONTENT);
+
+    return () => {
+      if (previous != null) {
+        meta.setAttribute("content", previous);
+      }
+    };
+  }, []);
 
   const handleClose = useCallback(() => {
     router.push(reportHref);
