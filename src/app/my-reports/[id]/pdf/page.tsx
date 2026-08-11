@@ -6,6 +6,8 @@ import { useCallback, useMemo } from "react";
 
 import { getReportDownloadPath } from "@/lib/reports/pdf-storage";
 
+import { PdfCanvasViewer } from "./PdfCanvasViewer";
+
 export default function ReportPdfViewerPage() {
   const router = useRouter();
   const params = useParams();
@@ -19,7 +21,6 @@ export default function ReportPdfViewerPage() {
   }, [params]);
 
   const pdfSrc = reportId ? getReportDownloadPath(reportId) : "";
-  const pdfIframeSrc = pdfSrc ? `${pdfSrc}#view=FitH` : "";
   const reportHref = reportId ? `/my-reports/${reportId}` : "/my-reports";
 
   const handleClose = useCallback(() => {
@@ -42,7 +43,6 @@ export default function ReportPdfViewerPage() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* X must sit outside the iframe — native PDF plugins steal taps from overlays. */}
       <div
         className="flex shrink-0 justify-end px-3 pb-2"
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
@@ -57,11 +57,7 @@ export default function ReportPdfViewerPage() {
         </button>
       </div>
 
-      <iframe
-        src={pdfIframeSrc}
-        title="EquiForm report PDF"
-        className="min-h-0 w-full flex-1 border-0 bg-zinc-950"
-      />
+      <PdfCanvasViewer url={pdfSrc} />
     </div>
   );
 }

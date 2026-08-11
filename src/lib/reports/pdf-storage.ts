@@ -9,7 +9,7 @@ export function getReportPdfStoragePath(
   return `reports/${userId}/${reportId}.pdf`;
 }
 
-/** Same-origin path for in-app opens (iframe / fetch). Pass download: true for attachment. */
+/** Same-origin path for in-app opens (PDF.js fetch / download). Pass download: true for attachment. */
 export function getReportDownloadPath(
   reportId: string,
   options?: { download?: boolean },
