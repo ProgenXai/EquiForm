@@ -11,15 +11,13 @@ async function persistMeshyGlbToSupabase(
   meshyGlbUrl: string,
   userId: string,
   serviceClient: ReturnType<typeof createServiceRoleClient>,
-): Promise<string | null> {
+): Promise<{ glbUrl: string | null; errorDetails: string | null }> {
   try {
     const glbResponse = await fetch(meshyGlbUrl);
     if (!glbResponse.ok) {
-      console.error(
-        "[meshy-status] failed to download GLB from Meshy:",
-        meshyGlbUrl,
-      );
-      return null;
+      const errorDetails = `Failed to download GLB from Meshy (HTTP ${glbResponse.status}): ${meshyGlbUrl}`;
+      console.error("[meshy-status]", errorDetails);
+      return { glbUrl: null, errorDetails };
     }
 
     const glbBuffer = Buffer.from(await glbResponse.arrayBuffer());
@@ -33,18 +31,21 @@ async function persistMeshyGlbToSupabase(
       });
 
     if (uploadError) {
-      console.error("[meshy-status] GLB upload failed:", uploadError);
-      return null;
+      const errorDetails = `GLB upload failed (${glbBuffer.length} bytes): ${uploadError.message}`;
+      console.error("[meshy-status]", errorDetails, uploadError);
+      return { glbUrl: null, errorDetails };
     }
 
     const { data: publicUrlData } = serviceClient.storage
       .from(OVERLAY_STORAGE_BUCKET)
       .getPublicUrl(storagePath);
 
-    return publicUrlData.publicUrl;
+    return { glbUrl: publicUrlData.publicUrl, errorDetails: null };
   } catch (error) {
-    console.error("[meshy-status] persistMeshyGlbToSupabase error:", error);
-    return null;
+    const message = error instanceof Error ? error.message : String(error);
+    const errorDetails = `persistMeshyGlbToSupabase unexpected error: ${message}`;
+    console.error("[meshy-status]", errorDetails, error);
+    return { glbUrl: null, errorDetails };
   }
 }
 
@@ -117,6 +118,18 @@ export async function GET(request: Request) {
     if (status === "SUCCEEDED") {
       const meshyGlbUrl = taskData.model_urls?.glb ?? null;
       if (!meshyGlbUrl) {
+        void sendAdminAlert(
+          "Meshy 3D generation failed",
+          [
+            "What failed: Meshy task succeeded but no GLB URL was returned",
+            `User ID: ${user.id}`,
+            user.email ? `User email: ${user.email}` : null,
+            reportId ? `Report ID: ${reportId}` : null,
+            `Task ID: ${taskId}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
         return NextResponse.json(
           { status, error: USER_FACING.mesh3d },
           { status: 502 },
@@ -124,13 +137,26 @@ export async function GET(request: Request) {
       }
 
       const serviceClient = createServiceRoleClient();
-      const glbUrl = await persistMeshyGlbToSupabase(
+      const { glbUrl, errorDetails } = await persistMeshyGlbToSupabase(
         meshyGlbUrl,
         user.id,
         serviceClient,
       );
 
       if (!glbUrl) {
+        void sendAdminAlert(
+          "Meshy 3D generation failed",
+          [
+            "What failed: Meshy task succeeded but GLB persistence failed",
+            `User ID: ${user.id}`,
+            user.email ? `User email: ${user.email}` : null,
+            reportId ? `Report ID: ${reportId}` : null,
+            `Task ID: ${taskId}`,
+            errorDetails ? `Error details: ${errorDetails}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
         return NextResponse.json(
           { status, error: USER_FACING.mesh3d },
           { status: 500 },
@@ -148,6 +174,20 @@ export async function GET(request: Request) {
           console.error(
             "[meshy-status] failed to update report glb_url:",
             updateError,
+          );
+          void sendAdminAlert(
+            "Meshy 3D generation failed",
+            [
+              "What failed: GLB stored but report glb_url update failed",
+              `User ID: ${user.id}`,
+              user.email ? `User email: ${user.email}` : null,
+              reportId ? `Report ID: ${reportId}` : null,
+              `Task ID: ${taskId}`,
+              `GLB URL: ${glbUrl}`,
+              `Error details: ${updateError.message}`,
+            ]
+              .filter(Boolean)
+              .join("\n"),
           );
         }
       }
