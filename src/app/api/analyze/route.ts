@@ -482,6 +482,8 @@ export async function POST(request: Request) {
     ? USER_FACING.insufficientSingleView3d
     : USER_FACING.insufficientSingleView;
 
+  let creditHeld = false;
+
   if (!isAdmin) {
     const deductResult = await atomicDeductCredit(
       serviceClient,
@@ -498,6 +500,7 @@ export async function POST(request: Request) {
       console.error("[analyze] CRITICAL: upfront credit deduction failed", {
         userId: user.id,
         balanceColumn,
+        amount: 1,
         message: deductResult.message,
       });
       void sendAdminAlert(
@@ -516,20 +519,98 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ error: USER_FACING.generic }, { status: 500 });
     }
+
+    creditHeld = true;
+    console.log("[analyze] credit deducted", {
+      userId: user.id,
+      balanceColumn,
+      amount: 1,
+      stage: "upfront",
+    });
   }
+
+  const releaseHeldCredit = async (reason: string) => {
+    if (!creditHeld) {
+      return { ok: true as const };
+    }
+
+    creditHeld = false;
+    console.log("[analyze] credit refund starting", {
+      userId: user.id,
+      balanceColumn,
+      amount: 1,
+      reason,
+    });
+
+    const refundResult = await refundCredit(
+      serviceClient,
+      user.id,
+      balanceColumn,
+      1,
+    );
+
+    if (refundResult.ok) {
+      console.log("[analyze] credit refunded", {
+        userId: user.id,
+        balanceColumn,
+        amount: 1,
+        reason,
+      });
+    } else {
+      console.error("[analyze] CRITICAL: credit refund failed", {
+        userId: user.id,
+        balanceColumn,
+        amount: 1,
+        reason,
+        message: refundResult.message,
+      });
+      void sendAdminAlert(
+        "Single-view credit refund failed",
+        [
+          "What failed: Automatic credit refund after analysis failure",
+          `Reason: ${reason}`,
+          `User ID: ${user.id}`,
+          user.email ? `User email: ${user.email}` : null,
+          refundResult.message
+            ? `Error message: ${refundResult.message}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
+
+    return refundResult;
+  };
+
+  const commitHeldCredit = () => {
+    if (!creditHeld) {
+      return;
+    }
+
+    creditHeld = false;
+    console.log("[analyze] credit consumed (report saved)", {
+      userId: user.id,
+      balanceColumn,
+      amount: 1,
+    });
+  };
 
   try {
     const imageResponse = await fetch(photoUrl);
     if (!imageResponse.ok) {
+      await releaseHeldCredit("photo_fetch_failed");
       return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
     }
 
     const inputBuffer = Buffer.from(await imageResponse.arrayBuffer());
     if (inputBuffer.length === 0) {
+      await releaseHeldCredit("photo_empty");
       return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
     }
 
     if (inputBuffer.length > MAX_BYTES) {
+      await releaseHeldCredit("photo_too_large");
       return NextResponse.json(
         { error: "File must be 10MB or smaller" },
         { status: 400 },
@@ -541,6 +622,7 @@ export async function POST(request: Request) {
     const normalizedContentType = contentType.split(";")[0]?.trim() ?? "";
 
     if (normalizedContentType && !ALLOWED_MIME.has(normalizedContentType)) {
+      await releaseHeldCredit("photo_invalid_mime");
       return NextResponse.json(
         { error: "Only JPG, PNG, and WEBP images are allowed" },
         { status: 400 },
@@ -553,6 +635,7 @@ export async function POST(request: Request) {
     const metadata = await sharp(inputBuffer).metadata();
 
     if (!metadata.width || !metadata.height) {
+      await releaseHeldCredit("photo_missing_dimensions");
       return NextResponse.json({ error: USER_FACING.upload }, { status: 400 });
     }
 
@@ -642,6 +725,7 @@ export async function POST(request: Request) {
     }
 
     if (!imageIsValid) {
+      await releaseHeldCredit("photo_validation_failed");
       return NextResponse.json(
         { error: viewValidationFailureMessage(viewMode) },
         { status: 400 },
@@ -664,6 +748,7 @@ export async function POST(request: Request) {
           error.message === "Roboflow low confidence detection" ||
           error.message.includes("Roboflow"))
       ) {
+        await releaseHeldCredit("landmark_detection_failed");
         return NextResponse.json(
           { error: roboflowLandmarkDetectionError(viewMode) },
           { status: 422 },
@@ -699,6 +784,7 @@ export async function POST(request: Request) {
       .trim();
 
     if (!reportText) {
+      await releaseHeldCredit("empty_report_response");
       return NextResponse.json(
         { error: USER_FACING.analysisPhoto },
         { status: 502 },
@@ -841,37 +927,7 @@ export async function POST(request: Request) {
             .join("\n"),
         );
 
-        const refundResult = await refundCredit(
-          serviceClient,
-          user.id,
-          balanceColumn,
-          1,
-        );
-
-        if (refundResult.ok) {
-          console.error(
-            "[analyze] CRITICAL: credit refund succeeded after report save failure",
-            { userId: user.id, balanceColumn },
-          );
-        } else {
-          console.error(
-            "[analyze] CRITICAL: credit refund failed after report save failure",
-            { userId: user.id, balanceColumn, message: refundResult.message },
-          );
-          void sendAdminAlert(
-            "Single-view credit refund failed",
-            [
-              "What failed: Automatic credit refund after report save failure",
-              `User ID: ${user.id}`,
-              user.email ? `User email: ${user.email}` : null,
-              refundResult.message
-                ? `Error message: ${refundResult.message}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join("\n"),
-          );
-        }
+        const refundResult = await releaseHeldCredit("report_save_failed");
 
         return NextResponse.json(
           {
@@ -886,6 +942,7 @@ export async function POST(request: Request) {
       }
     } else {
       reportId = savedReport.id;
+      commitHeldCredit();
 
       if (user?.id && horseName) {
         await linkReportToHorse(serviceClient, user.id, savedReport.id, {
@@ -939,6 +996,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[analyze] failed:", error);
+    await releaseHeldCredit("unexpected_exception");
     return NextResponse.json(
       { error: toUserFacingAnalyzeError(error) },
       { status: 500 },
